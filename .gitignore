@@ -1,0 +1,47 @@
+# Built application files
+*.aab
+*.ap_
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+
+# Gradle files
+.gradle/
+build/
+
+# But KEEP the release APK for easy install
+!app/build/outputs/apk/debug/app-debug.apk
+
+# Local configuration file
+local.properties
+
+# Android Studio
+*.iml
+.idea/
+.DS_Store
+
+# Signing
+*.jks
+*.keystore
+
+# Google Services (contains API keys)
+google-services.json
+
+# Gradle wrapper JAR (download via wrapper properties)
+# Keep it for CI/CD
+# gradle/wrapper/gradle-wrapper.jar
+
+# Node modules (if any)
+node_modules/
+
+# OS files
+Thumbs.db
+.DS_Store

@@ -1,0 +1,102 @@
+[
+  {
+    "name": "SBI",
+    "fraudEmail": "fraud@sbi.co.in",
+    "nodalEmail": null
+  },
+  {
+    "name": "HDFC",
+    "fraudEmail": "grievance.redressal@hdfcbank.com",
+    "nodalEmail": null
+  },
+  {
+    "name": "ICICI",
+    "fraudEmail": "fraud.complaints@icicibank.com",
+    "nodalEmail": null
+  },
+  {
+    "name": "Axis",
+    "fraudEmail": "cyber.frauds@axisbank.com",
+    "nodalEmail": null
+  },
+  {
+    "name": "PNB",
+    "fraudEmail": "fraud.monitoring@pnb.co.in",
+    "nodalEmail": null
+  },
+  {
+    "name": "Bank of Baroda",
+    "fraudEmail": "fraud.risk@bankofbaroda.com",
+    "nodalEmail": null
+  },
+  {
+    "name": "Kotak",
+    "fraudEmail": "service.kotak@kotak.com",
+    "nodalEmail": null
+  },
+  {
+    "name": "Yes Bank",
+    "fraudEmail": "fraud.complaints@yesbank.in",
+    "nodalEmail": null
+  },
+  {
+    "name": "IDBI",
+    "fraudEmail": "fraud.monitoring@idbi.co.in",
+    "nodalEmail": null
+  },
+  {
+    "name": "Canara",
+    "fraudEmail": "fraud.monitoring@canarabank.com",
+    "nodalEmail": null
+  },
+  {
+    "name": "Union Bank",
+    "fraudEmail": "fraud.section@unionbankofindia.bank",
+    "nodalEmail": null
+  },
+  {
+    "name": "IOB",
+    "fraudEmail": "complaints@iob.in",
+    "nodalEmail": null
+  },
+  {
+    "name": "Central Bank",
+    "fraudEmail": "fraud.monitoring@centralbankofindia.co.in",
+    "nodalEmail": null
+  },
+  {
+    "name": "Bank of India",
+    "fraudEmail": "complaint@bankofindia.co.in",
+    "nodalEmail": null
+  },
+  {
+    "name": "IndusInd",
+    "fraudEmail": "customer.care@indusind.com",
+    "nodalEmail": null
+  },
+  {
+    "name": "Federal Bank",
+    "fraudEmail": "fraud.monitoring@federalbank.co.in",
+    "nodalEmail": null
+  },
+  {
+    "name": "RBL",
+    "fraudEmail": "customerservice@rblbank.com",
+    "nodalEmail": null
+  },
+  {
+    "name": "AU Small Finance",
+    "fraudEmail": "customer.care@aubank.in",
+    "nodalEmail": null
+  },
+  {
+    "name": "Karnataka Bank",
+    "fraudEmail": "fraud@ktkbank.com",
+    "nodalEmail": null
+  },
+  {
+    "name": "Bank of Maharashtra",
+    "fraudEmail": "fraud@mahabank.in",
+    "nodalEmail": null
+  }
+]
