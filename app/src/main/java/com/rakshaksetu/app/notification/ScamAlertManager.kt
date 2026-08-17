@@ -111,11 +111,7 @@ class ScamAlertManager(private val context: Context) {
     }
 
     private fun evidencePendingIntent(callId: String): PendingIntent {
-        val intent = try {
-            Intent(context, Class.forName("com.rakshaksetu.app.ui.EvidenceActivity"))
-        } catch (e: ClassNotFoundException) {
-            Intent()
-        }.apply {
+        val intent = Intent(context, com.rakshaksetu.app.ui.EvidenceActivity::class.java).apply {
             putExtra(EXTRA_CALL_ID, callId)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }

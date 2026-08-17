@@ -53,11 +53,21 @@
             </intent-filter>
         </activity>
 
+        <!-- Evidence Dossier Activity -->
+        <activity
+            android:name=".ui.EvidenceActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Material3.DayNight" />
+
         <!-- Analysis ForegroundService -->
         <service
             android:name=".service.AnalysisService"
             android:foregroundServiceType="specialUse"
-            android:exported="false" />
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Post-call audio analysis for scam detection" />
+        </service>
 
         <!-- Telephony BroadcastReceiver -->
         <receiver
@@ -86,11 +96,6 @@
                 <action android:name="com.rakshaksetu.app.ACTION_NOT_SCAM" />
             </intent-filter>
         </receiver>
-
-        <!-- Special use foreground service description (required on API 34+) -->
-        <property
-            android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-            android:value="Post-call audio analysis for scam detection" />
 
     </application>
 </manifest>

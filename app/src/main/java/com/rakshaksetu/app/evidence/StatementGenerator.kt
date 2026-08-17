@@ -21,8 +21,9 @@ object StatementGenerator {
         dateFormat.timeZone = tz
         timeFormat.timeZone = tz
         
-        val dateStr = dateFormat.format(Date(result.callEndEpoch * 1000L))
-        val timeStr = timeFormat.format(Date(result.callEndEpoch * 1000L))
+        val epochMillis = if (result.callEndEpoch > 100_000_000_000L) result.callEndEpoch else result.callEndEpoch * 1000L
+        val dateStr = dateFormat.format(Date(epochMillis))
+        val timeStr = timeFormat.format(Date(epochMillis))
         val segmentsStr = result.flaggedSegments.joinToString(" | ") { it.text }
         
         val rawTemplate = "I received a suspected fraud call from ${result.phoneNumber} on $dateStr at $timeStr for ${result.durationSec} seconds. The caller used a \"${result.scamType}\" script. Key statements from the call transcript: $segmentsStr. I am filing this complaint to request investigation and, if any payment was made, urgent freezing of the beneficiary account under the golden-hour process."
@@ -61,10 +62,34 @@ object StatementGenerator {
     }
 
     fun writeToFileWithUtf8(statement: String, file: File) {
+        file.parentFile?.let { if (!it.exists()) it.mkdirs() }
         FileOutputStream(file).use { fos ->
             OutputStreamWriter(fos, Charsets.UTF_8).use { writer ->
                 writer.write(statement)
             }
         }
     }
+
+    fun saveEvidence(context: android.content.Context, result: DetectionResult): File {
+        val dir = File(context.filesDir, "evidence/${result.callId}")
+        if (!dir.exists()) dir.mkdirs()
+        val file = File(dir, "statement.txt")
+        val statement = generate(result)
+        writeToFileWithUtf8(statement, file)
+        return file
+    }
+
+    fun getEvidenceStatement(context: android.content.Context, callId: String): String? {
+        val file = File(context.filesDir, "evidence/$callId/statement.txt")
+        return if (file.exists()) {
+            try {
+                file.readText(Charsets.UTF_8)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
 }
+

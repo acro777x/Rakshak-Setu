@@ -68,6 +68,13 @@ class AnalysisService : Service() {
 
         serviceScope.launch {
             try {
+                // DPDP Consent Check
+                val consentStore = com.rakshaksetu.app.consent.ConsentStore(applicationContext)
+                if (!consentStore.isShieldActive) {
+                    Log.d(TAG, "Shield is PAUSED by user. Skipping analysis for callId=$callId")
+                    return@launch
+                }
+
                 Log.d(TAG, "Pipeline begin for callId=$callId")
                 
                 // TODO: Replace with real AI pipeline when available
@@ -86,6 +93,14 @@ class AnalysisService : Service() {
                 
                 Log.d(TAG, "Pipeline complete: isScam=${result.isScam}, confidence=${result.confidence}")
                 
+                // Save locally for UI & Evidence
+                com.rakshaksetu.app.model.DetectionStore.saveLastResult(applicationContext, result)
+                try {
+                    com.rakshaksetu.app.evidence.StatementGenerator.saveEvidence(applicationContext, result)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not generate evidence statement file", e)
+                }
+
                 // Emit result to notification system
                 alertManager.showScamAlert(result)
                 

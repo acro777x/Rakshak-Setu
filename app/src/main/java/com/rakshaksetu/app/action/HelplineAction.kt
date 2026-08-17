@@ -36,7 +36,8 @@ object HelplineAction {
     fun buildOperatorScript(result: DetectionResult): String {
         val format = SimpleDateFormat("dd-MM-yyyy HH:mm:ss", Locale.getDefault())
         format.timeZone = TimeZone.getTimeZone("Asia/Kolkata")
-        val dateStr = format.format(Date(result.callEndEpoch * 1000L))
+        val epochMillis = if (result.callEndEpoch > 100_000_000_000L) result.callEndEpoch else result.callEndEpoch * 1000L
+        val dateStr = format.format(Date(epochMillis))
         
         return """
             I received a scam call on $dateStr.

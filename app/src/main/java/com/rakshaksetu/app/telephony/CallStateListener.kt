@@ -3,12 +3,46 @@ package com.rakshaksetu.app.telephony
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Build
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
+import android.util.Log
 import com.rakshaksetu.app.service.AnalysisService
 import java.util.UUID
+
+/**
+ * Persistent CallStateTracker surviving process death during active phone calls.
+ */
+object CallStateTracker {
+    private const val PREFS_NAME = "rakshak_call_state_tracker"
+    private const val KEY_START_TIME = "key_start_time"
+    private const val KEY_INCOMING_NUMBER = "key_incoming_number"
+
+    private fun getPrefs(context: Context): SharedPreferences =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    fun recordCallStart(context: Context, timeMs: Long = System.currentTimeMillis()) {
+        getPrefs(context).edit().putLong(KEY_START_TIME, timeMs).apply()
+    }
+
+    fun recordIncomingNumber(context: Context, number: String?) {
+        if (!number.isNullOrBlank()) {
+            getPrefs(context).edit().putString(KEY_INCOMING_NUMBER, number).apply()
+        }
+    }
+
+    fun getCallStartTime(context: Context): Long =
+        getPrefs(context).getLong(KEY_START_TIME, 0L)
+
+    fun getIncomingNumber(context: Context): String? =
+        getPrefs(context).getString(KEY_INCOMING_NUMBER, null)
+
+    fun reset(context: Context) {
+        getPrefs(context).edit().clear().apply()
+    }
+}
 
 class CallStateReceiver : BroadcastReceiver() {
 
@@ -22,10 +56,10 @@ class CallStateReceiver : BroadcastReceiver() {
                     handleCallEnd(context)
                 }
                 TelephonyManager.EXTRA_STATE_OFFHOOK -> {
-                    CallStateTracker.callStartTime = System.currentTimeMillis()
+                    CallStateTracker.recordCallStart(context)
                 }
                 TelephonyManager.EXTRA_STATE_RINGING -> {
-                    CallStateTracker.incomingNumber = number
+                    CallStateTracker.recordIncomingNumber(context, number)
                 }
             }
         }
@@ -33,13 +67,17 @@ class CallStateReceiver : BroadcastReceiver() {
     
     private fun handleCallEnd(context: Context) {
         val endTime = System.currentTimeMillis()
-        val startTime = CallStateTracker.callStartTime
+        val startTime = CallStateTracker.getCallStartTime(context)
+        val incomingNumber = CallStateTracker.getIncomingNumber(context)
+
         if (startTime > 0) {
             val durationSec = (endTime - startTime) / 1000
             if (durationSec >= 10) {
+                Log.d("CallStateReceiver", "Call ended (duration=${durationSec}s). Triggering AnalysisService.")
                 val serviceIntent = Intent(context, AnalysisService::class.java).apply {
                     putExtra(AnalysisService.EXTRA_CALL_ID, UUID.randomUUID().toString())
-                    putExtra(AnalysisService.EXTRA_PHONE_NUMBER, CallStateTracker.incomingNumber ?: "Unknown")
+                    putExtra(AnalysisService.EXTRA_PHONE_NUMBER, incomingNumber ?: "Unknown")
+                    putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     context.startForegroundService(serviceIntent)
@@ -48,17 +86,7 @@ class CallStateReceiver : BroadcastReceiver() {
                 }
             }
         }
-        CallStateTracker.reset()
-    }
-}
-
-object CallStateTracker {
-    var callStartTime: Long = 0L
-    var incomingNumber: String? = null
-    
-    fun reset() {
-        callStartTime = 0L
-        incomingNumber = null
+        CallStateTracker.reset(context)
     }
 }
 
@@ -127,13 +155,16 @@ class RakshakCallStateListener(private val context: Context) {
         when (state) {
             TelephonyManager.CALL_STATE_IDLE -> {
                 val endTime = System.currentTimeMillis()
-                val startTime = CallStateTracker.callStartTime
+                val startTime = CallStateTracker.getCallStartTime(context)
+                val incomingNumber = CallStateTracker.getIncomingNumber(context) ?: phoneNumber
+
                 if (startTime > 0) {
                     val durationSec = (endTime - startTime) / 1000
                     if (durationSec >= 10) {
                         val serviceIntent = Intent(context, AnalysisService::class.java).apply {
                             putExtra(AnalysisService.EXTRA_CALL_ID, UUID.randomUUID().toString())
-                            putExtra(AnalysisService.EXTRA_PHONE_NUMBER, CallStateTracker.incomingNumber ?: phoneNumber ?: "Unknown")
+                            putExtra(AnalysisService.EXTRA_PHONE_NUMBER, incomingNumber ?: "Unknown")
+                            putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
                         }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             context.startForegroundService(serviceIntent)
@@ -142,14 +173,14 @@ class RakshakCallStateListener(private val context: Context) {
                         }
                     }
                 }
-                CallStateTracker.reset()
+                CallStateTracker.reset(context)
             }
             TelephonyManager.CALL_STATE_OFFHOOK -> {
-                CallStateTracker.callStartTime = System.currentTimeMillis()
+                CallStateTracker.recordCallStart(context)
             }
             TelephonyManager.CALL_STATE_RINGING -> {
                 if (phoneNumber != null) {
-                    CallStateTracker.incomingNumber = phoneNumber
+                    CallStateTracker.recordIncomingNumber(context, phoneNumber)
                 }
             }
         }

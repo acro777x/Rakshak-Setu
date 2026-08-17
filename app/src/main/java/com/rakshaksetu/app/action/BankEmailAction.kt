@@ -43,7 +43,8 @@ object BankEmailAction {
     fun buildEmailIntent(result: DetectionResult, bank: BankInfo): Intent {
         val dateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
         dateFormat.timeZone = TimeZone.getTimeZone("Asia/Kolkata")
-        val dateStr = dateFormat.format(Date(result.callEndEpoch * 1000L))
+        val epochMillis = if (result.callEndEpoch > 100_000_000_000L) result.callEndEpoch else result.callEndEpoch * 1000L
+        val dateStr = dateFormat.format(Date(epochMillis))
         
         val subject = "URGENT: Suspected Fraud — Request u/s RBI Zero Liability, dt $dateStr"
         val statement = StatementGenerator.generate(result)
