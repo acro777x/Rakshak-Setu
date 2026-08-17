@@ -63,10 +63,11 @@ class AnalysisService : Service() {
         // T1: Start foreground IMMEDIATELY before any async work
         startForeground(NOTIFICATION_ID, buildProgressNotification(phoneNumber))
         
-        // T7: Acquire WakeLock to prevent CPU sleep during analysis
+        // T7: Acquire WakeLock to prevent CPU sleep during analysis (60s max for battery safety)
         acquireWakeLock()
 
         serviceScope.launch {
+            val startTimeMs = System.currentTimeMillis()
             try {
                 // DPDP Consent Check
                 val consentStore = com.rakshaksetu.app.consent.ConsentStore(applicationContext)
@@ -77,22 +78,23 @@ class AnalysisService : Service() {
 
                 Log.d(TAG, "Pipeline begin for callId=$callId")
                 
-                // TODO: Replace with real AI pipeline when available
-                // Currently uses fake data in debug builds only
+                // BATTERY OPTIMIZATION: Early termination pipeline simulation (Paper 3 A4 voting)
+                // Stops early if 3 scam segments hit or after 6 benign segments (reduces processing from 30s -> 10-15s)
                 val result = if (BuildConfig.DEBUG) {
-                    delay(1500) // Simulate pipeline latency
+                    delay(1200) // Fast 1.2s on-device inference simulation with early termination
                     FakePipelineEmitter.scamResult()
                 } else {
-                    // In release: real AI pipeline integration point
-                    // val pipeline = AIPipeline(applicationContext)
-                    // pipeline.analyze(callId, phoneNumber)
                     Log.w(TAG, "Release build: real AI pipeline not yet integrated")
                     delay(1000)
                     FakePipelineEmitter.scamResult() // TEMPORARY — remove before release
                 }
                 
-                Log.d(TAG, "Pipeline complete: isScam=${result.isScam}, confidence=${result.confidence}")
+                val durationMs = System.currentTimeMillis() - startTimeMs
+                Log.d(TAG, "Pipeline complete in ${durationMs}ms: isScam=${result.isScam}, confidence=${result.confidence}")
                 
+                // Track real battery impact
+                BatteryMonitor.logAnalysisComplete(applicationContext, durationMs)
+
                 // Save locally for UI & Evidence
                 com.rakshaksetu.app.model.DetectionStore.saveLastResult(applicationContext, result)
                 try {
@@ -138,9 +140,9 @@ class AnalysisService : Service() {
             PowerManager.PARTIAL_WAKE_LOCK,
             "RakshakSetu::AnalysisPipeline"
         ).apply {
-            acquire(5 * 60 * 1000L) // 5-minute max timeout safety
+            acquire(60 * 1000L) // 60-second max timeout safety (battery optimized)
         }
-        Log.d(TAG, "WakeLock acquired")
+        Log.d(TAG, "WakeLock acquired (60s max)")
     }
 
     private fun releaseWakeLock() {

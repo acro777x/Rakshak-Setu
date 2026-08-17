@@ -65,6 +65,9 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
+    // WorkManager for battery-efficient deferred background tasks
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
     // Firebase — uncomment when google-services.json is added
     // implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
     // implementation("com.google.firebase:firebase-firestore-ktx")

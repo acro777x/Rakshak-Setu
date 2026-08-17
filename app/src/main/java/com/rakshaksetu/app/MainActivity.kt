@@ -13,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -26,10 +27,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.rakshaksetu.app.action.BankEmailAction
 import com.rakshaksetu.app.action.GovtPortalAction
 import com.rakshaksetu.app.action.HelplineAction
@@ -39,11 +43,11 @@ import com.rakshaksetu.app.model.DetectionResult
 import com.rakshaksetu.app.model.DetectionStore
 import com.rakshaksetu.app.notification.ScamAlertManager
 import com.rakshaksetu.app.service.AnalysisService
+import com.rakshaksetu.app.service.BatteryMonitor
 import com.rakshaksetu.app.service.BatteryOptimizationHelper
 import com.rakshaksetu.app.telephony.RakshakCallStateListener
 import com.rakshaksetu.app.ui.EvidenceActivity
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 class MainActivity : ComponentActivity() {
 
@@ -82,6 +86,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainDashboardScreen() {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -89,7 +94,7 @@ fun MainDashboardScreen() {
     var isShieldActive by remember { mutableStateOf(consentStore.isShieldActive) }
     var lastDetection by remember { mutableStateOf<DetectionResult?>(DetectionStore.getLastResult(context)) }
 
-    // Permission states
+    // Live permission & battery states
     var hasPhonePermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
@@ -115,6 +120,29 @@ fun MainDashboardScreen() {
                 nm?.canUseFullScreenIntent() == true
             } else true
         )
+    }
+
+    var batteryStats by remember { mutableStateOf(BatteryMonitor.getStats(context)) }
+
+    // Refresh states when user returns to foreground
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasPhonePermission = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    hasNotificationPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                }
+                isBatteryOptimizedIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
+                if (Build.VERSION.SDK_INT >= 34) {
+                    val nm = context.getSystemService(android.app.NotificationManager::class.java)
+                    hasFullScreenPermission = nm?.canUseFullScreenIntent() == true
+                }
+                lastDetection = DetectionStore.getLastResult(context)
+                batteryStats = BatteryMonitor.getStats(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -190,7 +218,7 @@ fun MainDashboardScreen() {
                             text = if (isShieldActive)
                                 "On-device AI actively monitoring post-call scam audio."
                             else
-                                "Monitoring paused. No call audio is processed.",
+                                "Monitoring paused. All call audio processing is stopped.",
                             fontSize = 13.sp,
                             color = Color(0xFFE0E0E0)
                         )
@@ -200,9 +228,12 @@ fun MainDashboardScreen() {
                         onCheckedChange = { active ->
                             isShieldActive = active
                             consentStore.isShieldActive = active
+                            if (!active) {
+                                consentStore.purgeEvidence(context)
+                            }
                             scope.launch {
                                 snackbarHostState.showSnackbar(
-                                    if (active) "Shield activated" else "Shield paused (DPDP Opt-out)"
+                                    if (active) "Shield activated" else "Shield paused & evidence purged (DPDP Opt-out)"
                                 )
                             }
                         }
@@ -210,7 +241,64 @@ fun MainDashboardScreen() {
                 }
             }
 
-            // 2. Permission Checklist
+            // 2. Battery Killer Warning (S2 Dashboard Alert)
+            AnimatedVisibility(visible = !isBatteryOptimizedIgnored) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF422800)),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.BatteryAlert, contentDescription = null, tint = Color(0xFFFFB74D))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Battery Whitelist Recommended",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFB74D),
+                                fontSize = 15.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Your phone (${BatteryOptimizationHelper.getDetectedBrandName()}) restricts background apps. To ensure scams are detected while your screen is off, grant unrestricted battery access.",
+                            fontSize = 12.sp,
+                            color = Color(0xFFFFE0B2)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    try {
+                                        BatteryOptimizationHelper.requestBatteryOptimizationExemption(context)
+                                    } catch (e: Exception) {
+                                        scope.launch { snackbarHostState.showSnackbar("Unable to open battery dialog") }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Whitelist Now", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    try {
+                                        BatteryOptimizationHelper.openManufacturerBatterySettings(context)
+                                    } catch (e: Exception) {
+                                        scope.launch { snackbarHostState.showSnackbar("Cannot open OEM settings") }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("OEM Settings", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Permission Checklist
             Text("System Permissions & Whitelist", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF242424)),
@@ -226,7 +314,8 @@ fun MainDashboardScreen() {
                         onGrant = {
                             val perms = mutableListOf(
                                 Manifest.permission.READ_PHONE_STATE,
-                                Manifest.permission.READ_CALL_LOG
+                                Manifest.permission.READ_CALL_LOG,
+                                Manifest.permission.CALL_PHONE
                             )
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 perms.add(Manifest.permission.READ_MEDIA_AUDIO)
@@ -256,12 +345,11 @@ fun MainDashboardScreen() {
                     // Battery Optimization
                     PermissionItem(
                         title = "Background Battery Whitelist",
-                        subtitle = "Prevents OS from killing analysis service",
+                        subtitle = if (isBatteryOptimizedIgnored) "Unrestricted (Protected from OS Kill)" else "Optimized (May be killed by OS)",
                         isGranted = isBatteryOptimizedIgnored,
                         onGrant = {
                             try {
                                 BatteryOptimizationHelper.requestBatteryOptimizationExemption(context)
-                                isBatteryOptimizedIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
                             } catch (e: Exception) {
                                 scope.launch { snackbarHostState.showSnackbar("Unable to open battery settings") }
                             }
@@ -289,7 +377,75 @@ fun MainDashboardScreen() {
                 }
             }
 
-            // 3. Testing & Simulation Buttons (BuildConfig.DEBUG & Demo)
+            // 4. S3 Shield Health: Battery & RAM Impact Stats
+            Text("Shield Health & Battery Impact", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2620)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Device: ${BatteryOptimizationHelper.getDetectedBrandName()}", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF81C784))
+                        Badge(containerColor = if (isBatteryOptimizedIgnored) Color(0xFF2E7D32) else Color(0xFFE65100)) {
+                            Text(
+                                text = if (isBatteryOptimizedIgnored) "UNRESTRICTED" else "OPTIMIZED",
+                                color = Color.White,
+                                modifier = Modifier.padding(3.dp),
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("Total Analyses", fontSize = 11.sp, color = Color(0xFF9E9E9E))
+                            Text("${batteryStats.totalAnalyses}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                        }
+                        Column {
+                            Text("Avg Latency", fontSize = 11.sp, color = Color(0xFF9E9E9E))
+                            Text("${batteryStats.avgDurationMs / 1000.0}s", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                        }
+                        Column {
+                            Text("Est. Daily Drain", fontSize = 11.sp, color = Color(0xFF9E9E9E))
+                            Text("< ${batteryStats.estimatedDailyDrainPercent}%", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF81C784))
+                        }
+                    }
+
+                    HorizontalDivider(color = Color(0xFF2A3B2E))
+
+                    Text("Brand Guidance Steps:", fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = Color(0xFFC8E6C9))
+                    val instructions = BatteryOptimizationHelper.getOemInstructions()
+                    instructions.forEach { step ->
+                        Text(step, fontSize = 11.sp, color = Color(0xFFE8F5E9), lineHeight = 15.sp)
+                    }
+
+                    Button(
+                        onClick = {
+                            try {
+                                BatteryOptimizationHelper.openManufacturerBatterySettings(context)
+                            } catch (e: Exception) {
+                                scope.launch { snackbarHostState.showSnackbar("Could not open brand settings") }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Open Brand Autostart Settings", fontSize = 12.sp)
+                    }
+                }
+            }
+
+            // 5. Testing & Simulation Buttons (BuildConfig.DEBUG & Demo)
             Text("Simulate AI Pipeline (Test Actions)", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -354,7 +510,7 @@ fun MainDashboardScreen() {
                 }
             }
 
-            // 4. Last Detection Result Card
+            // 6. Last Detection Result Card
             Text("Latest Detection Result", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF212121)),
@@ -406,7 +562,7 @@ fun MainDashboardScreen() {
                 }
             }
 
-            // 5. Quick Actions Row
+            // 7. Quick Actions Row
             Text("Quick Action Hub", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
             Row(
                 modifier = Modifier.fillMaxWidth(),

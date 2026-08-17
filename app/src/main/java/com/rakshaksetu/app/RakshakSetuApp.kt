@@ -10,6 +10,11 @@ class RakshakSetuApp : Application() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
+        try {
+            com.rakshaksetu.app.community.CommunityUploadWorker.schedule(this)
+        } catch (e: Exception) {
+            // Ignore error
+        }
     }
 
     private fun createNotificationChannels() {
