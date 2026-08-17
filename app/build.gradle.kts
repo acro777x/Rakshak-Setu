@@ -136,4 +136,8 @@ dependencies {
     androidTestImplementation("androidx.test:rules:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+
+    // AI Pipeline Dependencies
+    implementation("com.arthenica:ffmpeg-kit-audio:6.0-2") // A2: Decode & Normalize
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.1") // A7: Embeddings
 }
