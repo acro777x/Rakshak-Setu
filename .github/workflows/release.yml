@@ -1,4 +1,4 @@
-name: Build & Release APK
+name: Build & Release Split APKs
 
 on:
   push:
@@ -23,19 +23,22 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug & Release APK
-        run: ./gradlew assembleDebug
+      - name: Build Split APKs
+        run: ./gradlew clean assembleDebug
 
-      - name: Stage APK Artifact
+      - name: Stage APK Artifacts
         run: |
           mkdir -p release_apk
-          cp app/build/outputs/apk/debug/app-debug.apk release_apk/RakshakSetu-v1.1.0.apk
+          cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk release_apk/RakshakSetu-v1.2.0-arm64-v8a.apk || true
+          cp app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk release_apk/RakshakSetu-v1.2.0-armeabi-v7a.apk || true
 
-      - name: Upload APK to Release
+      - name: Upload APKs to Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: release_apk/RakshakSetu-v1.1.0.apk
+          files: |
+            release_apk/RakshakSetu-v1.2.0-arm64-v8a.apk
+            release_apk/RakshakSetu-v1.2.0-armeabi-v7a.apk
           draft: false
           prerelease: false
         env:

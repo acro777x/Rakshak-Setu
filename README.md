@@ -9,35 +9,38 @@ Rakshak Setu analyzes native post-call recordings **100% on-device** (Whisper AS
 
 ---
 
-## 📥 Installation
+## 📥 Installation & Downloads
 
-### Option 1: Direct APK Download (Recommended)
-1. Download **`RakshakSetu-v1.1.0.apk`** from [Releases](../../releases/latest) or from the repository `apk/` directory.
-2. Open the APK with your phone's File Manager / Downloads app.
-3. Tap **"Install"** (Allow *"Install from unknown sources"* if prompted).
+### 📱 Choose Your Architecture
+Rakshak Setu uses ABI Split APKs to provide the fastest, smallest, and most battery-efficient binary for your device:
 
-### Option 2: Install via ADB
+1. **For 95%+ Modern Phones (Samsung, Xiaomi, Realme, Vivo, Tecno, OnePlus, Pixel 2020+):**
+   - Download **[`RakshakSetu-v1.2.0-arm64-v8a.apk`](apk/RakshakSetu-v1.2.0-arm64-v8a.apk)**
+2. **For Older 32-Bit Phones:**
+   - Download **[`RakshakSetu-v1.2.0-armeabi-v7a.apk`](apk/RakshakSetu-v1.2.0-armeabi-v7a.apk)**
+
+---
+
+## 🔧 Golden Rule for Testers (Avoid "App Not Installed")
+
+If installing manually from WhatsApp, Chrome, or File Manager:
+1. **Uninstall any previous version** of Rakshak Setu from your phone.
+2. Go to **Settings → Apps → Special App Access → Install Unknown Apps** → Allow it for your browser/file manager.
+3. Open and install **`RakshakSetu-v1.2.0-arm64-v8a.apk`**.
+
+---
+
+### Option 2: Install via ADB (Developer)
 ```bash
-adb install -r apk/RakshakSetu-v1.1.0.apk
+adb install -r apk/RakshakSetu-v1.2.0-arm64-v8a.apk
 ```
 
-### Option 3: Build & Sign from Source (Windows)
+### Option 3: Build & Sign Split APKs from Source (Windows)
 ```bash
 git clone https://github.com/acro777x/Rakshak-Setu.git
 cd Rakshak-Setu\RakshakSetu
 .\build-release-apk.bat
 ```
-
----
-
-## 🔧 Troubleshooting Manual Installation
-
-| Problem | Cause | Solution |
-|---|---|---|
-| **"App not installed" / Conflict** | Previous version with different signature | `adb uninstall com.rakshaksetu.app` then install the new APK |
-| **"Blocked by Play Protect"** | Google Play Protect warning on sideload | Tap *"Install anyway"* |
-| **Unknown Sources Blocked** | File manager lacks installation permission | Settings → Apps → (Your File Manager) → *"Install unknown apps"* → Allow |
-| **Android 14/15 Compatibility** | Strict V2/V3 signature requirement | Our APK is pre-signed with V2+V3 schemes and 4-byte zipaligned |
 
 ---
 
@@ -67,7 +70,8 @@ cd Rakshak-Setu\RakshakSetu
 
 ## 🧪 Build & Test Verification
 
-- **Compiler:** Android Gradle Plugin 8.5.0 + Kotlin 2.0.0
-- **UI Toolkit:** Jetpack Compose Material3
+- **Package Validation:** `android:extractNativeLibs="true"` (No Package Manager crash)
+- **Signature Schemes:** V1 (Jar) + V2 (APK v2) + V3 (APK v3) + Zipalign 4-byte
+- **Compiler:** Android Gradle Plugin 8.5.0 + Kotlin 2.0.0 + Jetpack Compose Material3
 - **Unit Tests:** 35 Unit Tests across 6 suites (0 Failures)
 - **Real-Device Verification:** Verified on **TECNO LJ8 (Android 15)**
