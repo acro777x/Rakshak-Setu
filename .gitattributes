@@ -1,0 +1,7 @@
+# Ensure APK files and keystores are treated as binary files to prevent Git text-corruption
+*.apk binary
+*.idsig binary
+*.keystore binary
+*.jks binary
+*.jar binary
+*.so binary
