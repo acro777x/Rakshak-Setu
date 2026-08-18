@@ -34,7 +34,7 @@ object Segmenter {
     private const val WAV_HEADER_SIZE = 44
 
     /**
-     * Splits a 16kHz 16-bit mono WAV file into 5-second non-overlapping chunks.
+     * Splits a 16kHz 16-bit mono WAV file into 5-second chunks with a 1-second overlap.
      * Skips the 44-byte WAV header.
      *
      * @param wavFile The processed WAV file from AudioDecoder
@@ -44,17 +44,22 @@ object Segmenter {
         val segments = mutableListOf<AudioSegment>()
         if (!wavFile.exists()) return segments
 
-        FileInputStream(wavFile).use { fis ->
+        val OVERLAP_BYTES = 32_000 // 1 second at 16kHz, 16-bit, mono
+        val ADVANCE_BYTES = CHUNK_SIZE_BYTES - OVERLAP_BYTES // 4 seconds
+
+        java.io.RandomAccessFile(wavFile, "r").use { raf ->
             // Skip WAV header
-            val skipped = fis.skip(WAV_HEADER_SIZE.toLong())
-            if (skipped < WAV_HEADER_SIZE) return segments // invalid or too small
+            if (raf.length() <= WAV_HEADER_SIZE) return segments
+            raf.seek(WAV_HEADER_SIZE.toLong())
 
             val buffer = ByteArray(CHUNK_SIZE_BYTES)
-            var bytesRead: Int
             var index = 0
+            var startSec = 0
 
-            while (fis.read(buffer).also { bytesRead = it } != -1) {
-                // If we didn't read a full chunk, we still process the remaining audio
+            while (raf.filePointer < raf.length()) {
+                val bytesRead = raf.read(buffer)
+                if (bytesRead == -1) break
+
                 val pcmData = if (bytesRead == CHUNK_SIZE_BYTES) {
                     buffer.clone()
                 } else {
@@ -64,11 +69,20 @@ object Segmenter {
                 segments.add(
                     AudioSegment(
                         index = index,
-                        startSec = index * 5,
+                        startSec = startSec,
                         pcmData = pcmData
                     )
                 )
+
+                // Advance by 4 seconds (so we have a 1 second overlap)
+                // We calculate the next position based on where we started reading this chunk
+                val nextStartPos = raf.filePointer - bytesRead + ADVANCE_BYTES
+                if (nextStartPos < raf.length()) {
+                    raf.seek(nextStartPos)
+                }
+                
                 index++
+                startSec += 4 // startSec advances by 4 seconds each chunk
             }
         }
         
