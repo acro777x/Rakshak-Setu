@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "digital_arrest",
+      "label": "Digital Arrest / Fake CBI",
+      "phrases": [
+        "aap digital arrest ho gaye hain",
+        "CBI investigation chal rahi hai",
+        "video call par warrant dikhata hoon",
+        "paise transfer karo verification ke liye",
+        "narcotics department se bol raha hoon",
+        "aapke naam par ek parcel pakda gaya hai jisme illegal saman hai",
+        "police station aana padega ya fine bharna padega",
+        "skype download karo statement record karne ke liye",
+        "supreme court ka order hai aapka bank account freeze hoga",
+        "koi bhi information kisi aur ko mat dena ye secret hai"
+      ]
+    },
+    {
+      "id": "kyc_fraud",
+      "label": "KYC / Account Freeze",
+      "phrases": [
+        "KYC expire ho gaya",
+        "RBI ne account block kiya",
+        "abhi verify karo warna account band",
+        "link par click karke pan card update karein",
+        "bank manager bol raha hoon account suspend hone wala hai",
+        "OTP bataiye kyc complete karne ke liye",
+        "yono app ya net banking login karke details verify karein",
+        "customer care se call hai aadhar link karna zaroori hai"
+      ]
+    },
+    {
+      "id": "courier_customs",
+      "label": "Courier / Customs",
+      "phrases": [
+        "parcel customs mein atka hai",
+        "drugs pakde gaye hain",
+        "verification ke liye paise do",
+        "fedex se call hai aapka international courier return ho gaya hai",
+        "customs duty clear karne ke liye payment link bhej raha hoon",
+        "parcel mein fake passport aur credit cards mile hain",
+        "customs officer baat kar raha hoon penalty bharna padega"
+      ]
+    },
+    {
+      "id": "tech_support",
+      "label": "Fake Tech Support",
+      "phrases": [
+        "AnyDesk download karo",
+        "TeamViewer install karo",
+        "screen share karo",
+        "aapka phone hack ho gaya hai hum theek kar denge",
+        "customer support se bol raha hoon remote access dijiye",
+        "virus remove karne ke liye 10 rupees ka test payment karein",
+        "wifi router ya sim card block hone wala hai"
+      ]
+    },
+    {
+      "id": "lottery_refund",
+      "label": "Lottery / EMI Refund",
+      "phrases": [
+        "lottery nikli hai",
+        "EMI refund milega",
+        "processing fee do",
+        "25 lakh ka inaam jita hai aapne KBC mein",
+        "tax pay karna padega prize money account mein aane se pehle",
+        "insurance ka premium wapas lene ke liye otp batayein",
+        "cashback aane wala hai scanner app open karo"
+      ]
+    },
+    {
+      "id": "family_emergency",
+      "label": "Voice-Clone Family Emergency",
+      "phrases": [
+        "beta accident mein hai",
+        "turant paise bhejo",
+        "hospital mein admit hai",
+        "papa main problem mein hoon mera phone toot gaya hai",
+        "police ne pakad liya hai jaldi se gpay kardo",
+        "dost ko urgent zarurat hai 5000 paytm kar de"
+      ]
+    },
+    {
+      "id": "job_scam",
+      "label": "Fake Job / Task Scam",
+      "phrases": [
+        "part-time job",
+        "task complete karo",
+        "advance fee do",
+        "youtube video like karne ke paise milenge",
+        "telegram channels pe review daalne ka online work",
+        "registration fee 1000 rupees hai uske baad job milegi",
+        "merchant account open karo commission milega"
+      ]
+    },
+    {
+      "id": "qr_scam",
+      "label": "QR Code / Collect Request",
+      "phrases": [
+        "QR scan karo paise lene ke liye",
+        "collect request accept karo",
+        "olx se bol raha hoon advance payment send kar raha hoon",
+        "pin daloge tabhi account mein paise credit honge",
+        "paytm par notification aayi hogi pay button dabao"
+      ]
+    }
+  ]
+}
