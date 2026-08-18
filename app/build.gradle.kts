@@ -147,4 +147,7 @@ dependencies {
     // AI Pipeline Dependencies
     implementation("com.arthenica:ffmpeg-kit-audio:6.0-2") // A2: Decode & Normalize
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.1") // A7: Embeddings
+    
+    // Networking
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

@@ -9,7 +9,7 @@ class WhisperEngine(private val modelPath: String) {
         
         init {
             try {
-                System.loadLibrary("whisper")
+                System.loadLibrary("whisper-jni")
             } catch (e: UnsatisfiedLinkError) {
                 Log.e(TAG, "Native whisper library not found, falling back to mock implementation for testing.")
             }

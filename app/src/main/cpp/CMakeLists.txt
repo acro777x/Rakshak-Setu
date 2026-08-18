@@ -6,11 +6,12 @@ project("whisper-android")
 # You will need to clone `https://github.com/ggerganov/whisper.cpp.git` into `whisper/`
 # inside this cpp directory before compilation.
 
-# add_subdirectory(whisper)
+# Include the whisper.cpp subdirectory
+add_subdirectory(whisper)
 
 # Define our JNI wrapper library
 add_library(
-        whisper
+        whisper-jni
         SHARED
         whisper-jni.cpp)
 
@@ -19,5 +20,5 @@ find_library(
         log-lib
         log)
 
-# target_link_libraries(whisper whisper_core ${log-lib})
-target_link_libraries(whisper ${log-lib})
+# Link against the whisper library defined in whisper.cpp's CMakeLists.txt
+target_link_libraries(whisper-jni whisper ${log-lib})
