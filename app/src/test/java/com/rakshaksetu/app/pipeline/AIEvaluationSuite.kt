@@ -85,9 +85,9 @@ class AIEvaluationSuite {
         println("FPR:       String.format(\"%.1f%%\", falsePositiveRate * 100)")
         println("Avg Latency: ${avgLatency}ms")
         
-        // Assertions based on PRD targets: F1 >= 0.85, FPR <= 5%
-        // assertTrue("F1 Score must be >= 0.85", f1Score >= 0.85)
-        // assertTrue("FPR must be <= 5%", falsePositiveRate <= 0.05)
+        // Assertions based on PRD targets (Paper 3 A4 Voting Engine specs)
+        // assertTrue("F1 Score must be >= 0.90", f1Score >= 0.90)
+        // assertTrue("FPR must be <= 2.5%", falsePositiveRate <= 0.025)
     }
 
     private fun generateMockTestSet(): List<EvalGroundTruth> {

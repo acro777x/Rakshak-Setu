@@ -40,11 +40,19 @@ class WhisperEngine(private val modelPath: String) {
         // since whisper expects -1.0 to 1.0 normalized float samples
         val samples = decodePcmToFloatArray(pcmData)
 
+        // Prompt 1: Initial Prompt for Whisper ASR (Hinglish Domain Adaptation)
+        val WHISPER_INITIAL_PROMPT = (
+            "Yeh ek phone call recording hai. Digital arrest, CBI police warrant, " +
+            "Aadhaar card block, courier customs parcel, bank account freeze, " +
+            "KYC update expire, RBI Nodal officer, OTP transfer, money transfer, " +
+            "FIR registered, legal action, urgent refund."
+        )
+
         return transcribeNative(
             contextPointer,
             samples,
             language = "hi",
-            initialPrompt = "Hindi Hinglish conversation with English words like OTP, KYC, bank, transfer.",
+            initialPrompt = WHISPER_INITIAL_PROMPT,
             translate = false,
             noTimestamps = true
         )
