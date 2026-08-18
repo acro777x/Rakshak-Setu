@@ -1,0 +1,20 @@
+# Environments
+venv/
+env/
+.env
+
+# Models and checkpoints
+*.bin
+*.onnx
+*.pt
+*.ggml
+*.gguf
+emotion-stress-classifier/
+phi3-mini-int4-onnx/
+scam-text-classifier/
+merged_model/
+
+# Caches
+hf_cache/
+__pycache__/
+*.pyc
