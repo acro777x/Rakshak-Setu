@@ -143,7 +143,7 @@ class PipelineCoordinator(
             vote = tVoteTotal
         )
 
-        return DetectionResult(
+        val detectionResult = DetectionResult(
             callId = callId,
             phoneNumber = phoneNumber,
             callEndEpoch = callEndEpoch,
@@ -156,6 +156,14 @@ class PipelineCoordinator(
             fullTranscript = fullTranscriptBuilder.toString().trim(),
             pipelineMs = pipelineMs
         )
+
+        // Phase 4: Threat Intelligence & Forensic Evidence
+        if (detectionResult.isScam) {
+            ThreatIntelClient.reportThreat(detectionResult)
+            EvidenceManager.generateEvidencePackage(context, detectionResult)
+        }
+
+        return detectionResult
     }
 
     private fun resolveUriToPath(uri: android.net.Uri): String {
