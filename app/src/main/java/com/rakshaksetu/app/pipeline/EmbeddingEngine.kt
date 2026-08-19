@@ -10,14 +10,16 @@ object EmbeddingEngine {
     private const val TAG = "EmbeddingEngine"
     private var ortEnv: OrtEnvironment? = null
     private var ortSession: OrtSession? = null
+    private var tokenizer: WordPieceTokenizer? = null
 
     // Cache of embedded scam phrases
     private val phraseEmbeddings = mutableMapOf<String, FloatArray>()
 
-    fun init(modelPath: String) {
+    fun init(context: android.content.Context, modelPath: String) {
         try {
             ortEnv = OrtEnvironment.getEnvironment()
             ortSession = ortEnv?.createSession(modelPath, OrtSession.SessionOptions())
+            tokenizer = WordPieceTokenizer(context, "vocab.txt")
             Log.i(TAG, "ONNX Runtime initialized with model: $modelPath")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize ONNX Runtime", e)
@@ -48,33 +50,53 @@ object EmbeddingEngine {
         try {
             // 1. Tokenize text (Implementation depends on the specific tokenizer used for MiniLM)
             val tokenIds = tokenize(text)
-            val attentionMask = LongArray(tokenIds.size) { 1L }
+            val attentionMask = LongArray(tokenIds.size) { if (tokenIds[it] == 0L) 0L else 1L }
+            // token_type_ids is often required for BERT/MiniLM
+            val tokenTypeIds = LongArray(tokenIds.size) { 0L }
 
             // 2. Prepare ONNX Inputs
             val inputTensor = OnnxTensor.createTensor(ortEnv, arrayOf(tokenIds))
             val attentionTensor = OnnxTensor.createTensor(ortEnv, arrayOf(attentionMask))
+            val typeTensor = OnnxTensor.createTensor(ortEnv, arrayOf(tokenTypeIds))
             
             val inputs = mapOf(
                 "input_ids" to inputTensor,
-                "attention_mask" to attentionTensor
+                "attention_mask" to attentionTensor,
+                "token_type_ids" to typeTensor
             )
 
             // 3. Run Inference
             ortSession?.run(inputs)?.use { results ->
-                // 4. Extract embeddings (usually last_hidden_state mean pooling)
-                // This is a simplified extraction assuming output name "embeddings" or similar
+                // 4. Extract embeddings and apply Mean Pooling
                 val output = results[0].value as Array<Array<FloatArray>>
-                val sequenceEmbeddings = output[0] // first sequence
+                val sequenceEmbeddings = output[0] // shape: [seq_len, 384]
                 
-                // Mean pooling (simplified)
                 val pooled = FloatArray(384)
+                var validTokens = 0
                 for (i in sequenceEmbeddings.indices) {
-                    for (j in 0 until 384) {
-                        pooled[j] += sequenceEmbeddings[i][j]
+                    if (attentionMask[i] == 1L) {
+                        for (j in 0 until 384) {
+                            pooled[j] += sequenceEmbeddings[i][j]
+                        }
+                        validTokens++
                     }
                 }
-                for (j in 0 until 384) {
-                    pooled[j] /= sequenceEmbeddings.size
+                
+                // Average
+                var norm = 0.0f
+                if (validTokens > 0) {
+                    for (j in 0 until 384) {
+                        pooled[j] /= validTokens
+                        norm += pooled[j] * pooled[j]
+                    }
+                }
+                
+                // L2 Normalization (crucial for cosine similarity with sentence-transformers)
+                val sqrtNorm = sqrt(norm)
+                if (sqrtNorm > 0.0f) {
+                    for (j in 0 until 384) {
+                        pooled[j] /= sqrtNorm
+                    }
                 }
                 
                 return pooled
@@ -127,8 +149,6 @@ object EmbeddingEngine {
     }
 
     private fun tokenize(text: String): LongArray {
-        // Placeholder for actual BERT/MiniLM tokenization logic
-        // This usually requires a vocabulary file and a WordPiece tokenizer implementation in Kotlin
-        return LongArray(10) { 0L }
+        return tokenizer?.tokenize(text) ?: LongArray(128) { 0L }
     }
 }

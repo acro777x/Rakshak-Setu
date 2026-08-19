@@ -78,16 +78,28 @@ class AnalysisService : Service() {
 
                 Log.d(TAG, "Pipeline begin for callId=$callId")
                 
-                // BATTERY OPTIMIZATION: Early termination pipeline simulation (Paper 3 A4 voting)
-                // Stops early if 3 scam segments hit or after 6 benign segments (reduces processing from 30s -> 10-15s)
-                val result = if (BuildConfig.DEBUG) {
-                    delay(1200) // Fast 1.2s on-device inference simulation with early termination
-                    FakePipelineEmitter.scamResult()
-                } else {
-                    Log.w(TAG, "Release build: real AI pipeline not yet integrated")
-                    delay(1000)
-                    FakePipelineEmitter.scamResult() // TEMPORARY — remove before release
-                }
+                // Real AI Pipeline Integration (AI-P0-02)
+                val whisperModel = java.io.File(applicationContext.filesDir, com.rakshaksetu.app.pipeline.ModelDownloadManager.WHISPER_FILENAME).absolutePath
+                val whisperEngine = com.rakshaksetu.app.pipeline.WhisperEngine(whisperModel)
+                val votingEngine = com.rakshaksetu.app.pipeline.VotingEngine()
+                
+                val coordinator = com.rakshaksetu.app.pipeline.PipelineCoordinator(
+                    applicationContext,
+                    whisperEngine,
+                    votingEngine
+                )
+                
+                val destWavPath = java.io.File(applicationContext.cacheDir, "call_$callId.wav").absolutePath
+                val oemPaths = emptyList<String>() 
+                
+                val result = coordinator.runPipeline(
+                    callId = callId,
+                    phoneNumber = phoneNumber,
+                    callDurationSec = intent?.getIntExtra(EXTRA_DURATION_SEC, 0) ?: 0,
+                    callEndEpoch = System.currentTimeMillis(),
+                    oemPaths = oemPaths,
+                    destWavPath = destWavPath
+                ) ?: throw Exception("Pipeline returned null result")
                 
                 val durationMs = System.currentTimeMillis() - startTimeMs
                 Log.d(TAG, "Pipeline complete in ${durationMs}ms: isScam=${result.isScam}, confidence=${result.confidence}")

@@ -135,7 +135,7 @@ fun DashboardScreen() {
         val whisperModel = java.io.File(context.filesDir, ModelDownloadManager.WHISPER_FILENAME).absolutePath
         val embeddingModel = java.io.File(context.filesDir, ModelDownloadManager.EMBEDDING_FILENAME).absolutePath
         
-        com.rakshaksetu.app.pipeline.EmbeddingEngine.init(embeddingModel)
+        com.rakshaksetu.app.pipeline.EmbeddingEngine.init(this, embeddingModel)
         val whisperEngine = com.rakshaksetu.app.pipeline.WhisperEngine(whisperModel)
         
         // This validates that the engine loads successfully from internal storage
