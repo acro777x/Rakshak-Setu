@@ -81,16 +81,37 @@ class PipelineCoordinator(
 
             fullTranscriptBuilder.append(transcript).append(" ")
 
+            // Advanced AI-P2 checks
+            val isDeepfakeProb = VoiceCloneDetector.analyze(seg.pcmData)
+            val acousticEnv = AcousticAnalyzer.analyze(seg.pcmData)
+            val stressScore = EmotionAnalyzer.analyzeStress(seg.pcmData)
+            
+            if (isDeepfakeProb > 0.8f) {
+                Log.w(TAG, "⚠️ WARNING: Deepfake / Voice Clone Detected! Prob: $isDeepfakeProb")
+            }
+            if (acousticEnv == AcousticAnalyzer.Environment.CALL_CENTER) {
+                Log.w(TAG, "⚠️ WARNING: Acoustic environment matches Scam Call Center!")
+            }
+            if (stressScore > 0.7f) {
+                Log.w(TAG, "⚠️ WARNING: High victim stress detected (Probable Digital Arrest Scenario)!")
+            }
+
             // A7: Embeddings & Similarity matching
             val tEmbedStart = System.currentTimeMillis()
             val (similarity, matchedCategory) = EmbeddingEngine.findBestMatch(transcript)
             tEmbedTotal += (System.currentTimeMillis() - tEmbedStart)
 
+            // Adjust similarity based on acoustic and emotion heuristics (P2 features boost scam probability)
+            var finalSimilarity = similarity
+            if (isDeepfakeProb > 0.8f || acousticEnv == AcousticAnalyzer.Environment.CALL_CENTER) {
+                finalSimilarity = (finalSimilarity + 0.3f).coerceAtMost(1.0f)
+            }
+
             val segmentResult = SegmentResult(
                 index = seg.index,
                 startSec = seg.startSec,
                 text = transcript.trim(),
-                similarity = similarity,
+                similarity = finalSimilarity,
                 matchedCategory = matchedCategory
             )
             processedSegments.add(segmentResult)
