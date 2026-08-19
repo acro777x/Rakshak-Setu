@@ -41,8 +41,10 @@ object VadGate {
         val rms = sqrt(sumSquares / numSamples)
         val zcr = zeroCrossings.toDouble() / numSamples
 
+        // VAD Hardening (AI-P1-01):
         // For a segment to be active, it should have energy above the noise floor
         // and a reasonable zero crossing rate indicative of human speech (not just a flat hum).
-        return rms >= RMS_THRESHOLD // we can add && zcr >= ZCR_THRESHOLD if needed, but RMS is primary
+        // Using ZCR helps filter out continuous tone IVRs or background music/traffic noise.
+        return rms >= RMS_THRESHOLD && zcr >= ZCR_THRESHOLD
     }
 }
