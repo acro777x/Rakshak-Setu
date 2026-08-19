@@ -46,3 +46,9 @@ node_modules/
 Thumbs.db
 .DS_Store
 scam-text-classifier/
+
+# Datasets
+training/SMSSpamCollection
+training/smsspamcollection.zip
+training/readme
+training/attack_patterns.json
