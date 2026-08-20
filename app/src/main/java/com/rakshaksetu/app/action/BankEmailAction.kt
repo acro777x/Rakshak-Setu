@@ -61,16 +61,12 @@ object BankEmailAction {
 
     fun sendEmail(context: Context, result: DetectionResult, bank: BankInfo) {
         val intent = buildEmailIntent(result, bank)
-        if (intent.resolveActivity(context.packageManager) != null) {
-            try {
-                context.startActivity(intent)
-            } catch (e: ActivityNotFoundException) {
-                Log.e("BankEmailAction", "No email client found", e)
-            } catch (e: Exception) {
-                Log.e("BankEmailAction", "Error starting email intent", e)
-            }
-        } else {
-            Log.e("BankEmailAction", "No component can resolve email intent")
+        try {
+            context.startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            Log.e("BankEmailAction", "No email client found on device", e)
+        } catch (e: Exception) {
+            Log.e("BankEmailAction", "Error starting email intent", e)
         }
     }
 

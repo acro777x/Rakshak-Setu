@@ -25,16 +25,12 @@ object GovtPortalAction {
     }
 
     private fun startActivitySafe(context: Context, intent: Intent) {
-        if (intent.resolveActivity(context.packageManager) != null) {
-            try {
-                context.startActivity(intent)
-            } catch (e: ActivityNotFoundException) {
-                Log.e("GovtPortalAction", "Browser not found", e)
-            } catch (e: Exception) {
-                Log.e("GovtPortalAction", "Failed to start activity", e)
-            }
-        } else {
-            Log.e("GovtPortalAction", "No browser installed to handle URL")
+        try {
+            context.startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            Log.e("GovtPortalAction", "Browser app not found on device", e)
+        } catch (e: Exception) {
+            Log.e("GovtPortalAction", "Failed to start activity", e)
         }
     }
 
