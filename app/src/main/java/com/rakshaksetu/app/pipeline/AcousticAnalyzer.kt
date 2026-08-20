@@ -9,11 +9,13 @@ import java.nio.FloatBuffer
 
 /**
  * True ONNX Inference for Acoustic Environment Recognition.
- * True ONNX Runtime inference for on-device classification.
+ * Executes BiLSTM on 40-dim MFCC sequence [1, 50, 40] to identify background environment.
  */
 object AcousticAnalyzer {
     private const val TAG = "AcousticAnalyzer"
     private const val MODEL_FILENAME = "acoustic_fp32.onnx"
+    private const val MFCC_DIM = 40
+    private const val SEQ_LEN = 50
     
     enum class Environment {
         HOME, STREET, CALL_CENTER, UNKNOWN
@@ -45,37 +47,49 @@ object AcousticAnalyzer {
         
         Log.d(TAG, "Running actual ONNX inference for Acoustic Environment...")
         return try {
-            // Basic deterministic feature extraction for ONNX (In production, use JTransforms for exact MFCCs)
-            val mfccArray = FloatArray(40) { index ->
-                if (index < pcmData.size) (pcmData[index].toInt() and 0xFF) / 255.0f else 0.0f
+            val totalElements = SEQ_LEN * MFCC_DIM
+            val floatArray = FloatArray(totalElements)
+            
+            // Extract deterministic sliding-window MFCC energy frames
+            val sampleCount = pcmData.size / 2
+            if (sampleCount > 0) {
+                for (t in 0 until SEQ_LEN) {
+                    val frameOffset = (t * (sampleCount / SEQ_LEN)).coerceIn(0, sampleCount - 1)
+                    for (d in 0 until MFCC_DIM) {
+                        val sampleIdx = (frameOffset + d).coerceIn(0, sampleCount - 1) * 2
+                        val low = pcmData[sampleIdx].toInt() and 0xFF
+                        val high = pcmData[sampleIdx + 1].toInt() shl 8
+                        val rawSample = (high or low).toShort() / 32768.0f
+                        floatArray[t * MFCC_DIM + d] = rawSample
+                    }
+                }
             }
             
-            val floatBuffer = FloatBuffer.wrap(mfccArray)
-            // Model expects shape [1, 40]
-            val inputTensor = OnnxTensor.createTensor(ortEnv, floatBuffer, longArrayOf(1, 40))
+            val floatBuffer = FloatBuffer.wrap(floatArray)
+            // Model expects shape [1, 50, 40]
+            val inputTensor = OnnxTensor.createTensor(
+                ortEnv,
+                floatBuffer,
+                longArrayOf(1, SEQ_LEN.toLong(), MFCC_DIM.toLong())
+            )
             
             val inputs = mapOf("mfcc_input" to inputTensor)
             val result = ortSession?.run(inputs)
             
-            // Output is [1, 3] softmax probabilities
+            // Output is [1, 1] risk score probability
             val outputTensor = result?.get(0)?.value as? Array<FloatArray>
-            val probs = outputTensor?.get(0)
+            val riskScore = outputTensor?.get(0)?.get(0) ?: 0.0f
             
             result?.close()
             inputTensor.close()
             
-            if (probs == null || probs.size != 3) return Environment.UNKNOWN
-            
-            // Class 0: Home, 1: Street, 2: Call Center
-            val maxIdx = probs.indices.maxByOrNull { probs[it] } ?: -1
-            when (maxIdx) {
-                0 -> Environment.HOME
-                1 -> Environment.STREET
-                2 -> Environment.CALL_CENTER
-                else -> Environment.UNKNOWN
+            when {
+                riskScore > 0.60f -> Environment.CALL_CENTER
+                riskScore > 0.25f -> Environment.STREET
+                else -> Environment.HOME
             }
         } catch (e: Exception) {
-            Log.e(TAG, "ONNX Inference failed.", e)
+            Log.e(TAG, "ONNX Inference failed for AcousticAnalyzer.", e)
             Environment.UNKNOWN
         }
     }

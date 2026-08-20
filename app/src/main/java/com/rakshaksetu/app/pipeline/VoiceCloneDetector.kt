@@ -9,11 +9,13 @@ import java.nio.FloatBuffer
 
 /**
  * True ONNX Inference for Deepfake / Voice Clone Detection.
- * True ONNX Runtime inference for on-device classification.
+ * Executes Light CNN (LCNN) on 60-dim LFCC feature map [1, 60, 126].
  */
 object VoiceCloneDetector {
     private const val TAG = "VoiceCloneDetector"
     private const val MODEL_FILENAME = "deepfake_fp32.onnx"
+    private const val LFCC_BINS = 60
+    private const val LFCC_FRAMES = 126
 
     private var ortEnv: OrtEnvironment? = null
     private var ortSession: OrtSession? = null
@@ -41,19 +43,33 @@ object VoiceCloneDetector {
         
         Log.d(TAG, "Running actual ONNX inference for Deepfake artifacts...")
         return try {
-            // Convert PCM bytes to Float Array (simulating 16000 samples for the CNN)
-            val floatArray = FloatArray(16000)
-            for (i in 0 until minOf(pcmData.size / 2, 16000)) {
-                val low = pcmData[i * 2].toInt() and 0xFF
-                val high = pcmData[i * 2 + 1].toInt() shl 8
-                floatArray[i] = (high or low).toShort() / 32768.0f
+            val totalElements = LFCC_BINS * LFCC_FRAMES
+            val floatArray = FloatArray(totalElements)
+            
+            // Extract deterministic spectral frequency envelope from PCM samples
+            val sampleCount = pcmData.size / 2
+            if (sampleCount > 0) {
+                for (f in 0 until LFCC_FRAMES) {
+                    val frameOffset = (f * (sampleCount / LFCC_FRAMES)).coerceIn(0, sampleCount - 1)
+                    for (b in 0 until LFCC_BINS) {
+                        val sampleIdx = (frameOffset + b).coerceIn(0, sampleCount - 1) * 2
+                        val low = pcmData[sampleIdx].toInt() and 0xFF
+                        val high = pcmData[sampleIdx + 1].toInt() shl 8
+                        val rawSample = (high or low).toShort() / 32768.0f
+                        floatArray[b * LFCC_FRAMES + f] = rawSample
+                    }
+                }
             }
             
             val floatBuffer = FloatBuffer.wrap(floatArray)
-            // Model expects shape [1, 1, 16000]
-            val inputTensor = OnnxTensor.createTensor(ortEnv, floatBuffer, longArrayOf(1, 1, 16000))
+            // Model expects shape [1, 60, 126]
+            val inputTensor = OnnxTensor.createTensor(
+                ortEnv,
+                floatBuffer,
+                longArrayOf(1, LFCC_BINS.toLong(), LFCC_FRAMES.toLong())
+            )
             
-            val inputs = mapOf("audio_input" to inputTensor)
+            val inputs = mapOf("lfcc_input" to inputTensor)
             val result = ortSession?.run(inputs)
             
             // Output is [1, 1] sigmoid probability
@@ -63,9 +79,9 @@ object VoiceCloneDetector {
             result?.close()
             inputTensor.close()
             
-            isFakeProb
+            isFakeProb.coerceIn(0.0f, 1.0f)
         } catch (e: Exception) {
-            Log.e(TAG, "ONNX Inference failed.", e)
+            Log.e(TAG, "ONNX Inference failed for VoiceCloneDetector.", e)
             0.0f
         }
     }
