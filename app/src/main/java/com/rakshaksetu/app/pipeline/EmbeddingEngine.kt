@@ -21,7 +21,7 @@ object EmbeddingEngine {
             ortSession = ortEnv?.createSession(modelPath, OrtSession.SessionOptions())
             tokenizer = WordPieceTokenizer(context, "vocab.txt")
             Log.i(TAG, "ONNX Runtime initialized with model: $modelPath")
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to initialize ONNX Runtime", e)
         }
     }
