@@ -9,7 +9,7 @@ import java.nio.FloatBuffer
 
 /**
  * True ONNX Inference for Acoustic Environment Recognition.
- * Replaces the mock math with actual ONNX Runtime execution.
+ * True ONNX Runtime inference for on-device classification.
  */
 object AcousticAnalyzer {
     private const val TAG = "AcousticAnalyzer"

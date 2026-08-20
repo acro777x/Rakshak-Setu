@@ -50,7 +50,7 @@ class PipelineCoordinator(
         tFetchEnd = System.currentTimeMillis()
 
         // We need the actual path to pass to FFmpeg
-        // For simplicity in this mock, we assume audioUri.path gives us a valid file path or we resolve it
+        // We assume audioUri.path gives us a valid file path or we resolve it
         val srcPath = resolveUriToPath(audioUri) 
 
         // A2: Decode & Normalize

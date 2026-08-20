@@ -9,7 +9,7 @@ import java.nio.FloatBuffer
 
 /**
  * True ONNX Inference for Deepfake / Voice Clone Detection.
- * Replaces the mock math with actual ONNX Runtime execution.
+ * True ONNX Runtime inference for on-device classification.
  */
 object VoiceCloneDetector {
     private const val TAG = "VoiceCloneDetector"
