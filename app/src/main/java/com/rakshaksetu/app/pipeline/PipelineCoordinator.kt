@@ -17,6 +17,18 @@ class PipelineCoordinator(
         private const val TAG = "PipelineCoordinator"
     }
 
+    init {
+        try {
+            ScamPhraseLibrary.loadFromAssets(context)
+            ScamEngineFallback.init(context)
+            VoiceCloneDetector.init(context)
+            AcousticAnalyzer.init(context)
+            Log.i(TAG, "All Multi-Tier AI Engines & Fallback modules initialized.")
+        } catch (e: Exception) {
+            Log.w(TAG, "Engine pre-warming note: ${e.message}")
+        }
+    }
+
     /**
      * Executes the full pipeline for a recently finished call.
      * @param callId UUID of the call
@@ -96,13 +108,18 @@ class PipelineCoordinator(
                 Log.w(TAG, "⚠️ WARNING: High victim stress detected (Probable Digital Arrest Scenario)!")
             }
 
-            // A7: Embeddings & Similarity matching
+            // A7: Multi-Tier Hybrid Fallback Matching Engine
             val tEmbedStart = System.currentTimeMillis()
             val (similarity, matchedCategory) = EmbeddingEngine.findBestMatch(transcript)
+            val fallbackVerdict = ScamEngineFallback.evaluate(transcript)
             tEmbedTotal += (System.currentTimeMillis() - tEmbedStart)
 
-            // Adjust similarity based on acoustic and emotion heuristics (P2 features boost scam probability)
-            var finalSimilarity = similarity
+            // Select highest confidence between Tier 1 Neural Embedding and Tier 2/3 Fallback Engine
+            val bestScore = maxOf(similarity, if (fallbackVerdict.isScam) fallbackVerdict.confidence else 0.0f)
+            val bestCategory = matchedCategory ?: if (fallbackVerdict.isScam) fallbackVerdict.category else null
+
+            // Adjust similarity based on acoustic and deepfake heuristics
+            var finalSimilarity = bestScore
             if (isDeepfakeProb > 0.8f || acousticEnv == AcousticAnalyzer.Environment.CALL_CENTER) {
                 finalSimilarity = (finalSimilarity + 0.3f).coerceAtMost(1.0f)
             }
@@ -112,7 +129,7 @@ class PipelineCoordinator(
                 startSec = seg.startSec,
                 text = transcript.trim(),
                 similarity = finalSimilarity,
-                matchedCategory = matchedCategory
+                matchedCategory = bestCategory
             )
             processedSegments.add(segmentResult)
 
