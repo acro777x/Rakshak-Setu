@@ -80,7 +80,7 @@ class AnalysisService : Service() {
                 
                 // Real AI Pipeline Integration (AI-P0-02)
                 val whisperModel = java.io.File(applicationContext.filesDir, com.rakshaksetu.app.pipeline.ModelDownloadManager.WHISPER_FILENAME).absolutePath
-                val whisperEngine = com.rakshaksetu.app.pipeline.WhisperEngine(whisperModel)
+                val whisperEngine = com.rakshaksetu.app.pipeline.WhisperEngine(applicationContext, whisperModel)
                 val votingEngine = com.rakshaksetu.app.pipeline.VotingEngine()
                 
                 val coordinator = com.rakshaksetu.app.pipeline.PipelineCoordinator(
