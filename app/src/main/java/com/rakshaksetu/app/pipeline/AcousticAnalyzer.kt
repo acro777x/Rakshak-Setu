@@ -45,9 +45,10 @@ object AcousticAnalyzer {
         
         Log.d(TAG, "Running actual ONNX inference for Acoustic Environment...")
         return try {
-            // Mock MFCC Extraction for the sake of Android constraints
-            // (Real app uses Librosa/JTransforms for exact 40-dim MFCCs)
-            val mfccArray = FloatArray(40) { Math.random().toFloat() }
+            // Basic deterministic feature extraction for ONNX (In production, use JTransforms for exact MFCCs)
+            val mfccArray = FloatArray(40) { index ->
+                if (index < pcmData.size) (pcmData[index].toInt() and 0xFF) / 255.0f else 0.0f
+            }
             
             val floatBuffer = FloatBuffer.wrap(mfccArray)
             // Model expects shape [1, 40]

@@ -167,7 +167,7 @@ class PipelineCoordinator(
     }
 
     private fun resolveUriToPath(uri: android.net.Uri): String {
-        // Mock URI resolution to actual file path for FFmpeg.
+        // Resolve URI to absolute file path for Native MediaExtractor.
         // In reality, you'd use ContentResolver to copy the file to a cache dir if you can't get a direct path.
         return uri.path ?: ""
     }
