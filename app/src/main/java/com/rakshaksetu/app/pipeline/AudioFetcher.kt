@@ -65,17 +65,20 @@ object AudioFetcher {
      * Coordinated fetch trying MediaStore first, with retries for slow OEM writers.
      */
     suspend fun fetchWithRetries(ctx: Context, sinceEpochSec: Long, oemPaths: List<String>): Uri? {
+        // Look back 30 seconds before call end to catch recordings created at call start
+        val searchSinceEpoch = (sinceEpochSec - 30).coerceAtLeast(0)
+
         // Initial attempt
-        var uri = fetchLatestRecording(ctx, sinceEpochSec) ?: fetchFromFileObserver(sinceEpochSec, oemPaths)
+        var uri = fetchLatestRecording(ctx, searchSinceEpoch) ?: fetchFromFileObserver(searchSinceEpoch, oemPaths)
         if (uri != null) return uri
 
-        // Retry at +2s
-        delay(2000)
-        uri = fetchLatestRecording(ctx, sinceEpochSec) ?: fetchFromFileObserver(sinceEpochSec, oemPaths)
+        // Fast Retry at +500ms for fast OEM writers
+        delay(500)
+        uri = fetchLatestRecording(ctx, searchSinceEpoch) ?: fetchFromFileObserver(searchSinceEpoch, oemPaths)
         if (uri != null) return uri
 
-        // Retry at +5s
-        delay(3000)
-        return fetchLatestRecording(ctx, sinceEpochSec) ?: fetchFromFileObserver(sinceEpochSec, oemPaths)
+        // Second Retry at +1000ms
+        delay(1000)
+        return fetchLatestRecording(ctx, searchSinceEpoch) ?: fetchFromFileObserver(searchSinceEpoch, oemPaths)
     }
 }

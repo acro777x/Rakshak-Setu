@@ -72,7 +72,7 @@ class CallStateReceiver : BroadcastReceiver() {
 
         if (startTime > 0) {
             val durationSec = (endTime - startTime) / 1000
-            if (durationSec >= 10) {
+            if (durationSec >= 3) {
                 Log.d("CallStateReceiver", "Call ended (duration=${durationSec}s). Triggering AnalysisService.")
                 val serviceIntent = Intent(context, AnalysisService::class.java).apply {
                     putExtra(AnalysisService.EXTRA_CALL_ID, UUID.randomUUID().toString())
@@ -160,7 +160,7 @@ class RakshakCallStateListener(private val context: Context) {
 
                 if (startTime > 0) {
                     val durationSec = (endTime - startTime) / 1000
-                    if (durationSec >= 10) {
+                    if (durationSec >= 3) {
                         val serviceIntent = Intent(context, AnalysisService::class.java).apply {
                             putExtra(AnalysisService.EXTRA_CALL_ID, UUID.randomUUID().toString())
                             putExtra(AnalysisService.EXTRA_PHONE_NUMBER, incomingNumber ?: "Unknown")

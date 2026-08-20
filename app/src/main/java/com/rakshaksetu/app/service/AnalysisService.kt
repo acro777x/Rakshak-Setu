@@ -39,6 +39,7 @@ class AnalysisService : Service() {
         const val EXTRA_CALL_ID = "EXTRA_CALL_ID"
         const val EXTRA_PHONE_NUMBER = "EXTRA_PHONE_NUMBER"
         const val EXTRA_DURATION_SEC = "EXTRA_DURATION_SEC"
+        const val EXTRA_IS_SIMULATION = "EXTRA_IS_SIMULATION"
     }
 
     override fun onCreate() {
@@ -78,39 +79,47 @@ class AnalysisService : Service() {
 
                 Log.d(TAG, "Pipeline begin for callId=$callId")
                 
-                // Real AI Pipeline Integration (AI-P0-02)
-                val whisperModel = java.io.File(applicationContext.filesDir, com.rakshaksetu.app.pipeline.ModelDownloadManager.WHISPER_FILENAME).absolutePath
-                val whisperEngine = com.rakshaksetu.app.pipeline.WhisperEngine(applicationContext, whisperModel)
-                val votingEngine = com.rakshaksetu.app.pipeline.VotingEngine()
+                val isSimulation = intent?.getBooleanExtra(EXTRA_IS_SIMULATION, false) ?: false
                 
-                val coordinator = com.rakshaksetu.app.pipeline.PipelineCoordinator(
-                    applicationContext,
-                    whisperEngine,
-                    votingEngine
-                )
-                
-                val destWavPath = java.io.File(applicationContext.cacheDir, "call_$callId.wav").absolutePath
-                val oemPaths = listOf(
-                    "/storage/emulated/0/Recordings/Call",
-                    "/storage/emulated/0/Recordings",
-                    "/storage/emulated/0/Audio/Recordings",
-                    "/storage/emulated/0/Music/Recordings",
-                    "/storage/emulated/0/sound_recorder",
-                    "/sdcard/Recordings",
-                    "/sdcard/Recordings/Call"
-                ) 
-                
-                val result = coordinator.runPipeline(
-                    callId = callId,
-                    phoneNumber = phoneNumber,
-                    callDurationSec = intent?.getIntExtra(EXTRA_DURATION_SEC, 0) ?: 0,
-                    callEndEpoch = System.currentTimeMillis(),
-                    oemPaths = oemPaths,
-                    destWavPath = destWavPath
-                ) ?: run {
-                    Log.w(TAG, "Audio recording not found on disk, using saved/simulated test result")
+                val result = if (isSimulation) {
+                    Log.d(TAG, "Simulation mode active for callId=$callId. Emitting test verdict immediately.")
                     com.rakshaksetu.app.model.DetectionStore.getLastResult(applicationContext)
                         ?: com.rakshaksetu.app.debug.FakePipelineEmitter.scamResult()
+                } else {
+                    // Real AI Pipeline Execution
+                    val whisperModel = java.io.File(applicationContext.filesDir, com.rakshaksetu.app.pipeline.ModelDownloadManager.WHISPER_FILENAME).absolutePath
+                    val whisperEngine = com.rakshaksetu.app.pipeline.WhisperEngine(applicationContext, whisperModel)
+                    val votingEngine = com.rakshaksetu.app.pipeline.VotingEngine()
+                    
+                    val coordinator = com.rakshaksetu.app.pipeline.PipelineCoordinator(
+                        applicationContext,
+                        whisperEngine,
+                        votingEngine
+                    )
+                    
+                    val destWavPath = java.io.File(applicationContext.cacheDir, "call_$callId.wav").absolutePath
+                    val oemPaths = listOf(
+                        "/storage/emulated/0/Recordings/Call",
+                        "/storage/emulated/0/Recordings",
+                        "/storage/emulated/0/Audio/Recordings",
+                        "/storage/emulated/0/Music/Recordings",
+                        "/storage/emulated/0/sound_recorder",
+                        "/sdcard/Recordings",
+                        "/sdcard/Recordings/Call"
+                    ) 
+                    
+                    coordinator.runPipeline(
+                        callId = callId,
+                        phoneNumber = phoneNumber,
+                        callDurationSec = intent?.getIntExtra(EXTRA_DURATION_SEC, 0) ?: 0,
+                        callEndEpoch = System.currentTimeMillis(),
+                        oemPaths = oemPaths,
+                        destWavPath = destWavPath
+                    ) ?: run {
+                        Log.w(TAG, "Audio recording not found on disk, using saved/simulated test result")
+                        com.rakshaksetu.app.model.DetectionStore.getLastResult(applicationContext)
+                            ?: com.rakshaksetu.app.debug.FakePipelineEmitter.scamResult()
+                    }
                 }
                 
                 val durationMs = System.currentTimeMillis() - startTimeMs

@@ -302,9 +302,13 @@ fun MainDashboardScreen() {
                             DetectionStore.saveLastResult(context, fake)
                             lastDetection = fake
 
+                            // Trigger alert notification immediately for zero-latency test feedback
+                            ScamAlertManager(context).showScamAlert(fake)
+
                             val serviceIntent = Intent(context, AnalysisService::class.java).apply {
                                 putExtra(AnalysisService.EXTRA_CALL_ID, fake.callId)
                                 putExtra(AnalysisService.EXTRA_PHONE_NUMBER, fake.phoneNumber)
+                                putExtra(AnalysisService.EXTRA_IS_SIMULATION, true)
                             }
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                 context.startForegroundService(serviceIntent)
@@ -334,6 +338,7 @@ fun MainDashboardScreen() {
                             val serviceIntent = Intent(context, AnalysisService::class.java).apply {
                                 putExtra(AnalysisService.EXTRA_CALL_ID, fake.callId)
                                 putExtra(AnalysisService.EXTRA_PHONE_NUMBER, fake.phoneNumber)
+                                putExtra(AnalysisService.EXTRA_IS_SIMULATION, true)
                             }
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                 context.startForegroundService(serviceIntent)
