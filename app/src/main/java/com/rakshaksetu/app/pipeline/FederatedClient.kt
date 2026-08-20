@@ -1,33 +1,52 @@
 package com.rakshaksetu.app.pipeline
 
-import android.content.Context
 import android.util.Log
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.io.IOException
 
-/**
- * AI-P3-01: Federated Learning Framework
- * Simulates uploading locally trained model weights (derived from ai_feedback_loop.jsonl)
- * to the global Python federated server, preserving user privacy.
- */
 object FederatedClient {
     private const val TAG = "FederatedClient"
-    private const val SERVER_URL = "http://localhost:5000/upload_weights"
+    private const val FL_SERVER_URL = "http://10.0.2.2:5000/sync_weights"
+    
+    private val client = OkHttpClient()
+    private val JSON = "application/json; charset=utf-8".toMediaType()
 
-    fun performLocalTrainingAndSync(context: Context) {
-        Log.i(TAG, "Starting local federated training using false-positives feedback log...")
+    fun uploadLocalWeights(falsePositiveCount: Int, truePositiveCount: Int) {
+        Log.i(TAG, "Initiating Federated Learning Weight Sync...")
         
-        try {
-            // Mock: read feedback, perform lightweight local SGD, produce new weights.
-            val mockWeights = "dummy_weights_data".toByteArray()
-            
-            Log.i(TAG, "Local training complete. Uploading weights to server: $SERVER_URL")
-            
-            // In a real scenario, we'd use OkHttp or Retrofit to POST multipart form data.
-            // For now, this is a simulated upload.
-            Thread.sleep(1000)
-            Log.i(TAG, "Weights synced successfully with Federated Server.")
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Federated training/sync failed", e)
+        // Simulating weight deltas as a byte array hash for privacy
+        val weightDeltas = "A3F8E9D2... (Encrypted Differential Weights)"
+        
+        val jsonObj = JSONObject().apply {
+            put("client_id", "android-node-001")
+            put("weight_deltas", weightDeltas)
+            put("fp_count", falsePositiveCount)
+            put("tp_count", truePositiveCount)
         }
+
+        val requestBody = jsonObj.toString().toRequestBody(JSON)
+        val request = Request.Builder()
+            .url(FL_SERVER_URL)
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e(TAG, "Federated Server Unreachable.", e)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (response.isSuccessful) {
+                    val responseBody = response.body?.string()
+                    Log.i(TAG, "Weights synced successfully. Server replied: \$responseBody")
+                } else {
+                    Log.e(TAG, "FL Server rejected sync: \${response.code}")
+                }
+                response.close()
+            }
+        })
     }
 }

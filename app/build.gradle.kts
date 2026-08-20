@@ -74,13 +74,6 @@ android {
         compose = true
     }
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
@@ -145,7 +138,6 @@ dependencies {
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 
     // AI Pipeline Dependencies
-    implementation("com.arthenica:ffmpeg-kit-audio:6.0-2") // A2: Decode & Normalize
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.1") // A7: Embeddings
     
     // Networking
