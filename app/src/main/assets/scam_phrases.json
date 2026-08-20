@@ -1,107 +1,44 @@
 {
-  "version": 2,
-  "categories": [
-    {
-      "id": "digital_arrest",
-      "label": "Digital Arrest / Fake CBI",
-      "phrases": [
-        "aap digital arrest ho gaye hain",
-        "aapko arrest kiya ja raha hai",
-        "CBI officer bol raha hu",
-        "police station aana padega",
-        "warrant issue ho gaya hai",
-        "your aadhar is linked to illegal activities",
-        "money laundering case",
-        "do not disconnect this call",
-        "video call on karo turant",
-        "verification ke liye paise transfer karo",
-        "supreme court order",
-        "narcotics department",
-        "aapka parcel hold par hai",
-        "customs duty pay karna padega",
-        "drugs mile hain parcel mein"
-      ]
-    },
-    {
-      "id": "kyc_freeze",
-      "label": "KYC / Account Freeze",
-      "phrases": [
-        "aapka account freeze ho gaya hai",
-        "KYC update turant",
-        "bank manager bol raha hu",
-        "card block ho jayega",
-        "pan card link nahi hai",
-        "last date aaj hai",
-        "RBI ki guidelines",
-        "OTP bataiye jaldi",
-        "ek link bhej raha hu",
-        "anydesk app download karo",
-        "verification pending hai"
-      ]
-    },
-    {
-      "id": "lottery_refund",
-      "label": "Lottery / EMI Refund",
-      "phrases": [
-        "aapki lottery lagi hai",
-        "KBC se bol raha hu",
-        "car jeeti hai",
-        "refund aana hai",
-        "processing fee jama karo",
-        "tax pay karna padega pehle",
-        "account mein paise aayenge",
-        "offer sirf aaj ke liye hai"
-      ]
-    },
-    {
-      "id": "tech_support",
-      "label": "Fake Tech Support",
-      "phrases": [
-        "aapke laptop mein virus hai",
-        "microsoft se call hai",
-        "system hack ho gaya hai",
-        "screen share karo",
-        "teamviewer open karo",
-        "customer care se baat kar raha hu",
-        "refund policy",
-        "subscription auto renew"
-      ]
-    },
-    {
-      "id": "family_emergency",
-      "label": "Family Emergency / Voice Clone",
-      "phrases": [
-        "beta accident ho gaya hai",
-        "hospital se call kar raha hu",
-        "urgent paise chahiye",
-        "police ne pakad liya hai",
-        "kisi ko mat batana",
-        "mera phone kho gaya"
-      ]
-    },
-    {
-      "id": "job_scam",
-      "label": "Fake Job / Internship",
-      "phrases": [
-        "work from home job",
-        "guaranteed return",
-        "registration fee bharna padega",
-        "telegram group join karo",
-        "youtube video like karo",
-        "task complete karo paise milenge",
-        "advance payment kardo"
-      ]
-    },
-    {
-      "id": "qr_collect",
-      "label": "QR Code / Collect Request",
-      "phrases": [
-        "paise receive karne ke liye PIN dalo",
-        "QR code scan karo",
-        "UPI collect request bhej raha hu",
-        "payment success ke liye ok karo",
-        "paise turant mil jayenge"
-      ]
-    }
+  "digital_arrest": [
+    "aapka Aadhaar card se illegal activities detect hui hain CBI officer bol raha hoon",
+    "aap digital arrest ho gaye hain video call disconnect mat karna",
+    "main CBI se inspector Sharma bol raha hoon aapke against warrant issue hua hai",
+    "aapka phone number money laundering case mein aaya hai toh aapko arrest kiya jayega",
+    "supreme court ne aapke arrest ka order diya hai abhi 50000 transfer karo bail ke liye",
+    "narcotics department se bol raha hoon customs mein drugs mila aapke parcel mein",
+    "cyber cell se bol raha hoon aapki complaint aayi hai aapke account se fraud hua hai",
+    "digital arrest warrant jari ho gaya hai agar cooperate nahi kiya toh jail hogi"
+  ],
+  "kyc_fraud": [
+    "aapka bank account band hone wala hai KYC update karo turant",
+    "pan card link nahi hai aapka account 24 ghante mein freeze ho jayega",
+    "RBI ka new rule hai KYC update karna zaroori hai warna account suspend",
+    "SBI se bol rahe hain aapki KYC expire ho gayi hai link par click karo",
+    "aapka account suspicious activity ke karan freeze kar diya gaya hai KYC update karo",
+    "ICICI bank se bol rahe hain aapka debit card block ho jayega agar KYC nahi kiya"
+  ],
+  "loan_lottery": [
+    "aapko 5 lakh ka pre-approved loan mil raha hai bas processing fee bhejo",
+    "congratulations aapne 25 lakh ki lottery jeeti hai tax amount transfer karo",
+    "government scheme ke tahat aapko subsidy milegi bas registration fee do",
+    "PM Yojana ke under aapko 2 lakh mil rahe hain sirf verification fee dena hai",
+    "aapka loan approve ho gaya hai 1 percent interest par sirf insurance premium do"
+  ],
+  "courier_customs": [
+    "Mumbai customs mein aapke naam se ek illegal parcel pakda gaya hai",
+    "narcotics department se bol raha hoon customs mein drugs mila aapke parcel mein",
+    "FedEx se bol rahe hain aapka international courier customs mein ruka hua hai",
+    "aapke naam se Thailand se parcel aaya hai usme drugs hai customs ne pakda",
+    "international courier mein illegal items hain aapko fine pay karna padega"
+  ],
+  "job_scam": [
+    "Amazon se bol rahe hain aapko work from home job mil sakti hai daily 5000 kamao",
+    "part time job hai review likhne ka Google pay se payment hogi registration karo",
+    "aapko UN internship mila hai bas application processing fee transfer karo"
+  ],
+  "upi_qr_scam": [
+    "main aapko payment bhej raha hoon QR code scan karo aapke account mein aayega",
+    "OLX se bol rahe hain buyer ne payment kiya hai confirm karne ke liye ye link kholo",
+    "army officer hoon posting ke karan urgent sale hai advance payment karo"
   ]
 }

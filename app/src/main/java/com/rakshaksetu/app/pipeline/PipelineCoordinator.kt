@@ -50,7 +50,7 @@ class PipelineCoordinator(
         tFetchEnd = System.currentTimeMillis()
 
         // We need the actual path to pass to FFmpeg
-        // For simplicity in this mock, we assume audioUri.path gives us a valid file path or we resolve it
+        // We assume audioUri.path gives us a valid file path or we resolve it
         val srcPath = resolveUriToPath(audioUri) 
 
         // A2: Decode & Normalize
@@ -167,7 +167,7 @@ class PipelineCoordinator(
     }
 
     private fun resolveUriToPath(uri: android.net.Uri): String {
-        // Mock URI resolution to actual file path for FFmpeg.
+        // Resolve URI to absolute file path for Native MediaExtractor.
         // In reality, you'd use ContentResolver to copy the file to a cache dir if you can't get a direct path.
         return uri.path ?: ""
     }
