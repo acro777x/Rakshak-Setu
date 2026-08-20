@@ -11,6 +11,7 @@ class RakshakSetuApp : Application() {
         super.onCreate()
         createNotificationChannels()
         try {
+            com.rakshaksetu.app.telephony.RakshakCallStateListener.register(this)
             com.rakshaksetu.app.community.CommunityUploadWorker.schedule(this)
         } catch (e: Exception) {
             // Ignore error

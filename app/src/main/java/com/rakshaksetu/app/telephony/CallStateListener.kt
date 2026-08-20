@@ -70,21 +70,22 @@ class CallStateReceiver : BroadcastReceiver() {
         val startTime = CallStateTracker.getCallStartTime(context)
         val incomingNumber = CallStateTracker.getIncomingNumber(context)
 
-        if (startTime > 0) {
-            val durationSec = (endTime - startTime) / 1000
-            if (durationSec >= 3) {
-                Log.d("CallStateReceiver", "Call ended (duration=${durationSec}s). Triggering AnalysisService.")
-                val serviceIntent = Intent(context, AnalysisService::class.java).apply {
-                    putExtra(AnalysisService.EXTRA_CALL_ID, UUID.randomUUID().toString())
-                    putExtra(AnalysisService.EXTRA_PHONE_NUMBER, incomingNumber ?: "Unknown")
-                    putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
-                }
-            }
+        val durationSec = if (startTime > 0) {
+            ((endTime - startTime) / 1000).coerceAtLeast(1)
+        } else {
+            10L
+        }
+
+        Log.i("CallStateReceiver", "Call ended (duration=${durationSec}s). Triggering AnalysisService.")
+        val serviceIntent = Intent(context, AnalysisService::class.java).apply {
+            putExtra(AnalysisService.EXTRA_CALL_ID, UUID.randomUUID().toString())
+            putExtra(AnalysisService.EXTRA_PHONE_NUMBER, incomingNumber ?: "Incoming Call")
+            putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(serviceIntent)
+        } else {
+            context.startService(serviceIntent)
         }
         CallStateTracker.reset(context)
     }
@@ -106,6 +107,7 @@ class RakshakCallStateListener(private val context: Context) {
             if (instance == null) {
                 instance = RakshakCallStateListener(context.applicationContext)
                 instance?.startListening()
+                Log.i("RakshakCallStateListener", "Registered call state listener successfully.")
             }
         }
         
@@ -158,27 +160,31 @@ class RakshakCallStateListener(private val context: Context) {
                 val startTime = CallStateTracker.getCallStartTime(context)
                 val incomingNumber = CallStateTracker.getIncomingNumber(context) ?: phoneNumber
 
-                if (startTime > 0) {
-                    val durationSec = (endTime - startTime) / 1000
-                    if (durationSec >= 3) {
-                        val serviceIntent = Intent(context, AnalysisService::class.java).apply {
-                            putExtra(AnalysisService.EXTRA_CALL_ID, UUID.randomUUID().toString())
-                            putExtra(AnalysisService.EXTRA_PHONE_NUMBER, incomingNumber ?: "Unknown")
-                            putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(serviceIntent)
-                        } else {
-                            context.startService(serviceIntent)
-                        }
-                    }
+                val durationSec = if (startTime > 0) {
+                    ((endTime - startTime) / 1000).coerceAtLeast(1)
+                } else {
+                    10L
+                }
+
+                Log.i("RakshakCallStateListener", "Call ended (duration=${durationSec}s). Triggering AnalysisService.")
+                val serviceIntent = Intent(context, AnalysisService::class.java).apply {
+                    putExtra(AnalysisService.EXTRA_CALL_ID, UUID.randomUUID().toString())
+                    putExtra(AnalysisService.EXTRA_PHONE_NUMBER, incomingNumber ?: "Incoming Call")
+                    putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
                 }
                 CallStateTracker.reset(context)
             }
             TelephonyManager.CALL_STATE_OFFHOOK -> {
+                Log.d("RakshakCallStateListener", "Call OFFHOOK (call connected).")
                 CallStateTracker.recordCallStart(context)
             }
             TelephonyManager.CALL_STATE_RINGING -> {
+                Log.d("RakshakCallStateListener", "Call RINGING: $phoneNumber")
                 if (phoneNumber != null) {
                     CallStateTracker.recordIncomingNumber(context, phoneNumber)
                 }
