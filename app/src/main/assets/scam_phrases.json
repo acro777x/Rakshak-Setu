@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 4,
   "categories": [
     {
       "id": "digital_arrest",
@@ -21,7 +21,9 @@
         "सुप्रीम कोर्ट ने आपके अरेस्ट का आदेश दिया है",
         "साइबर सेल से बोल रहा हूं आपके नाम पर मनी लॉन्ड्रिंग का केस दर्ज हुआ है",
         "आधार कार्ड से गैरकानूनी काम हुआ है सीबीआई से बोल रहा हूं",
-        "सीबीआई पुलिस अधिकारी बोल रहा हूं आधार नंबर और बैंक खाता जांच करो"
+        "सीबीआई पुलिस अधिकारी बोल रहा हूं आधार नंबर और बैंक खाता जांच करो",
+        "Delhi Police crime branch officer calling non-bailable arrest warrant issued against you",
+        "Enforcement Directorate money laundering case digital arrest under Section 420"
       ]
     },
     {
@@ -35,42 +37,84 @@
         "aapka account suspicious activity ke karan freeze kar diya gaya hai KYC update karo",
         "ICICI bank se bol rahe hain aapka debit card block ho jayega agar KYC nahi kiya",
         "YONO app se aapka account verify nahi hua hai abhi details update karo",
+        "HDFC bank debit card expired share OTP to re-activate immediately",
         "आपका बैंक खाता बंद होने वाला है तुरंत केवाईसी अपडेट करो",
         "पैन कार्ड लिंक नहीं है आपका खाता 24 घंटे में फ्रीज हो जाएगा",
         "एसबीआई से बोल रहे हैं आपकी केवाईसी एक्सपायर हो गई है ओटीपी बताओ",
-        "बैंक खाता सस्पेंड हो जाएगा तुरंत ओटीपी वेरीफाई करो"
-      ]
-    },
-    {
-      "id": "loan_lottery",
-      "label": "Loan / Lottery Fraud",
-      "phrases": [
-        "aapko 5 lakh ka pre-approved loan mil raha hai bas processing fee bhejo",
-        "congratulations aapne 25 lakh ki lottery jeeti hai tax amount transfer karo",
-        "government scheme ke tahat aapko subsidy milegi bas registration fee do",
-        "PM Yojana ke under aapko 2 lakh mil rahe hain sirf verification fee dena hai",
-        "aapka loan approve ho gaya hai 1 percent interest par sirf insurance premium do"
+        "बैंक खाता सस्पेंड हो जाएगा तुरंत ओटीपी वेरीफाई करो",
+        "डेबिट कार्ड ब्लॉक हो गया है ओटीपी बताओ वरना खाता बंद",
+        "Dear customer your bank account is suspended update PAN card online via link"
       ]
     },
     {
       "id": "courier_customs",
-      "label": "Courier / Customs Extortion",
+      "label": "Courier / Customs Narcotics Extortion",
       "phrases": [
         "Mumbai customs mein aapke naam se ek illegal parcel pakda gaya hai",
         "narcotics department se bol raha hoon customs mein drugs mila aapke parcel mein",
         "FedEx se bol rahe hain aapka international courier customs mein ruka hua hai",
         "aapke naam se Thailand se parcel aaya hai usme drugs hai customs ne pakda",
         "international courier mein illegal items hain aapko fine pay karna padega",
-        "aapke parcel mein MDMA drugs mile hain customs officer bol raha hoon verification ke liye paise bhejo"
+        "aapke parcel mein MDMA drugs mile hain customs officer bol raha hoon verification ke liye paise bhejo",
+        "कस्टम्स में आपके नाम से अवैध पार्सल पकड़ा गया है",
+        "नारकोटिक्स विभाग से बोल रहा हूं पार्सल में ड्रग्स मिला है जुर्माना भरो",
+        "कूरियर पार्सल एयरपोर्ट पर कस्टम्स ने जब्त कर लिया है तुरंत पैसे भेजो",
+        "Customs department seized illegal package containing narcotics and fake passports in your name"
       ]
     },
     {
-      "id": "job_scam",
-      "label": "Fake Job / Task Fraud",
+      "id": "electricity_bill",
+      "label": "Electricity Power Cut Fraud",
+      "phrases": [
+        "Electricity board power cut scheduled today at 9pm pay pending electricity bill link click karo",
+        "Dear customer your electricity power will be disconnected tonight at 9:30 PM update bill payment",
+        "Bijli vibhag se bol rahe hain aapka electricity bill update nahi hua hai line cut ho jayegi",
+        "DHBVN electricity officer calling download electricity app to prevent power disconnect",
+        "बिजली बिल जमा नहीं किया तो आज रात 9 बजे बिजली काट दी जाएगी",
+        "बिजली विभाग से अधिकारी बोल रहा हूं तुरंत बिल अपडेट करो नहीं तो कनेक्शन कटेगा",
+        "Urgent notice electricity meter disconnected call electricity officer immediately"
+      ]
+    },
+    {
+      "id": "trai_sim_block",
+      "label": "TRAI / Telecom SIM Card Block",
+      "phrases": [
+        "TRAI notification aapka sim card illegal messaging ke liye block ho raha hai turant verify karo",
+        "Department of Telecommunications calling all 9 SIM cards issued on your Aadhaar will be disconnected in 2 hours",
+        "TRAI officer bol raha hoon aapke number se harassment calls ja rahe hain number terminate hoga",
+        "Telecom regulatory authority SIM card verification pending complete Aadhaar e-KYC",
+        "ट्राई से बोल रहे हैं आपका सिम कार्ड 2 घंटे में बंद कर दिया जाएगा",
+        "दूरसंचार विभाग से बोल रहा हूं आपके नाम के सभी सिम कार्ड ब्लॉक हो रहे हैं",
+        "Your mobile number is involved in cyber harassment press 9 to speak with TRAI executive"
+      ]
+    },
+    {
+      "id": "loan_lottery",
+      "label": "Loan / Lottery / KBC Winner Fraud",
+      "phrases": [
+        "aapko 5 lakh ka pre-approved loan mil raha hai bas processing fee bhejo",
+        "congratulations aapne 25 lakh ki lottery jeeti hai tax amount transfer karo",
+        "government scheme ke tahat aapko subsidy milegi bas registration fee do",
+        "PM Yojana ke under aapko 2 lakh mil rahe hain sirf verification fee dena hai",
+        "aapka loan approve ho gaya hai 1 percent interest par sirf insurance premium do",
+        "KBC lucky draw winner 25 lakh claim prize pay government tax in advance",
+        "बधाई हो आपने 25 लाख की लॉटरी जीती है टैक्स अमाउंट ट्रांसफर करो",
+        "आपको 5 लाख का लोन मिल रहा है सिर्फ प्रोसेसिंग फीस ट्रांसफर करो",
+        "पीएम मुद्रा योजना के तहत 10 लाख का लोन अप्रूव हुआ है जीएसटी फीस जमा करो",
+        "Congratulations you won Kaun Banega Crorepati lottery transfer TDS amount"
+      ]
+    },
+    {
+      "id": "job_task_scam",
+      "label": "Work From Home / Task Review Fraud",
       "phrases": [
         "Amazon se bol rahe hain aapko work from home job mil sakti hai daily 5000 kamao",
         "part time job hai review likhne ka Google pay se payment hogi registration karo",
-        "aapko UN internship mila hai bas application processing fee transfer karo"
+        "Instagram task earn daily 3000 rupees like videos and earn money transfer upi",
+        "aapko UN internship mila hai bas application processing fee transfer karo",
+        "घर बैठे काम करके रोजाना 5000 कमाओ टेलीग्राम ग्रुप जॉइन करो",
+        "यूट्यूब वीडियो लाइक करके पैसे कमाओ पहले प्रीपेड टास्क रिचार्ज करो",
+        "Google review writing part time work daily payout 3000 to 8000 join telegram"
       ]
     },
     {
@@ -79,23 +123,78 @@
       "phrases": [
         "main aapko payment bhej raha hoon QR code scan karo aapke account mein aayega",
         "OLX se bol rahe hain buyer ne payment kiya hai confirm karne ke liye ye link kholo",
-        "army officer hoon posting ke karan urgent sale hai advance payment karo"
+        "army officer hoon posting ke karan urgent sale hai advance payment karo",
+        "क्यूआर कोड स्कैन करो आपके खाते में पैसे आ जाएंगे यूपीआई पिन डालो",
+        "ओएलएक्स पर सामान खरीदने के लिए एडवांस पेमेंट ट्रांसफर करो",
+        "Enter your UPI PIN to receive money in your Google Pay account"
       ]
     },
     {
-      "id": "emerging_threats",
-      "label": "Emerging Threats",
+      "id": "sextortion_blackmail",
+      "label": "Sextortion / Video Call Blackmail",
       "phrases": [
-        "TRAI notification aapka sim card illegal messaging ke liye block ho raha hai turant verify karo",
-        "Electricity board power cut scheduled today at 9pm pay pending electricity bill link click karo",
-        "Instagram task earn daily 3000 rupees like videos and earn money transfer upi",
-        "Customs officer courier package contains narcotics parcel seized at airport pay penalty",
-        "Telecom department digital arrest warrant issued supreme court order transfer security deposit",
-        "KBC lucky draw winner 25 lakh claim prize pay government tax in advance",
-        "Credit card rewards reward points conversion cash bonus transfer bank account details",
+        "aapka video call record ho gaya hai YouTube par upload kar dunga paise bhejo",
+        "cyber crime branch se inspector bol raha hoon aapka viral video delete karane ke 50000 do",
+        "nude video call recording viral ho jayegi sabhi WhatsApp contacts ko bhej dunga",
+        "आपकी वीडियो कॉल रिकॉर्ड हो गई है यू-ट्यूब पर डाल दूंगा तुरंत पैसे ट्रांसफर करो",
+        "साइबर सेल अधिकारी बोल रहा हूं सोशल मीडिया से आपका आपत्तिजनक वीडियो हटाने के पैसे लगेंगे",
+        "Pay ransom immediately or your private video will be sent to all your Facebook friends"
+      ]
+    },
+    {
+      "id": "crypto_investment",
+      "label": "Stock Market / Crypto VIP Group",
+      "phrases": [
         "Stock market tips VIP telegram group guaranteed 500 percent profit invest money now",
+        "SEBI registered stock advisory guaranteed upper circuit stocks invest 1 lakh get 5 lakh",
+        "Institutional trading account institutional IPO allotment guaranteed profit",
+        "शेयर मार्केट में 500 प्रतिशत मुनाफा गारंटीड वीआईपी टेलीग्राम ग्रुप जॉइन करो",
+        "क्रिप्टो करेंसी में निवेश करके रोजाना 20000 कमाओ कंपनी में पैसे लगाओ",
+        "Guaranteed 100% daily returns forex trading VIP trading channel investment"
+      ]
+    },
+    {
+      "id": "traffic_challan",
+      "label": "Fake Traffic E-Challan Penalty",
+      "phrases": [
+        "Traffic police e-challan unpaid court summons issued against your vehicle click link to pay",
+        "RTO notice your vehicle will be impounded pay pending traffic violation fine immediately",
+        "यातायात पुलिस ई-चालान पेंडिंग है तुरंत कोर्ट फीस जमा करो नहीं तो गाड़ी जब्त होगी",
+        "ट्रैफिक चालान जमा नहीं किया तो गैर-जमानती वारंट जारी होगा लिंक से पेमेंट करो",
+        "Urgent Parivahan portal traffic challan overdue pay fine online via APK download"
+      ]
+    },
+    {
+      "id": "pension_epfo",
+      "label": "Pension / EPFO Life Certificate Fraud",
+      "phrases": [
+        "EPFO office calling update digital life certificate online or pension will stop",
+        "Pension treasury officer your monthly pension is blocked update KYC and transfer fee",
+        "ईपीएफओ कार्यालय से बोल रहा हूं पेंशन चालू रखने के लिए जीवन प्रमाण पत्र अपडेट करो",
+        "पेंशन रुक गई है तुरंत आधार बायोमेट्रिक फीस ट्रांसफर करो खाता वेरीफाई करवाओ",
+        "Treasury department life certificate expired submit pension verification charges"
+      ]
+    },
+    {
+      "id": "gas_subsidy",
+      "label": "LPG Gas Subsidy / Biometric Lock",
+      "phrases": [
         "Indane gas subsidy pending update bank passbook details via link",
-        "Aadhaar biometrics locked verify biometric update pay nominal fee at portal"
+        "Aadhaar biometrics locked verify biometric update pay nominal fee at portal",
+        "एचपी गैस सब्सिडी बंद हो गई है बैंक खाता लिंक करो ओटीपी बताओ",
+        "आधार बायोमेट्रिक लॉक हो गया है अनब्लॉक करने के लिए पोर्टल पर पेमेंट करो",
+        "LPG cylinder subsidy suspended verify consumer number on link"
+      ]
+    },
+    {
+      "id": "matrimonial_romance",
+      "label": "Matrimonial / Romance / Gift Seizure",
+      "phrases": [
+        "NRI groom sending expensive diamond jewelry parcel stuck at Delhi airport pay customs",
+        "Matrimonial profile match doctor in UK sending gift parcel pay clearance tax",
+        "मैट्रिमोनियल साइट से दोस्त बोल रहा हूं आपके लिए महंगा गिफ्ट भेजा है कस्टम्स ड्यूटी जमा करो",
+        "यूके से पार्सल भेजा है एयरपोर्ट पर कस्टम्स ऑफिसर ने रोक लिया है क्लीयरेंस फीस दो",
+        "Foreign friend sending gold package pay customs duty at courier account"
       ]
     }
   ]

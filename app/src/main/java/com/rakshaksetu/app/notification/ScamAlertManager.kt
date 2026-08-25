@@ -17,6 +17,13 @@ class ScamAlertManager(private val context: Context) {
         const val CHANNEL_ID = "scam_alert"
         const val ACTION_NOT_SCAM = "com.rakshaksetu.app.ACTION_NOT_SCAM"
         const val EXTRA_CALL_ID = "EXTRA_CALL_ID"
+
+        /** Shared masking utility for notifications/UI (keeps last 4 digits visible). */
+        fun maskNumberForDisplay(raw: String): String {
+            val digits = raw.filter { it.isDigit() }
+            if (digits.length < 4) return "+91XXXXXX0000"
+            return "+91XXXXXX${digits.takeLast(4)}"
+        }
     }
 
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -30,74 +37,93 @@ class ScamAlertManager(private val context: Context) {
             return
         }
 
-        val isHighConfidence = result.confidence >= 0.80f
+        val categoryTitle = getCategoryDisplayName(result.scamType)
+        val confPercent = (result.confidence * 100).toInt().coerceIn(60, 99)
         val notificationId = result.callId.hashCode()
 
-        val title = if (isHighConfidence) "⚠️ SCAM LIKELY: ${result.scamType}" else "Potential Scam Call Detected"
-        val content = "Do NOT transfer money or share OTP"
+        val title = "🚨 SCAM DETECTED: $categoryTitle ($confPercent% Match)"
+        val content = "⛔ DO NOT share OTP, UPI PIN, or transfer money!"
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(title)
             .setContentText(content)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(buildSummary(result)))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(buildSummary(result, categoryTitle, confPercent)))
             .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setColor(android.graphics.Color.RED)
             .setVibrate(longArrayOf(0, 500, 200, 500))
             .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))
 
-        val maskedPhone = if (result.phoneNumber.length >= 4) "+91XXXXXX${result.phoneNumber.takeLast(4)}" else "+91XXXXXX0000"
+        val maskedPhone = maskNumberForDisplay(result.phoneNumber)
         val publicNotification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(title)
-            .setContentText("Do NOT transfer money or share OTP. Caller: $maskedPhone")
+            .setContentText("⛔ DO NOT transfer money or share OTP. Caller: $maskedPhone")
             .build()
             
         builder.setPublicVersion(publicNotification)
 
-        if (isHighConfidence) {
-            builder.setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setCategory(NotificationCompat.CATEGORY_ALARM)
-                .color = android.graphics.Color.RED
-                
-            var canUseFullScreen = true
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                canUseFullScreen = notificationManager.canUseFullScreenIntent()
-            }
-            if (canUseFullScreen) {
-                builder.setFullScreenIntent(evidencePendingIntent(result.callId), true)
-            } else {
-                builder.setContentIntent(evidencePendingIntent(result.callId))
-            }
-                
-            builder.addAction(
-                android.R.drawable.ic_menu_call,
-                "Call 1930",
-                helplinePendingIntent()
-            )
-            builder.addAction(
-                android.R.drawable.ic_menu_view,
-                "View Evidence",
-                evidencePendingIntent(result.callId)
-            )
-            builder.addAction(
-                android.R.drawable.ic_menu_close_clear_cancel,
-                "Not a Scam",
-                feedbackPendingIntent(result.callId)
-            )
-        } else {
-            builder.setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .color = android.graphics.Color.YELLOW
+        var canUseFullScreen = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            canUseFullScreen = notificationManager.canUseFullScreenIntent()
         }
+        if (canUseFullScreen) {
+            builder.setFullScreenIntent(evidencePendingIntent(result.callId), true)
+        } else {
+            builder.setContentIntent(evidencePendingIntent(result.callId))
+        }
+            
+        builder.addAction(
+            android.R.drawable.ic_menu_call,
+            "Call 1930",
+            helplinePendingIntent()
+        )
+        builder.addAction(
+            android.R.drawable.ic_menu_view,
+            "View Evidence",
+            evidencePendingIntent(result.callId)
+        )
+        builder.addAction(
+            android.R.drawable.ic_menu_close_clear_cancel,
+            "Not a Scam",
+            feedbackPendingIntent(result.callId)
+        )
 
         notificationManager.notify(notificationId, builder.build())
     }
 
-    fun buildSummary(result: DetectionResult): String {
+    fun buildSummary(result: DetectionResult, categoryTitle: String = getCategoryDisplayName(result.scamType), confPercent: Int = (result.confidence * 100).toInt()): String {
         val durationStr = "${result.durationSec}s"
-        val flaggedPhrases = result.flaggedSegments.joinToString(", ") { it.text }
-        return "Do NOT transfer money or share OTP\n" +
-               "Duration: $durationStr\n" +
-               "Flagged Phrases: $flaggedPhrases"
+        val flaggedPhrases = if (result.flaggedSegments.isNotEmpty()) {
+            result.flaggedSegments.joinToString("\n• ") { "\"${it.text}\" (${(it.similarity * 100).toInt()}%)" }
+        } else {
+            "Acoustic/behavioral threat patterns detected"
+        }
+        return "⚠️ Category: $categoryTitle ($confPercent% Confidence)\n" +
+               "⛔ Action: Disconnect call. Do NOT transfer money or share OTP.\n" +
+               "⏱️ Duration: $durationStr\n" +
+               "🔍 Detected Speech:\n• $flaggedPhrases"
+    }
+
+    fun getCategoryDisplayName(scamType: String?): String = when (scamType) {
+        "digital_arrest" -> "CBI / Police Digital Arrest"
+        "kyc_fraud" -> "Bank KYC / Account Freeze / OTP"
+        "courier_customs" -> "Customs / Narcotics Parcel Seizure"
+        "electricity_bill" -> "Electricity Power Cut Fraud"
+        "trai_sim_block" -> "TRAI / SIM Card Block Scam"
+        "loan_lottery" -> "Loan / KBC / Lottery Fraud"
+        "job_task_scam" -> "Work-From-Home / Rating Task Fraud"
+        "upi_qr_scam" -> "UPI / QR Request Money Scam"
+        "sextortion_blackmail" -> "Sextortion / Video Call Blackmail"
+        "crypto_investment" -> "Stock Market / Crypto VIP Group"
+        "traffic_challan" -> "Fake Traffic E-Challan Penalty"
+        "pension_epfo" -> "Pension / EPFO Life Certificate"
+        "gas_subsidy" -> "LPG Gas Subsidy / Biometric Lock"
+        "matrimonial_romance" -> "Matrimonial / Romance Gift Scam"
+        "emerging_threats" -> "Emerging Telecom Cyber Threat"
+        else -> scamType?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "Cyber Telecom Threat"
     }
 
     private fun helplinePendingIntent(): PendingIntent {
