@@ -6,150 +6,234 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.rakshaksetu.app.BuildConfig
 import com.rakshaksetu.app.debug.FakePipelineEmitter
+import com.rakshaksetu.app.elder.ElderModeStore
+import com.rakshaksetu.app.elder.EmergencyDispatcher
+import com.rakshaksetu.app.model.DetectionStore
 import com.rakshaksetu.app.notification.ScamAlertManager
+import com.rakshaksetu.app.pipeline.ModelDownloadManager
+import com.rakshaksetu.app.pipeline.PipelineCoordinator
+import com.rakshaksetu.app.pipeline.VoskAsrEngine
+import com.rakshaksetu.app.pipeline.VotingEngine
 import com.rakshaksetu.app.security.CallIdValidator
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import java.io.File
+import java.util.concurrent.atomic.AtomicReference
 
 /**
- * ForegroundService hosting the AI analysis pipeline.
- * 
- * Runtime survival guarantees (Aristotelian truths):
- * T1: foregroundServiceType="specialUse" matches audio-analysis use case
- *     (not phoneCall — we don't intercept calls; not microphone — we read files)
- * T4: START_STICKY ensures OS restarts service after kill
- * T7: WakeLock prevents CPU sleep during analysis; BatteryOptimizationHelper
- *     guides user to whitelist on MIUI/Samsung/Realme
+ * ForegroundService hosting the post-call AI analysis pipeline.
+ *
+ * Survival guarantees on aggressive OEM ROMs (HiOS/MIUI/ColorOS):
+ *  S1: foregroundServiceType="specialUse" declared with subtype property (Android 14+).
+ *  S2: START_STICKY + PendingCallStore — a killed service resumes analysis from the
+ *      persisted record when the OS restarts it with a null intent.
+ *  S3: WakeLock held for the full inference with a bounded watchdog; release is
+ *      guaranteed in both the coroutine finally-block and onDestroy.
+ *  S4: Single-flight guard — duplicate triggers (receiver + callback race) collapse
+ *      into one running job per callId.
  */
 class AnalysisService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var wakeLock: PowerManager.WakeLock? = null
     private lateinit var alertManager: ScamAlertManager
+    private val activeCallId = AtomicReference<String?>(null)
 
     companion object {
         private const val TAG = "AnalysisService"
         const val CHANNEL_ID = "shield_status"
+        const val CHANNEL_DIAGNOSTIC_ID = "analysis_diagnostics"
         const val NOTIFICATION_ID = 1
+        const val DIAGNOSTIC_NOTIFICATION_ID_BASE = 2000
         const val EXTRA_CALL_ID = "EXTRA_CALL_ID"
         const val EXTRA_PHONE_NUMBER = "EXTRA_PHONE_NUMBER"
         const val EXTRA_DURATION_SEC = "EXTRA_DURATION_SEC"
         const val EXTRA_IS_SIMULATION = "EXTRA_IS_SIMULATION"
+
+        private const val WAKELOCK_WATCHDOG_MS = 10 * 60 * 1000L
+        private const val MAX_RESUME_ATTEMPTS = 2
+
+        /**
+         * OEM kill-recovery entry point. HiOS/MIUI swipe-up kills terminate even
+         * foreground services and block sticky restarts; the persisted PendingCallStore
+         * record lets us resume the interrupted analysis on next app open or boot.
+         * Called with a bare intent so onStartCommand takes the resume path.
+         */
+        fun resumeIfPending(context: Context) {
+            val appContext = context.applicationContext
+            val pending = PendingCallStore.get(appContext) ?: return
+            try {
+                val intent = Intent(appContext, AnalysisService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    appContext.startForegroundService(intent)
+                } else {
+                    appContext.startService(intent)
+                }
+                Log.i(TAG, "Resuming interrupted analysis for callId=${pending.callId}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to resume pending analysis (background start blocked?)", e)
+            }
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Service created")
-        ensureNotificationChannel()
+        ensureNotificationChannels()
         alertManager = ScamAlertManager(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val callId = intent?.getStringExtra(EXTRA_CALL_ID) ?: return stopAndReturn()
-        val phoneNumber = intent.getStringExtra(EXTRA_PHONE_NUMBER) ?: "Unknown"
-        
-        // T-SECURITY: Validate callId to prevent path traversal
+        // S2: Sticky restart always delivers a null intent — resume persisted work.
+        var callId = intent?.getStringExtra(EXTRA_CALL_ID)
+        var phoneNumber = intent?.getStringExtra(EXTRA_PHONE_NUMBER)
+        var durationSec = intent?.getIntExtra(EXTRA_DURATION_SEC, 0)
+        var isSimulation = intent?.getBooleanExtra(EXTRA_IS_SIMULATION, false) ?: false
+
+        if (callId == null) {
+            val pending = PendingCallStore.get(this)
+            if (pending == null) {
+                Log.w(TAG, "Restart without intent and no pending record. Stopping.")
+                return stopAndReturn()
+            }
+            val attempts = PendingCallStore.incrementAttempts(this)
+            if (attempts > MAX_RESUME_ATTEMPTS) {
+                Log.w(TAG, "Pending call exceeded $MAX_RESUME_ATTEMPTS resume attempts. Dropping.")
+                notifyDiagnostic(
+                    pending.callId,
+                    "Call analysis was interrupted repeatedly by system battery management.",
+                    "Open Rakshak Setu → Battery Whitelist to fix."
+                )
+                PendingCallStore.clear(this)
+                return stopAndReturn()
+            }
+            Log.i(TAG, "Sticky resume attempt $attempts for callId=${pending.callId}")
+            callId = pending.callId
+            phoneNumber = pending.phoneNumber
+            durationSec = pending.durationSec
+            isSimulation = false
+        }
+
         if (!CallIdValidator.isValid(callId)) {
             Log.e(TAG, "Invalid callId rejected: $callId")
             return stopAndReturn()
         }
 
-        Log.d(TAG, "Analysis starting for callId=$callId")
-        
-        // T1: Start foreground IMMEDIATELY before any async work
-        startForeground(NOTIFICATION_ID, buildProgressNotification(phoneNumber))
-        
-        // T7: Acquire WakeLock to prevent CPU sleep during analysis (60s max for battery safety)
+        // S4: single-flight per callId
+        if (!activeCallId.compareAndSet(null, callId)) {
+            if (activeCallId.get() == callId) {
+                Log.d(TAG, "Duplicate trigger suppressed for callId=$callId")
+            } else {
+                Log.d(TAG, "Another analysis in flight; re-persisting pending call.")
+                PendingCallStore.save(
+                    this,
+                    PendingCallStore.PendingCallRecord(callId!!, phoneNumber ?: "Unknown", durationSec ?: 0, System.currentTimeMillis())
+                )
+                return START_STICKY
+            }
+        }
+
+        startForeground(NOTIFICATION_ID, buildProgressNotification(phoneNumber ?: ""))
         acquireWakeLock()
 
+        val fCallId = callId
+        val fPhone = phoneNumber ?: "Unknown"
+        val fDuration = durationSec ?: 0
+        val fSim = isSimulation && BuildConfig.DEBUG // simulations never run in release builds
+
         serviceScope.launch {
-            val startTimeMs = System.currentTimeMillis()
             try {
                 // DPDP Consent Check
                 val consentStore = com.rakshaksetu.app.consent.ConsentStore(applicationContext)
                 if (!consentStore.isShieldActive) {
-                    Log.d(TAG, "Shield is PAUSED by user. Skipping analysis for callId=$callId")
+                    Log.d(TAG, "Shield is PAUSED by user. Skipping analysis for callId=$fCallId")
+                    PendingCallStore.clear(applicationContext)
                     return@launch
                 }
 
-                Log.d(TAG, "Pipeline begin for callId=$callId")
-                
-                val isSimulation = intent?.getBooleanExtra(EXTRA_IS_SIMULATION, false) ?: false
-                
-                val result = if (isSimulation) {
-                    Log.d(TAG, "Simulation mode active for callId=$callId. Emitting test verdict immediately.")
-                    com.rakshaksetu.app.model.DetectionStore.getLastResult(applicationContext)
-                        ?: com.rakshaksetu.app.debug.FakePipelineEmitter.scamResult()
+                Log.d(TAG, "Pipeline begin for callId=$fCallId (sim=$fSim)")
+                val startTimeMs = System.currentTimeMillis()
+
+                val result = if (fSim) {
+                    DetectionStore.getLastResult(applicationContext)
+                        ?: FakePipelineEmitter.scamResult()
                 } else {
-                    // Real AI Pipeline Execution
-                    val whisperModel = java.io.File(applicationContext.filesDir, com.rakshaksetu.app.pipeline.ModelDownloadManager.WHISPER_FILENAME).absolutePath
-                    val whisperEngine = com.rakshaksetu.app.pipeline.WhisperEngine(applicationContext, whisperModel)
-                    val votingEngine = com.rakshaksetu.app.pipeline.VotingEngine()
-                    
-                    val coordinator = com.rakshaksetu.app.pipeline.PipelineCoordinator(
+                    val asrEngine = VoskAsrEngine(applicationContext)
+                    val coordinator = PipelineCoordinator(
                         applicationContext,
-                        whisperEngine,
-                        votingEngine
+                        asrEngine,
+                        VotingEngine()
                     )
-                    
-                    val destWavPath = java.io.File(applicationContext.cacheDir, "call_$callId.wav").absolutePath
-                    val oemPaths = listOf(
-                        "/storage/emulated/0/Recordings/Call",
-                        "/storage/emulated/0/Recordings",
-                        "/storage/emulated/0/Audio/Recordings",
-                        "/storage/emulated/0/Music/Recordings",
-                        "/storage/emulated/0/sound_recorder",
-                        "/sdcard/Recordings",
-                        "/sdcard/Recordings/Call"
-                    ) 
-                    
+
+                    val destWavPath =
+                        File(applicationContext.cacheDir, "call_$fCallId.wav").absolutePath
+
                     coordinator.runPipeline(
-                        callId = callId,
-                        phoneNumber = phoneNumber,
-                        callDurationSec = intent?.getIntExtra(EXTRA_DURATION_SEC, 0) ?: 0,
+                        callId = fCallId,
+                        phoneNumber = fPhone,
+                        callDurationSec = fDuration,
                         callEndEpoch = System.currentTimeMillis(),
-                        oemPaths = oemPaths,
                         destWavPath = destWavPath
-                    ) ?: run {
-                        Log.w(TAG, "Audio recording not found on disk, using saved/simulated test result")
-                        com.rakshaksetu.app.model.DetectionStore.getLastResult(applicationContext)
-                            ?: com.rakshaksetu.app.debug.FakePipelineEmitter.scamResult()
-                    }
+                    )
+                    // null == recording genuinely unavailable -> handled below, NEVER faked
                 }
-                
+
                 val durationMs = System.currentTimeMillis() - startTimeMs
-                Log.d(TAG, "Pipeline complete in ${durationMs}ms: isScam=${result.isScam}, confidence=${result.confidence}")
-                
-                // Track real battery impact
                 BatteryMonitor.logAnalysisComplete(applicationContext, durationMs)
 
-                // Save locally for UI & Evidence
-                com.rakshaksetu.app.model.DetectionStore.saveLastResult(applicationContext, result)
+                if (result == null) {
+                    Log.w(TAG, "Recording unavailable for callId=$fCallId — emitting diagnostic only.")
+                    notifyDiagnostic(
+                        fCallId,
+                        "Could not locate the call recording after hangup.",
+                        "The OEM recorder may not have saved it, or indexing took too long. No verdict was produced."
+                    )
+                    return@launch
+                }
+
+                Log.d(TAG, "Pipeline complete in ${durationMs}ms: isScam=${result.isScam}, confidence=${result.confidence}")
+
+                DetectionStore.saveLastResult(applicationContext, result)
                 try {
                     com.rakshaksetu.app.evidence.StatementGenerator.saveEvidence(applicationContext, result)
                 } catch (e: Exception) {
                     Log.w(TAG, "Could not generate evidence statement file", e)
                 }
 
-                // Emit result to notification system
                 alertManager.showScamAlert(result)
-                
-                Log.d(TAG, "Result emitted for callId=$callId")
+
+                // M3: Elder Mode emergency dispatch (opt-in auto-send path)
+                val elderStore = ElderModeStore(applicationContext)
+                if (elderStore.isEnabled &&
+                    elderStore.autoSendSmsEnabled &&
+                    EmergencyDispatcher.qualifiesForAutoSend(result)
+                ) {
+                    EmergencyDispatcher.dispatch(applicationContext, result, autoTriggered = true)
+                }
+
+                Log.d(TAG, "Result emitted for callId=$fCallId")
             } catch (e: Exception) {
-                // T-CRITICAL: Pipeline crash must NOT bring down service
-                Log.e(TAG, "Pipeline failed for callId=$callId", e)
+                // T-CRITICAL: Pipeline crash must NOT bring down the service silently
+                Log.e(TAG, "Pipeline failed for callId=$fCallId", e)
             } finally {
+                File(cacheDir, "call_$fCallId.wav").delete()
+                PendingCallStore.clear(applicationContext)
+                activeCallId.compareAndSet(fCallId, null)
                 releaseWakeLock()
                 stopSelf(startId)
             }
         }
 
-        // T4: START_STICKY — OS will restart service if killed mid-analysis
         return START_STICKY
     }
 
@@ -157,8 +241,8 @@ class AnalysisService : Service() {
 
     override fun onDestroy() {
         Log.d(TAG, "Service destroyed")
-        serviceScope.cancel()
         releaseWakeLock()
+        serviceScope.cancel()
         super.onDestroy()
     }
 
@@ -173,27 +257,48 @@ class AnalysisService : Service() {
             PowerManager.PARTIAL_WAKE_LOCK,
             "RakshakSetu::AnalysisPipeline"
         ).apply {
-            acquire(60 * 1000L) // 60-second max timeout safety (battery optimized)
+            setReferenceCounted(false)
+            acquire(WAKELOCK_WATCHDOG_MS)
         }
-        Log.d(TAG, "WakeLock acquired (60s max)")
+        Log.d(TAG, "WakeLock acquired (watchdog ${WAKELOCK_WATCHDOG_MS / 1000}s)")
     }
 
     private fun releaseWakeLock() {
         wakeLock?.let {
-            if (it.isHeld) {
-                it.release()
-                Log.d(TAG, "WakeLock released")
+            try {
+                if (it.isHeld) {
+                    it.release()
+                    Log.d(TAG, "WakeLock released")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "WakeLock release issue", e)
             }
         }
         wakeLock = null
     }
 
-    private fun buildProgressNotification(phoneNumber: String = ""): Notification {
-        val text = if (phoneNumber.isNotBlank()) 
-            "Analyzing call from $phoneNumber..." 
-        else 
+    private fun notifyDiagnostic(relatedCallId: String, title: String, detail: String) {
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notification = NotificationCompat.Builder(this, CHANNEL_DIAGNOSTIC_ID)
+                .setSmallIcon(android.R.drawable.stat_notify_error)
+                .setContentTitle(title)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(detail))
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setAutoCancel(true)
+                .build()
+            nm.notify((DIAGNOSTIC_NOTIFICATION_ID_BASE + relatedCallId.hashCode()).let { if (it < 0) -it else it }, notification)
+        } catch (e: Exception) {
+            Log.w(TAG, "Diagnostic notification failed", e)
+        }
+    }
+
+    internal fun buildProgressNotification(phoneNumber: String): Notification {
+        val text = if (phoneNumber.isNotBlank())
+            "Analyzing call from $phoneNumber..."
+        else
             "Analyzing last call..."
-            
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Rakshak Setu")
             .setContentText(text)
@@ -203,15 +308,21 @@ class AnalysisService : Service() {
             .build()
     }
 
-    private fun ensureNotificationChannel() {
+    private fun ensureNotificationChannels() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (manager.getNotificationChannel(CHANNEL_ID) == null) {
-            val channel = NotificationChannel(
-                CHANNEL_ID, "Shield Status", NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Shows progress of call analysis"
-            }
-            manager.createNotificationChannel(channel)
+            manager.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "Shield Status", NotificationManager.IMPORTANCE_LOW).apply {
+                    description = "Shows progress of call analysis"
+                }
+            )
+        }
+        if (manager.getNotificationChannel(CHANNEL_DIAGNOSTIC_ID) == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(CHANNEL_DIAGNOSTIC_ID, "Analysis Diagnostics", NotificationManager.IMPORTANCE_LOW).apply {
+                    description = "Non-alert status messages about skipped analyses"
+                }
+            )
         }
     }
 }
