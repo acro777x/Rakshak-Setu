@@ -24,10 +24,15 @@ class AllScamCategoriesTest {
     }
 
     @Test
-    fun `corpus contains all 14 major scam categories`() {
+    fun `corpus contains all 20 major scam categories`() {
         val expectedCategories = setOf(
             "digital_arrest",
+            "ai_voice_kidnap",
+            "screen_share_scam",
+            "loan_extortion",
             "kyc_fraud",
+            "esim_swap_5g",
+            "govt_subsidy_phishing",
             "courier_customs",
             "electricity_bill",
             "trai_sim_block",
@@ -39,7 +44,8 @@ class AllScamCategoriesTest {
             "traffic_challan",
             "pension_epfo",
             "gas_subsidy",
-            "matrimonial_romance"
+            "matrimonial_romance",
+            "customer_care_poisoning"
         )
 
         val actualCategories = corpus.categories.map { it.id }.toSet()

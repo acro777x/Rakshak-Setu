@@ -109,7 +109,12 @@ class ScamAlertManager(private val context: Context) {
 
     fun getCategoryDisplayName(scamType: String?): String = when (scamType) {
         "digital_arrest" -> "CBI / Police Digital Arrest"
+        "ai_voice_kidnap" -> "AI Voice Cloning / Kidnapping"
+        "screen_share_scam" -> "Screen Share / Remote Access"
+        "loan_extortion" -> "Loan App / Morphed Photo Threat"
         "kyc_fraud" -> "Bank KYC / Account Freeze / OTP"
+        "esim_swap_5g" -> "5G Upgrade / eSIM Swap Fraud"
+        "govt_subsidy_phishing" -> "PM Kisan / Govt Subsidy Scam"
         "courier_customs" -> "Customs / Narcotics Parcel Seizure"
         "electricity_bill" -> "Electricity Power Cut Fraud"
         "trai_sim_block" -> "TRAI / SIM Card Block Scam"
@@ -122,6 +127,7 @@ class ScamAlertManager(private val context: Context) {
         "pension_epfo" -> "Pension / EPFO Life Certificate"
         "gas_subsidy" -> "LPG Gas Subsidy / Biometric Lock"
         "matrimonial_romance" -> "Matrimonial / Romance Gift Scam"
+        "customer_care_poisoning" -> "Fake Customer Care / Refund Scam"
         "emerging_threats" -> "Emerging Telecom Cyber Threat"
         else -> scamType?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "Cyber Telecom Threat"
     }

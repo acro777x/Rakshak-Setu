@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "categories": [
     {
       "id": "digital_arrest",
@@ -23,12 +23,52 @@
         "आधार कार्ड से गैरकानूनी काम हुआ है सीबीआई से बोल रहा हूं",
         "सीबीआई पुलिस अधिकारी बोल रहा हूं आधार नंबर और बैंक खाता जांच करो",
         "Delhi Police crime branch officer calling non-bailable arrest warrant issued against you",
-        "Enforcement Directorate money laundering case digital arrest under Section 420"
+        "Enforcement Directorate money laundering case digital arrest under Section 420",
+        "Secret supervision verification account transfer funds to RBI audit account"
+      ]
+    },
+    {
+      "id": "ai_voice_kidnap",
+      "label": "AI Voice Cloning / Virtual Kidnapping",
+      "phrases": [
+        "Papa mujhe bachao police ne pakad liya hai rape case mein fas gaya hoon paise bhejo",
+        "Mummy mujhe kidnap kar liya hai in logo ne jaldi se 2 lakh transfer karo nahi toh maar denge",
+        "Your son has been arrested in a hit and run case transfer 1 lakh immediately to inspector",
+        "Aapki beti mere kabze mein hai 15 minute mein paise transfer karo warna jaan se mar dunga",
+        "पापा मुझे बचाओ पुलिस ने पकड़ लिया है तुरंत 50000 ट्रांसफर करो",
+        "मम्मी मुझे किडनैप कर लिया है जल्दी से पैसे भेजो नहीं तो ये लोग मार डालेंगे",
+        "आपका बेटा हमारे कब्जे में है 10 मिनट में पैसे ट्रांसफर करो",
+        "AI cloned voice family emergency urgent hospital ransom payment demand"
+      ]
+    },
+    {
+      "id": "screen_share_scam",
+      "label": "Screen Share / Remote Access Scam",
+      "phrases": [
+        "AnyDesk app download karo verification ke liye 9 digit code batao",
+        "TeamViewer QuickSupport install karo bank customer care se bol raha hoon",
+        "RustDesk app install karo aapka blocked refund abhi account mein bhejte hain",
+        "Play store se screen share app download kijiye aur allow access par click kijiye",
+        "एनीडेस्क ऐप डाउनलोड करो और 9 अंकों का कोड बताओ खाता चालू हो जाएगा",
+        "टीमव्यूअर क्विक सपोर्ट इनस्टॉल करो आपका फंसा हुआ पैसा तुरंत ट्रांसफर होगा",
+        "Download AnyDesk application from playstore and read out the remote access code"
+      ]
+    },
+    {
+      "id": "loan_extortion",
+      "label": "Predatory Loan App / Morphed Photo Blackmail",
+      "phrases": [
+        "7 days loan overdue ho gaya hai tumhari obscene morphed photo sabhi WhatsApp contacts ko bhej dunga",
+        "Instant cash loan recovery agent calling pay 20000 right now or we will viral your dirty photos",
+        "Tumhare phone ke saare contacts aur gallery hamare paas hai abhi paise do",
+        "लोन का पैसा तुरंत जमा करो नहीं तो तुम्हारी अश्लील फोटो तुम्हारे रिश्तेदारों को भेज देंगे",
+        "लोन रिकवरी एजेंट बोल रहा हूं तुम्हारी कांटेक्ट लिस्ट में सबको गंदी फोटो भेज दूंगा",
+        "Pay loan penalty immediately or we will defame you in all WhatsApp family groups"
       ]
     },
     {
       "id": "kyc_fraud",
-      "label": "Bank KYC / Account Freeze",
+      "label": "Bank KYC / Account Freeze / OTP",
       "phrases": [
         "aapka bank account band hone wala hai KYC update karo turant",
         "pan card link nahi hai aapka account 24 ghante mein freeze ho jayega",
@@ -47,8 +87,32 @@
       ]
     },
     {
+      "id": "esim_swap_5g",
+      "label": "5G SIM Upgrade / eSIM Port-Out Fraud",
+      "phrases": [
+        "Aapka 4G SIM 5G mein upgrade ho raha hai message mein aaya hua 1900 port out OTP batao",
+        "Airtel 5G SIM activation pending forward the confirmation SMS to 121",
+        "Jio eSIM upgrade confirmation code share karo warna call service band ho jayegi",
+        "आपका 4जी सिम 5जी में अपग्रेड हो रहा है तुरंत ओटीपी बताओ",
+        "ई-सिम एक्टिवेशन के लिए आया हुआ कोड शेयर करो नहीं तो नेटवर्क बंद हो जाएगा",
+        "Telecom customer service calling share the 1900 port code to upgrade your SIM to 5G"
+      ]
+    },
+    {
+      "id": "govt_subsidy_phishing",
+      "label": "Govt Scheme / PM Kisan / Solar Subsidy",
+      "phrases": [
+        "PM Kisan Samman Nidhi 17th installment pending update eKYC and pay registration fee",
+        "PM Surya Ghar Muft Bijli Yojana solar rooftop subsidy approved transfer processing charge",
+        "Ayushman Bharat health card ₹5 Lakh limit renewal pay portal fee",
+        "पीएम किसान सम्मान निधि की किस्त रुक गई है तुरंत ई-केवाईसी फीस जमा करो",
+        "पीएम सूर्य घर मुफ्त बिजली योजना सोलर सब्सिडी के लिए रजिस्ट्रेशन फीस दो",
+        "आयुष्मान कार्ड अपडेट करने के लिए ओटीपी बताओ नहीं तो इलाज फ्री नहीं मिलेगा"
+      ]
+    },
+    {
       "id": "courier_customs",
-      "label": "Courier / Customs Narcotics Extortion",
+      "label": "Customs / Narcotics Parcel Seizure",
       "phrases": [
         "Mumbai customs mein aapke naam se ek illegal parcel pakda gaya hai",
         "narcotics department se bol raha hoon customs mein drugs mila aapke parcel mein",
@@ -195,6 +259,17 @@
         "मैट्रिमोनियल साइट से दोस्त बोल रहा हूं आपके लिए महंगा गिफ्ट भेजा है कस्टम्स ड्यूटी जमा करो",
         "यूके से पार्सल भेजा है एयरपोर्ट पर कस्टम्स ऑफिसर ने रोक लिया है क्लीयरेंस फीस दो",
         "Foreign friend sending gold package pay customs duty at courier account"
+      ]
+    },
+    {
+      "id": "customer_care_poisoning",
+      "label": "Fake Customer Care / Refund Fraud",
+      "phrases": [
+        "Airline ticket refund customer care calling transfer 1 rupee verification amount on link",
+        "Swiggy Zomato order refund executive download quick support to process refund",
+        "Amazon customer service order return refund pending share OTP",
+        "कस्टमर केयर से बोल रहा हूं रिफंड पाने के लिए 1 रुपये का वेरिफिकेशन पेमेंट करो",
+        "फ्लिपकार्ट आर्डर कैंसिल रिफंड के लिए लिंक पर क्लिक करके ओटीपी बताओ"
       ]
     }
   ]
