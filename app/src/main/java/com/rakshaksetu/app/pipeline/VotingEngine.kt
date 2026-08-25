@@ -1,5 +1,7 @@
 package com.rakshaksetu.app.pipeline
 
+import android.util.Log
+
 data class SegmentResult(
     val index: Int,
     val startSec: Int,
@@ -29,6 +31,9 @@ class VotingEngine(
     private val voteK: Int = 3,
     private val window: Int = 5
 ) {
+    companion object {
+        private const val TAG = "VotingEngine"
+    }
 
     fun evaluate(segments: List<SegmentResult>): DetectionVerdict {
         if (segments.isEmpty()) {
@@ -39,22 +44,27 @@ class VotingEngine(
             if (segment.matchedCategory != null) {
                 val dynamicThreshold =
                     FederatedLearningManager.getThresholdForCategory(segment.matchedCategory)
-                segment.similarity >= dynamicThreshold
+                val passes = segment.similarity >= dynamicThreshold
+                Log.i(TAG, "Seg[${segment.index}] cat=${segment.matchedCategory} sim=%.3f thr=%.3f => pass=$passes".format(segment.similarity, dynamicThreshold))
+                passes
             } else {
                 false
             }
         }
+
+        val effectiveVoteK = when (segments.size) {
+            1, 2 -> 1
+            3, 4 -> minOf(2, voteK)
+            else -> voteK
+        }
+
+        Log.i(TAG, "Total segments=${segments.size}, passing hits=${hits.size}, effectiveVoteK=$effectiveVoteK")
 
         if (hits.isEmpty()) {
             return DetectionVerdict(false, null, 0.0f, emptyList())
         }
 
         val hitIndices = hits.mapNotNull { segments.indexOf(it) }.toSet()
-        val effectiveVoteK = when (segments.size) {
-            1, 2 -> 1
-            3, 4 -> minOf(2, voteK)
-            else -> voteK
-        }
 
         var anyWindowPasses = false
         var i = 0
