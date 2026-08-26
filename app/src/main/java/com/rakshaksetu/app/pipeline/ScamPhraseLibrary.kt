@@ -3,6 +3,7 @@ package com.rakshaksetu.app.pipeline
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.io.InputStreamReader
 
 data class ScamCategory(
@@ -17,6 +18,7 @@ data class ScamPhraseCorpus(
 )
 
 object ScamPhraseLibrary {
+    private const val TAG = "ScamPhraseLibrary"
     private const val CORPUS_ASSET_NAME = "scam_phrases.json"
     
     var corpus: ScamPhraseCorpus? = null
@@ -29,11 +31,31 @@ object ScamPhraseLibrary {
         return try {
             context.assets.open(CORPUS_ASSET_NAME).use { inputStream ->
                 val reader = InputStreamReader(inputStream)
-                corpus = Gson().fromJson(reader, ScamPhraseCorpus::class.java)
+                val jsonString = reader.readText()
+                
+                // First attempt: direct JSON Map format
+                try {
+                    val mapType = object : TypeToken<Map<String, List<String>>>() {}.type
+                    val map: Map<String, List<String>> = Gson().fromJson(jsonString, mapType)
+                    val categories = map.map { (catId, phrases) ->
+                        ScamCategory(
+                            id = catId,
+                            label = catId.replace("_", " ").uppercase(),
+                            phrases = phrases
+                        )
+                    }
+                    corpus = ScamPhraseCorpus(version = 2, categories = categories)
+                    Log.i(TAG, "Loaded ${categories.size} scam categories from JSON map.")
+                    return true
+                } catch (ignored: Exception) {}
+
+                // Second attempt: full ScamPhraseCorpus format
+                corpus = Gson().fromJson(jsonString, ScamPhraseCorpus::class.java)
+                Log.i(TAG, "Loaded ScamPhraseCorpus version ${corpus?.version}.")
             }
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Failed to load scam phrases corpus", e)
             false
         }
     }

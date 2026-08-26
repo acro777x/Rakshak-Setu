@@ -56,7 +56,6 @@ class PipelineCoordinator(
 
     private val cloneDetector = CloneDetectorEngine(context)
     private val intentClassifier = IntentPrototypeClassifier(context)
-
     suspend fun runPipeline(
         callId: String = UUID.randomUUID().toString(),
         phoneNumber: String,
@@ -282,6 +281,7 @@ class PipelineCoordinator(
             DeviceCapabilityManager.detectTier(context)
             FederatedLearningManager.attach(context)
             ScamPhraseLibrary.loadFromAssets(context)
+            ScamEngineFallback.init(context)
             val embedPath = ModelDownloadManager.validatedEmbeddingModelPath(context)
             EmbeddingEngine.ensureInitialized(context, embedPath)
             intentClassifier.init()
