@@ -9,27 +9,34 @@ import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.util.Log
+import com.rakshaksetu.app.community.PreCallWarningDispatcher
 import com.rakshaksetu.app.service.AnalysisService
+import com.rakshaksetu.app.service.PendingCallStore
 import java.util.UUID
 
 /**
- * Persistent CallStateTracker surviving process death during active phone calls.
+ * Durable per-call state surviving process death during an active phone call.
+ * All writes are synchronous-commit so a HiOS/MIUI freezer kill cannot lose them.
  */
 object CallStateTracker {
     private const val PREFS_NAME = "rakshak_call_state_tracker"
     private const val KEY_START_TIME = "key_start_time"
     private const val KEY_INCOMING_NUMBER = "key_incoming_number"
+    private const val KEY_SAW_OFFHOOK = "key_saw_offhook"
 
-    private fun getPrefs(context: Context): SharedPreferences =
+    internal fun getPrefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun recordCallStart(context: Context, timeMs: Long = System.currentTimeMillis()) {
-        getPrefs(context).edit().putLong(KEY_START_TIME, timeMs).apply()
+        getPrefs(context).edit()
+            .putLong(KEY_START_TIME, timeMs)
+            .putBoolean(KEY_SAW_OFFHOOK, true)
+            .commit()
     }
 
     fun recordIncomingNumber(context: Context, number: String?) {
         if (!number.isNullOrBlank()) {
-            getPrefs(context).edit().putString(KEY_INCOMING_NUMBER, number).apply()
+            getPrefs(context).edit().putString(KEY_INCOMING_NUMBER, number).commit()
         }
     }
 
@@ -39,8 +46,103 @@ object CallStateTracker {
     fun getIncomingNumber(context: Context): String? =
         getPrefs(context).getString(KEY_INCOMING_NUMBER, null)
 
+    /**
+     * True only when a call actually reached OFFHOOK (answered or outgoing).
+     * Guards against missed / rejected calls that still emit CALL_STATE_IDLE.
+     */
+    fun hasAnsweredCall(context: Context): Boolean =
+        getPrefs(context).getBoolean(KEY_SAW_OFFHOOK, false)
+
     fun reset(context: Context) {
         getPrefs(context).edit().clear().apply()
+    }
+}
+
+/**
+ * Single idempotent entry point that both the manifest receiver and the runtime
+ * telephony callback funnel into. Guarantees exactly one AnalysisService launch
+ * per completed call even when Android 14/15 delivers duplicate IDLE transitions
+ * (dual-SIM slots, OEM state machines, broadcast + callback racing).
+ */
+object AnalysisTrigger {
+    private const val TAG = "AnalysisTrigger"
+    private const val PREFS_NAME = "rakshak_analysis_trigger"
+    private const val KEY_LAST_FINGERPRINT = "key_last_fingerprint"
+    private const val KEY_LAST_TRIGGER_MS = "key_last_trigger_ms"
+
+    const val DEDUP_WINDOW_MS = 5_000L
+    const val MIN_ANALYZABLE_DURATION_SEC = 3
+
+    fun maybeStartAnalysis(
+        context: Context,
+        fallbackDurationSec: Long = 10L,
+        source: String = "unknown"
+    ): Boolean {
+        val ctx = context.applicationContext
+        val endTime = System.currentTimeMillis()
+
+        if (!CallStateTracker.hasAnsweredCall(ctx)) {
+            Log.d(TAG, "[$source] No answered call (missed/rejected). Skipping analysis.")
+            CallStateTracker.reset(ctx)
+            return false
+        }
+
+        val startTime = CallStateTracker.getCallStartTime(ctx)
+        val number = CallStateTracker.getIncomingNumber(ctx)
+        val durationSec = if (startTime > 0) {
+            ((endTime - startTime) / 1000).coerceAtLeast(1)
+        } else {
+            fallbackDurationSec
+        }
+
+        val fingerprint = "${startTime}_${number ?: ""}"
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val lastFingerprint = prefs.getString(KEY_LAST_FINGERPRINT, null)
+        val lastTriggerMs = prefs.getLong(KEY_LAST_TRIGGER_MS, 0L)
+
+        if (fingerprint == lastFingerprint && endTime - lastTriggerMs < DEDUP_WINDOW_MS) {
+            Log.d(TAG, "[$source] Duplicate IDLE suppressed within dedup window.")
+            return false
+        }
+        if (endTime - lastTriggerMs < DEDUP_WINDOW_MS && durationSec < MIN_ANALYZABLE_DURATION_SEC) {
+            Log.d(TAG, "[$source] Spurious short-IDLE burst suppressed.")
+            return false
+        }
+
+        prefs.edit()
+            .putString(KEY_LAST_FINGERPRINT, fingerprint)
+            .putLong(KEY_LAST_TRIGGER_MS, endTime)
+            .apply()
+
+        val callId = UUID.randomUUID().toString()
+        PendingCallStore.save(
+            ctx,
+            PendingCallStore.PendingCallRecord(
+                callId = callId,
+                phoneNumber = number ?: "Incoming Call",
+                durationSec = durationSec.toInt(),
+                endEpochMs = endTime
+            )
+        )
+
+        val serviceIntent = Intent(ctx, AnalysisService::class.java).apply {
+            putExtra(AnalysisService.EXTRA_CALL_ID, callId)
+            putExtra(AnalysisService.EXTRA_PHONE_NUMBER, number ?: "Incoming Call")
+            putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ctx.startForegroundService(serviceIntent)
+            } else {
+                ctx.startService(serviceIntent)
+            }
+            Log.i(TAG, "[$source] AnalysisService triggered for callId=$callId (duration=${durationSec}s)")
+        } catch (e: Exception) {
+            Log.e(TAG, "[$source] Failed to start AnalysisService (OEM background restriction?)", e)
+            return false
+        }
+        CallStateTracker.reset(ctx)
+        return true
     }
 }
 
@@ -50,59 +152,38 @@ class CallStateReceiver : BroadcastReceiver() {
         if (intent.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
             val stateStr = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
             val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
-            
+
             when (stateStr) {
                 TelephonyManager.EXTRA_STATE_IDLE -> {
-                    handleCallEnd(context)
+                    AnalysisTrigger.maybeStartAnalysis(context, source = "receiver")
                 }
                 TelephonyManager.EXTRA_STATE_OFFHOOK -> {
                     CallStateTracker.recordCallStart(context)
                 }
                 TelephonyManager.EXTRA_STATE_RINGING -> {
                     CallStateTracker.recordIncomingNumber(context, number)
+                    if (!number.isNullOrBlank()) {
+                        PreCallWarningDispatcher.onRinging(context, number)
+                    }
                 }
             }
         }
     }
-    
-    private fun handleCallEnd(context: Context) {
-        val endTime = System.currentTimeMillis()
-        val startTime = CallStateTracker.getCallStartTime(context)
-        val incomingNumber = CallStateTracker.getIncomingNumber(context)
-
-        val durationSec = if (startTime > 0) {
-            ((endTime - startTime) / 1000).coerceAtLeast(1)
-        } else {
-            10L
-        }
-
-        Log.i("CallStateReceiver", "Call ended (duration=${durationSec}s). Triggering AnalysisService.")
-        val serviceIntent = Intent(context, AnalysisService::class.java).apply {
-            putExtra(AnalysisService.EXTRA_CALL_ID, UUID.randomUUID().toString())
-            putExtra(AnalysisService.EXTRA_PHONE_NUMBER, incomingNumber ?: "Incoming Call")
-            putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent)
-        } else {
-            context.startService(serviceIntent)
-        }
-        CallStateTracker.reset(context)
-    }
 }
 
 class RakshakCallStateListener(private val context: Context) {
-    
+
     private var telephonyManager: TelephonyManager? = null
-    
+
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.S)
     private var telephonyCallback: TelephonyCallback? = null
-    
+
     private var phoneStateListener: PhoneStateListener? = null
-    
+
     companion object {
         private var instance: RakshakCallStateListener? = null
-        
+
+        @Synchronized
         fun register(context: Context) {
             if (instance == null) {
                 instance = RakshakCallStateListener(context.applicationContext)
@@ -110,26 +191,31 @@ class RakshakCallStateListener(private val context: Context) {
                 Log.i("RakshakCallStateListener", "Registered call state listener successfully.")
             }
         }
-        
+
+        @Synchronized
         fun unregister(context: Context) {
             instance?.stopListening()
             instance = null
         }
     }
-    
+
     private fun startListening() {
         telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             telephonyCallback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
                 override fun onCallStateChanged(state: Int) {
                     handleStateChange(state, null)
                 }
             }
-            telephonyManager?.registerTelephonyCallback(
-                context.mainExecutor,
-                telephonyCallback as TelephonyCallback
-            )
+            try {
+                telephonyManager?.registerTelephonyCallback(
+                    context.mainExecutor,
+                    telephonyCallback as TelephonyCallback
+                )
+            } catch (e: Exception) {
+                Log.e("RakshakCallStateListener", "registerTelephonyCallback failed", e)
+            }
         } else {
             phoneStateListener = object : PhoneStateListener() {
                 @Deprecated("Deprecated in Java")
@@ -137,47 +223,34 @@ class RakshakCallStateListener(private val context: Context) {
                     handleStateChange(state, phoneNumber)
                 }
             }
-            telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+            try {
+                telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+            } catch (e: Exception) {
+                Log.e("RakshakCallStateListener", "listen failed", e)
+            }
         }
     }
-    
+
     private fun stopListening() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            telephonyCallback?.let {
-                telephonyManager?.unregisterTelephonyCallback(it as TelephonyCallback)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                telephonyCallback?.let {
+                    telephonyManager?.unregisterTelephonyCallback(it as TelephonyCallback)
+                }
+            } else {
+                phoneStateListener?.let {
+                    telephonyManager?.listen(it, PhoneStateListener.LISTEN_NONE)
+                }
             }
-        } else {
-            phoneStateListener?.let {
-                telephonyManager?.listen(it, PhoneStateListener.LISTEN_NONE)
-            }
+        } catch (e: Exception) {
+            Log.d("RakshakCallStateListener", "unregister failed: ${e.message}")
         }
     }
-    
+
     private fun handleStateChange(state: Int, phoneNumber: String?) {
         when (state) {
             TelephonyManager.CALL_STATE_IDLE -> {
-                val endTime = System.currentTimeMillis()
-                val startTime = CallStateTracker.getCallStartTime(context)
-                val incomingNumber = CallStateTracker.getIncomingNumber(context) ?: phoneNumber
-
-                val durationSec = if (startTime > 0) {
-                    ((endTime - startTime) / 1000).coerceAtLeast(1)
-                } else {
-                    10L
-                }
-
-                Log.i("RakshakCallStateListener", "Call ended (duration=${durationSec}s). Triggering AnalysisService.")
-                val serviceIntent = Intent(context, AnalysisService::class.java).apply {
-                    putExtra(AnalysisService.EXTRA_CALL_ID, UUID.randomUUID().toString())
-                    putExtra(AnalysisService.EXTRA_PHONE_NUMBER, incomingNumber ?: "Incoming Call")
-                    putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
-                }
-                CallStateTracker.reset(context)
+                AnalysisTrigger.maybeStartAnalysis(context, source = "listener")
             }
             TelephonyManager.CALL_STATE_OFFHOOK -> {
                 Log.d("RakshakCallStateListener", "Call OFFHOOK (call connected).")
@@ -185,8 +258,9 @@ class RakshakCallStateListener(private val context: Context) {
             }
             TelephonyManager.CALL_STATE_RINGING -> {
                 Log.d("RakshakCallStateListener", "Call RINGING: $phoneNumber")
-                if (phoneNumber != null) {
-                    CallStateTracker.recordIncomingNumber(context, phoneNumber)
+                CallStateTracker.recordIncomingNumber(context, phoneNumber)
+                if (!phoneNumber.isNullOrBlank()) {
+                    PreCallWarningDispatcher.onRinging(context, phoneNumber)
                 }
             }
         }

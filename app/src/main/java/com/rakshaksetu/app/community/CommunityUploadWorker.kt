@@ -3,11 +3,17 @@ package com.rakshaksetu.app.community
 import android.content.Context
 import android.util.Log
 import androidx.work.*
+import com.rakshaksetu.app.community.db.BlacklistSources
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 /**
- * Deferred, battery-safe worker for community blacklist synchronization.
- * Only executes when the device is CHARGING and on an UNMETERED (Wi-Fi) network.
+ * Deferred, battery-safe worker for community blacklist synchronization and
+ * local database hygiene. Runs only while charging on an unmetered network.
+ *
+ * Remote behavior is entirely mediated by [BlacklistRemoteSync]; with Firebase
+ * unwired the worker stays 100% offline (maintenance + retention only).
  */
 class CommunityUploadWorker(
     appContext: Context,
@@ -45,12 +51,32 @@ class CommunityUploadWorker(
     override suspend fun doWork(): Result {
         Log.d(TAG, "Executing deferred community sync while device is charging on Wi-Fi...")
         return try {
-            // Check Firebase availability first
-            if (FirebaseGuard.isAvailable(applicationContext)) {
-                // Background sync logic when Firestore is configured
-                Log.d(TAG, "Firestore sync complete.")
-            } else {
-                Log.d(TAG, "Firebase unavailable, skipping remote sync.")
+            withContext(Dispatchers.IO) {
+                val repo = BlacklistRepository(applicationContext)
+                repo.ensureSeeded()
+
+                val purged = repo.maintenancePurge()
+                if (purged > 0) Log.d(TAG, "Purged $purged stale blacklist entries.")
+
+                // Push path — no-op upload when offline (entries retained locally)
+                val remote = BlacklistRemoteSyncFactory.create()
+                val outbound = repo.exportForCommunityUpload()
+                    .filter { it.source == BlacklistSources.LOCAL_REPORT }
+                if (outbound.isNotEmpty()) {
+                    remote.push(outbound)
+                }
+
+                // Pull path
+                if (remote.isRemoteConfigured()) {
+                    val watermark = 0L // full refresh; server-side delta filtering applies
+                    val incoming = remote.pull(watermark)
+                    if (incoming.isNotEmpty()) {
+                        val merged = repo.mergeRemote(incoming)
+                        Log.i(TAG, "Merged $merged community entries from remote.")
+                    }
+                } else {
+                    Log.d(TAG, "Firebase unavailable — running in Local-Only mode.")
+                }
             }
             Result.success()
         } catch (e: Exception) {

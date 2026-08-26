@@ -73,6 +73,14 @@
             android:exported="false"
             android:theme="@style/Theme.Material3.DayNight" />
 
+        <!-- Government Reporting Assistant (NCRP / Chakshu guided WebView) -->
+        <activity
+            android:name=".ui.GovtReportWebViewActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:usesCleartextTraffic="false"
+            android:theme="@style/Theme.Material3.DayNight" />
+
         <!-- Analysis ForegroundService -->
         <service
             android:name=".service.AnalysisService"
@@ -107,6 +115,16 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.rakshaksetu.app.ACTION_NOT_SCAM" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Elder Mode one-tap family alert + SMS delivery intents -->
+        <receiver
+            android:name=".receiver.ElderAlertReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.rakshaksetu.app.ACTION_ALERT_FAMILY" />
+                <action android:name="com.rakshaksetu.app.ACTION_ELDER_SMS_SENT" />
             </intent-filter>
         </receiver>
 

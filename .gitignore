@@ -52,3 +52,11 @@ training/SMSSpamCollection
 training/smsspamcollection.zip
 training/readme
 training/attack_patterns.json
+
+# Scratch logs & debug dumps
+*.log
+adb_*.txt
+build_*.txt
+test_*.txt
+push_*.txt
+rakshak_live.log

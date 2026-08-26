@@ -8,14 +8,14 @@ plugins {
 
 android {
     namespace = "com.rakshaksetu.app"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.rakshaksetu.app"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 3
-        versionName = "1.2.0"
+        targetSdk = 35
+        versionCode = 4
+        versionName = "1.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -103,6 +103,7 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.activity:activity-ktx:1.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     // Jetpack Compose
@@ -137,6 +138,8 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.11")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation("org.robolectric:robolectric:4.12.2")
+    testImplementation("androidx.test:core:1.6.1")
 
     androidTestImplementation("androidx.test:runner:1.6.1")
     androidTestImplementation("androidx.test:rules:1.6.1")
@@ -145,7 +148,8 @@ dependencies {
 
     // AI Pipeline Dependencies
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.1") // A7: Embeddings
-    
+    implementation("com.alphacephei:vosk-android:0.3.47") // P1-7: True offline ASR (Kaldi, ~3MB native per ABI)
+
     // Networking
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

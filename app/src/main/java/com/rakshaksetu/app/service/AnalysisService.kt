@@ -61,7 +61,7 @@ class AnalysisService : Service() {
         const val EXTRA_IS_SIMULATION = "EXTRA_IS_SIMULATION"
 
         private const val WAKELOCK_WATCHDOG_MS = 10 * 60 * 1000L
-        private const val MAX_RESUME_ATTEMPTS = 2
+        private const val MAX_RESUME_ATTEMPTS = 5
 
         /**
          * OEM kill-recovery entry point. HiOS/MIUI swipe-up kills terminate even
@@ -108,12 +108,8 @@ class AnalysisService : Service() {
             }
             val attempts = PendingCallStore.incrementAttempts(this)
             if (attempts > MAX_RESUME_ATTEMPTS) {
-                Log.w(TAG, "Pending call exceeded $MAX_RESUME_ATTEMPTS resume attempts. Dropping.")
-                notifyDiagnostic(
-                    pending.callId,
-                    "Call analysis was interrupted repeatedly by system battery management.",
-                    "Open Rakshak Setu → Battery Whitelist to fix."
-                )
+                Log.w(TAG, "Pending call exceeded $MAX_RESUME_ATTEMPTS resume attempts. Enqueuing WorkManager fallback.")
+                enqueueWorkManagerFallback(pending)
                 PendingCallStore.clear(this)
                 return stopAndReturn()
             }
@@ -293,16 +289,35 @@ class AnalysisService : Service() {
         }
     }
 
+    private fun enqueueWorkManagerFallback(pending: PendingCallStore.PendingCallRecord) {
+        try {
+            val workData = androidx.work.workDataOf(
+                CallAnalysisWorker.KEY_CALL_ID to pending.callId,
+                CallAnalysisWorker.KEY_PHONE_NUMBER to pending.phoneNumber,
+                CallAnalysisWorker.KEY_DURATION_SEC to pending.durationSec
+            )
+            val request = androidx.work.OneTimeWorkRequestBuilder<CallAnalysisWorker>()
+                .setInputData(workData)
+                .build()
+            androidx.work.WorkManager.getInstance(applicationContext).enqueue(request)
+            Log.i(TAG, "Enqueued WorkManager fallback for callId=${pending.callId}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to enqueue WorkManager fallback", e)
+        }
+    }
+
     internal fun buildProgressNotification(phoneNumber: String): Notification {
-        val text = if (phoneNumber.isNotBlank())
-            "Analyzing call from $phoneNumber..."
+        val maskedPhone = if (phoneNumber.isNotBlank()) ScamAlertManager.maskNumberForDisplay(phoneNumber) else ""
+        val content = if (maskedPhone.isNotBlank())
+            "Checking call from $maskedPhone for safety..."
         else
-            "Analyzing last call..."
+            "Checking recent call for safety..."
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Rakshak Setu")
-            .setContentText(text)
+            .setContentTitle("🛡️ Rakshak Setu")
+            .setContentText(content)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setColor(android.graphics.Color.parseColor("#1976D2")) // Trustworthy blue
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()

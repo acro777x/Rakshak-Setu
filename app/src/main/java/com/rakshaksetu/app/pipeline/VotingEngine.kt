@@ -92,4 +92,52 @@ class VotingEngine(
 
         return DetectionVerdict(isScam, scamType, confidence, hits)
     }
+
+    /**
+     * Dual Parallel Engine Ensemble Evaluation:
+     * Combines phrase voting, intent prototype classification, and voice clone detection.
+     */
+    fun evaluateEnsemble(
+        segments: List<SegmentResult>,
+        intentResult: IntentPrototypeClassifier.CallIntentResult?,
+        cloneResult: CloneDetectorEngine.CloneResult?
+    ): DetectionVerdict {
+        val phraseVerdict = evaluate(segments)
+
+        val isVoiceCloned = cloneResult?.isCloned == true
+        val isIntentScam = intentResult?.isScam == true
+
+        // If Engine A detects a voice clone / deepfake attack:
+        if (isVoiceCloned) {
+            val cloneConf = cloneResult?.confidence ?: 0.85f
+            val hits = phraseVerdict.hits
+            Log.w(TAG, "Ensemble: Voice clone attack detected with confidence $cloneConf")
+            return DetectionVerdict(
+                isScam = true,
+                scamType = phraseVerdict.scamType ?: "ai_voice_kidnap",
+                confidence = maxOf(phraseVerdict.confidence, cloneConf),
+                hits = hits
+            )
+        }
+
+        // If phrase matcher convict:
+        if (phraseVerdict.isScam) {
+            return phraseVerdict
+        }
+
+        // If Engine B Intent Classifier detects >= 2 distinct threat intents (unknown scam script):
+        if (isIntentScam) {
+            val dominantThreat = intentResult?.dominantThreat ?: "unknown_scam"
+            val intentConf = intentResult?.dominantThreatScore ?: 0.75f
+            Log.w(TAG, "Ensemble: Unknown scam detected via intent behavioral patterns: $dominantThreat (conf=$intentConf)")
+            return DetectionVerdict(
+                isScam = true,
+                scamType = dominantThreat,
+                confidence = intentConf,
+                hits = segments
+            )
+        }
+
+        return DetectionVerdict(false, null, 0.0f, emptyList())
+    }
 }

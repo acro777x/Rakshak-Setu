@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "intents": {
+    "pressure_urgency": {
+      "label": "Extreme Urgency / Time Pressure",
+      "prototypes": [
+        "Someone is creating extreme urgency and threatening immediate dire consequences if you dont act right now",
+        "तुरंत करो नहीं तो बहुत बड़ा नुकसान होगा अभी के अभी जल्दी करो समय नहीं है आज रात तक",
+        "You must do this right now immediately within 2 hours or face arrest disconnection penalty seizure",
+        "Agar abhi nahi kiya toh aapka account permanent block ho jayega aur arrest warrant execute hoga",
+        "आज रात 9 बजे तक नहीं किया तो सब बंद हो जाएगा तुरंत अभी करो देर मत करो"
+      ]
+    },
+    "authority_impersonation": {
+      "label": "Authority / Official Impersonation",
+      "prototypes": [
+        "I am calling from police CBI bank RBI TRAI customs government department officer inspector",
+        "मैं पुलिस सीबीआई बैंक अधिकारी सरकारी विभाग कस्टम्स ट्राई इंस्पेक्टर से बोल रहा हूं",
+        "This is official government department enforcement directorate narcotics bureau Supreme Court calling",
+        "Main CBI inspector Sharma bol raha hoon aapke khilaf case darj hua hai warrant issue hua",
+        "दूरसंचार विभाग अधिकारी बोल रहा हूं आपके नाम से शिकायत दर्ज हुई है"
+      ]
+    },
+    "financial_extraction": {
+      "label": "Money / OTP / PIN Demand",
+      "prototypes": [
+        "Transfer money send payment share OTP UPI PIN enter bank details pay fine deposit verification amount",
+        "पैसे ट्रांसफर करो ओटीपी बताओ यूपीआई पिन डालो बैंक डिटेल्स दो जुर्माना भरो वेरिफिकेशन फीस",
+        "You need to pay transfer deposit amount immediately to government verification security account",
+        "Abhi turant paise transfer karo verification account mein nahi toh arrest ho jayega bail nahi milega",
+        "सरकारी सत्यापन खाते में तुरंत राशि जमा करो नहीं तो खाता स्थायी रूप से फ्रीज हो जाएगा"
+      ]
+    },
+    "isolation_tactic": {
+      "label": "Secrecy / Isolation Demand",
+      "prototypes": [
+        "Do not tell anyone keep this confidential secret dont inform family lawyer police bank",
+        "किसी को मत बताओ ये गोपनीय है परिवार को मत बताना वकील से बात मत करना पुलिस को मत बोलना",
+        "This is classified investigation if you tell anyone you will face additional charges obstruction",
+        "Ye secret investigation hai kisi ko bataya toh aap par bhi case ho jayega",
+        "यह गुप्त जांच है अगर किसी को बताया तो आप पर भी कार्रवाई होगी"
+      ]
+    },
+    "remote_access": {
+      "label": "Remote Device Access Demand",
+      "prototypes": [
+        "Download AnyDesk TeamViewer screen share app and share the 9 digit access code remote control",
+        "एनीडेस्क टीमव्यूअर ऐप डाउनलोड करो और 9 अंकों का कोड बताओ स्क्रीन शेयर करो रिमोट एक्सेस",
+        "Install remote access application and give me control of your phone screen for verification",
+        "Play Store se AnyDesk download karo aur 9 digit code share karo main aapka phone verify karunga",
+        "प्ले स्टोर से रिमोट ऐप डाउनलोड करो और एक्सेस कोड बताओ फोन वेरिफिकेशन के लिए"
+      ]
+    },
+    "benign_conversation": {
+      "label": "Normal / Legitimate Call",
+      "prototypes": [
+        "Your delivery order is out for delivery expected by evening thank you for shopping with us",
+        "आपका ऑर्डर डिलीवर हो रहा है शाम तक आ जाएगा शॉपिंग करने के लिए धन्यवाद",
+        "Hello how are you wanted to discuss the family function wedding this weekend are you coming",
+        "Your appointment is confirmed for tomorrow at 10am please bring your documents ID proof",
+        "Meeting scheduled for 3pm please join the conference call here is the dial in number",
+        "Namaste uncle aunty kaise hain aap ghar pe sab theek hai na kal milte hain",
+        "नमस्ते अंकल आंटी कैसे हैं आप घर पर सब ठीक है ना कल मिलते हैं",
+        "Sir aapka internet plan renew ho gaya hai next bill date 15 tarikh hai thank you"
+      ]
+    }
+  }
+}

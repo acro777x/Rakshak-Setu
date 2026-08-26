@@ -19,6 +19,8 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             Log.d(TAG, "Boot completed — re-registering telephony listener")
             RakshakCallStateListener.register(context.applicationContext)
+            // Resume any analysis that an OEM kill (or reboot) interrupted mid-flight
+            com.rakshaksetu.app.service.AnalysisService.resumeIfPending(context)
         }
     }
 }

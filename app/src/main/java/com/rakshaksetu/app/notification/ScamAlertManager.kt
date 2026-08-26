@@ -37,30 +37,43 @@ class ScamAlertManager(private val context: Context) {
             return
         }
 
+        val isVoiceClone = result.scamType == "ai_voice_kidnap" || result.scamType?.contains("voice") == true || result.scamType?.contains("clone") == true
         val categoryTitle = getCategoryDisplayName(result.scamType)
         val confPercent = (result.confidence * 100).toInt().coerceIn(60, 99)
         val notificationId = result.callId.hashCode()
+        val maskedPhone = maskNumberForDisplay(result.phoneNumber)
 
-        val title = "🚨 SCAM DETECTED: $categoryTitle ($confPercent% Match)"
-        val content = "⛔ DO NOT share OTP, UPI PIN, or transfer money!"
+        val (title, content, alertColor) = if (isVoiceClone) {
+            Triple(
+                "⚠️ Voice Clone Warning: Artificial Speech Detected",
+                "The caller's voice sounded AI-generated. Be cautious if they demanded money or claimed an emergency.",
+                android.graphics.Color.parseColor("#880E4F") // Deep burgundy for deepfakes
+            )
+        } else {
+            Triple(
+                "⚠️ Warning: Suspected $categoryTitle",
+                "This caller may be impersonating officials. Do not share OTP, PIN, or transfer funds.",
+                android.graphics.Color.parseColor("#C62828") // Strong crimson
+            )
+        }
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(title)
             .setContentText(content)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(buildSummary(result, categoryTitle, confPercent)))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(buildSummary(result, categoryTitle, confPercent, isVoiceClone)))
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setColor(android.graphics.Color.RED)
-            .setVibrate(longArrayOf(0, 500, 200, 500))
+            .setColor(alertColor)
+            .setVibrate(longArrayOf(0, 400, 200, 400))
             .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))
 
-        val maskedPhone = maskNumberForDisplay(result.phoneNumber)
         val publicNotification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(title)
-            .setContentText("⛔ DO NOT transfer money or share OTP. Caller: $maskedPhone")
+            .setContentText("Security alert for call from $maskedPhone. Do not transfer funds.")
+            .setColor(alertColor)
             .build()
             
         builder.setPublicVersion(publicNotification)
@@ -94,17 +107,47 @@ class ScamAlertManager(private val context: Context) {
         notificationManager.notify(notificationId, builder.build())
     }
 
-    fun buildSummary(result: DetectionResult, categoryTitle: String = getCategoryDisplayName(result.scamType), confPercent: Int = (result.confidence * 100).toInt()): String {
+    fun showSafeCallNotification(phoneNumber: String) {
+        val maskedPhone = maskNumberForDisplay(phoneNumber)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("🛡️ Call Verified Safe")
+            .setContentText("No suspicious patterns or voice cloning detected from $maskedPhone.")
+            .setColor(android.graphics.Color.parseColor("#2E7D32")) // Calming green
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setAutoCancel(true)
+            .setTimeoutAfter(5000) // Auto-dismiss in 5s
+            .build()
+
+        notificationManager.notify(phoneNumber.hashCode(), builder)
+    }
+
+    fun buildSummary(
+        result: DetectionResult,
+        categoryTitle: String = getCategoryDisplayName(result.scamType),
+        confPercent: Int = (result.confidence * 100).toInt(),
+        isVoiceClone: Boolean = false
+    ): String {
         val durationStr = "${result.durationSec}s"
         val flaggedPhrases = if (result.flaggedSegments.isNotEmpty()) {
-            result.flaggedSegments.joinToString("\n• ") { "\"${it.text}\" (${(it.similarity * 100).toInt()}%)" }
+            result.flaggedSegments.joinToString("\n• ") { "\"${it.text}\"" }
+        } else if (isVoiceClone) {
+            "Spectral acoustic anomalies characteristic of AI voice synthesis detected."
         } else {
-            "Acoustic/behavioral threat patterns detected"
+            "Behavioral urgency and extraction patterns detected in conversation."
         }
-        return "⚠️ Category: $categoryTitle ($confPercent% Confidence)\n" +
-               "⛔ Action: Disconnect call. Do NOT transfer money or share OTP.\n" +
-               "⏱️ Duration: $durationStr\n" +
-               "🔍 Detected Speech:\n• $flaggedPhrases"
+
+        return if (isVoiceClone) {
+            "⚠️ Alert: AI Voice Cloning Impersonation\n" +
+            "🛑 Advice: Verify caller identity through another channel. Do not send emergency money.\n" +
+            "⏱️ Call Duration: $durationStr\n" +
+            "🔍 Key Findings:\n• $flaggedPhrases"
+        } else {
+            "⚠️ Suspected Threat: $categoryTitle\n" +
+            "🛑 Advice: Disconnect. Never share OTP or transfer funds to verify an account.\n" +
+            "⏱️ Call Duration: $durationStr\n" +
+            "🔍 Flagged Speech:\n• $flaggedPhrases"
+        }
     }
 
     fun getCategoryDisplayName(scamType: String?): String = when (scamType) {

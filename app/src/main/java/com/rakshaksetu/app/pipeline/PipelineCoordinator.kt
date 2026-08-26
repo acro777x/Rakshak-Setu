@@ -5,62 +5,45 @@ import android.util.Log
 import com.rakshaksetu.app.model.DetectionResult
 import com.rakshaksetu.app.model.FlaggedSegment
 import com.rakshaksetu.app.model.PipelineMs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import java.io.File
 import java.util.UUID
 
 /**
- * Orchestrates: fetch -> decode -> segment -> VAD -> ASR -> analyzers ->
- * semantic matching -> voting + RL risk fusion -> evidence.
- *
- * Returns null ONLY when analysis genuinely could not run (no recording found /
- * decode failure). Callers must treat null as "no data", never as a scam signal.
+ * Orchestrates Rakshak Setu Dual Parallel AI Pipeline:
+ * - Engine A (async): Voice Clone / Deepfake Detection via SpectralFeatureExtractor + AASIST
+ * - Engine B (async): Speech-to-Text ASR + TranscriptNormalizer + IntentPrototypeClassifier + EmbeddingEngine
+ * - Multi-Signal Ensemble Voting: Phrase matching ∪ Intent prototypes ∪ Deepfake probability ∪ WeightedRiskScorer
  */
 class PipelineCoordinator(
     private val context: Context,
     private val asrEngine: AsrEngine,
     private val votingEngine: VotingEngine,
-    private val rlVotingEngine: RLVotingEngine = RLVotingEngine(context)
+    private val riskScorer: WeightedRiskScorer = WeightedRiskScorer(context)
 ) {
     companion object {
         private const val TAG = "PipelineCoordinator"
 
-        /** 
+        /**
          * OEM call-recording directories probed as direct-path fallback.
-         * Covers all major Android manufacturers (Samsung, Xiaomi/Redmi, TECNO/Infinix/Itel,
-         * Vivo/iQOO, Oppo/Realme/OnePlus, Motorola, Nokia, Huawei/Honor, Google Pixel).
          */
         fun defaultOemPaths(): List<String> = listOf(
-            // ── Transsion (TECNO / Infinix / Itel / HiOS) ──
             "/storage/emulated/0/Music/PhoneRecord",
             "/storage/emulated/0/PhoneRecord",
-
-            // ── Samsung (One UI) ──
             "/storage/emulated/0/Recordings/Call",
             "/storage/emulated/0/Call",
-
-            // ── Xiaomi / Redmi / POCO (MIUI / HyperOS) ──
             "/storage/emulated/0/MIUI/sound_recorder/call_rec",
             "/storage/emulated/0/MIUI/sound_recorder/call_recordings",
-
-            // ── Vivo / iQOO (FuntouchOS / OriginOS) ──
             "/storage/emulated/0/Recordings/Call recordings",
             "/storage/emulated/0/Sounds/Call recordings",
-
-            // ── Oppo / Realme / OnePlus (ColorOS / Realme UI / OxygenOS) ──
             "/storage/emulated/0/Music/Recordings/Call Recordings",
             "/storage/emulated/0/Recordings/Call Recordings",
-
-            // ── OnePlus legacy ──
             "/storage/emulated/0/Android/data/com.oneplus.communication.data/files/Record/PhoneRecord",
-
-            // ── Google Pixel / Stock Android (Google Dialer accessible recordings) ──
             "/storage/emulated/0/Android/data/com.google.android.dialer/files/Recordings",
-
-            // ── Huawei / Honor (EMUI / MagicOS) ──
             "/storage/emulated/0/Sounds/CallRecord",
             "/storage/emulated/0/record",
-
-            // ── Motorola / Nokia / Generic Android ──
             "/storage/emulated/0/Recordings",
             "/storage/emulated/0/Audio/Recordings",
             "/storage/emulated/0/Music/Recordings",
@@ -71,6 +54,9 @@ class PipelineCoordinator(
         )
     }
 
+    private val cloneDetector = CloneDetectorEngine(context)
+    private val intentClassifier = IntentPrototypeClassifier(context)
+
     suspend fun runPipeline(
         callId: String = UUID.randomUUID().toString(),
         phoneNumber: String,
@@ -78,7 +64,7 @@ class PipelineCoordinator(
         callEndEpoch: Long,
         oemPaths: List<String> = defaultOemPaths(),
         destWavPath: String
-    ): DetectionResult? {
+    ): DetectionResult? = coroutineScope {
         val tStart = System.currentTimeMillis()
         var tFetchEnd = 0L
         var tDecodeEnd = 0L
@@ -92,7 +78,7 @@ class PipelineCoordinator(
         val audioUri = AudioFetcher.fetchWithRetries(context, callEndEpoch / 1000, oemPaths)
         if (audioUri == null) {
             Log.e(TAG, "No recording found for callId=$callId — pipeline abstains.")
-            return null
+            return@coroutineScope null
         }
         tFetchEnd = System.currentTimeMillis()
         Log.i(TAG, "Recording located: $audioUri")
@@ -101,7 +87,7 @@ class PipelineCoordinator(
         val decodeSuccess = AudioDecoder.decodeToWav(context, audioUri, destWavPath)
         if (!decodeSuccess) {
             Log.e(TAG, "Failed to decode audio to WAV for callId=$callId.")
-            return null
+            return@coroutineScope null
         }
         tDecodeEnd = System.currentTimeMillis()
 
@@ -109,112 +95,140 @@ class PipelineCoordinator(
         val segments = Segmenter.segmentAudio(File(destWavPath))
         Log.i(TAG, "${segments.size} raw segments extracted.")
 
-        val fullTranscriptBuilder = StringBuilder()
-        val processedSegments = mutableListOf<SegmentResult>()
+        val activeSegments = segments.filter { VadGate.isVoiceActive(it.pcmData) }
+        val pcmSegments = activeSegments.map { it.pcmData }
 
-        var maxDeepfakeProb = 0f
-        var maxStressScore = 0f
-        var sawCallCenterNoise = false
-        var similaritySum = 0f
+        // ============================================================
+        // DUAL PARALLEL AI ENGINES RUNNING SIMULTANEOUSLY
+        // ============================================================
 
-        for (seg in segments) {
-            if (!VadGate.isVoiceActive(seg.pcmData)) {
-                continue
-            }
-
-            // A5: Offline ASR (Vosk) with acoustic gate fallback
-            val tAsrStart = System.currentTimeMillis()
-            val transcript = asrEngine.transcribe(seg.pcmData)
-            tAsrTotal += System.currentTimeMillis() - tAsrStart
-
-            if (transcript.isNotBlank()) {
-                fullTranscriptBuilder.append(transcript).append(" ")
-            }
-
-            // P2 advanced acoustic checks (feed the RL tier even when transcript is empty)
-            val isDeepfakeProb = VoiceCloneDetector.analyze(seg.pcmData)
-            val acousticEnv = AcousticAnalyzer.analyze(seg.pcmData)
-            val stressScore = EmotionAnalyzer.analyzeStress(seg.pcmData)
-
-            if (isDeepfakeProb > maxDeepfakeProb) maxDeepfakeProb = isDeepfakeProb
-            if (stressScore > maxStressScore) maxStressScore = stressScore
-            if (acousticEnv == AcousticAnalyzer.Environment.CALL_CENTER) sawCallCenterNoise = true
-
-            if (isDeepfakeProb > 0.8f) {
-                Log.w(TAG, "Deepfake / voice clone artifacts detected (p=$isDeepfakeProb)")
-            }
-            if (sawCallCenterNoise && seg.index % 5 == 0) {
-                Log.w(TAG, "Acoustic environment matches call center.")
-            }
-            if (stressScore > 0.7f) {
-                Log.w(TAG, "High victim stress detected (${(stressScore * 100).toInt()}%).")
-            }
-
-            // A7: Semantic matching (ONNX MiniLM when available, calibrated lexical otherwise)
-            val tEmbedStart = System.currentTimeMillis()
-            val (similarity, matchedCategory) =
-                EmbeddingEngine.findBestMatch(transcript.ifBlank { "" })
-            tEmbedTotal += System.currentTimeMillis() - tEmbedStart
-
-            var finalSimilarity = if (transcript.isBlank()) 0f else similarity
-            if (finalSimilarity > 0f &&
-                (isDeepfakeProb > 0.8f || acousticEnv == AcousticAnalyzer.Environment.CALL_CENTER)
-            ) {
-                finalSimilarity = (finalSimilarity + 0.15f).coerceAtMost(1.0f)
-            }
-
-            processedSegments.add(
-                SegmentResult(
-                    index = seg.index,
-                    startSec = seg.startSec,
-                    text = transcript.trim(),
-                    similarity = finalSimilarity,
-                    matchedCategory = matchedCategory
-                )
-            )
-            if (finalSimilarity > 0f) similaritySum += finalSimilarity
+        // ENGINE A (async): Voice Clone / Deepfake Detection
+        val engineADeferred = async(Dispatchers.Default) {
+            val t0 = System.currentTimeMillis()
+            val result = cloneDetector.detectClone(pcmSegments)
+            Log.i(TAG, "Engine A (CloneDetector) finished in ${System.currentTimeMillis() - t0}ms: isCloned=${result.isCloned}, conf=%.2f".format(result.confidence))
+            result
         }
 
+        // ENGINE B (async): ASR Transcription + Normalization + Intent + Phrase Matching
+        val engineBDeferred = async(Dispatchers.Default) {
+            val fullTranscriptBuilder = StringBuilder()
+            val processedSegments = mutableListOf<SegmentResult>()
+            val segmentTranscripts = mutableListOf<String>()
+            var maxLoudness = 0f
+            var simSum = 0f
+
+            for (seg in activeSegments) {
+                // A5: Offline ASR
+                val tAsrStart = System.currentTimeMillis()
+                val rawTranscript = asrEngine.transcribe(seg.pcmData)
+                tAsrTotal += System.currentTimeMillis() - tAsrStart
+
+                // Fuzzy transcription normalizer
+                val transcript = TranscriptNormalizer.normalize(rawTranscript).trim()
+
+                if (transcript.isNotBlank()) {
+                    fullTranscriptBuilder.append(transcript).append(" ")
+                    segmentTranscripts.add(transcript)
+                }
+
+                // Loudness
+                val loudness = LoudnessDetector.analyzeLoudness(seg.pcmData)
+                if (loudness > maxLoudness) maxLoudness = loudness
+
+                // Semantic phrase matching
+                val tEmbedStart = System.currentTimeMillis()
+                val (similarity, matchedCategory) = EmbeddingEngine.findBestMatch(transcript.ifBlank { "" })
+                tEmbedTotal += System.currentTimeMillis() - tEmbedStart
+
+                val finalSim = if (transcript.isBlank()) 0f else similarity
+                processedSegments.add(
+                    SegmentResult(
+                        index = seg.index,
+                        startSec = seg.startSec,
+                        text = transcript,
+                        similarity = finalSim,
+                        matchedCategory = matchedCategory
+                    )
+                )
+                if (finalSim > 0f) simSum += finalSim
+            }
+
+            // Intent Prototype Classification over all transcripts
+            val intentResult = intentClassifier.analyzeCall(segmentTranscripts)
+            Log.i(TAG, "Engine B (IntentClassifier): isScam=${intentResult.isScam}, threats=${intentResult.distinctThreatCount}, dominant=${intentResult.dominantThreat}")
+
+            EngineBResult(
+                fullTranscript = fullTranscriptBuilder.toString().trim(),
+                processedSegments = processedSegments,
+                segmentTranscripts = segmentTranscripts,
+                intentResult = intentResult,
+                maxLoudness = maxLoudness,
+                avgSimilarity = if (processedSegments.isNotEmpty()) simSum / processedSegments.size else 0f
+            )
+        }
+
+        // Await results from both parallel engines
+        val cloneResult = engineADeferred.await()
+        val engineBResult = engineBDeferred.await()
+
+        val fullTranscript = engineBResult.fullTranscript
+        val processedSegments = engineBResult.processedSegments
+        val intentResult = engineBResult.intentResult
+
         Log.i(TAG, "${processedSegments.size} voice-active segments processed.")
+        Log.i(TAG, "Full transcript: '${fullTranscript.take(500)}'")
 
-        // A8: Two-tier verdict — semantic voting ∪ RL acoustic risk
+        // ============================================================
+        // MULTI-SIGNAL ENSEMBLE DECISION
+        // ============================================================
         val tVoteStart = System.currentTimeMillis()
-        val verdict = votingEngine.evaluate(processedSegments)
+        val ensembleVerdict = votingEngine.evaluateEnsemble(processedSegments, intentResult, cloneResult)
 
-        val avgSimilarity = if (processedSegments.isNotEmpty()) {
-            similaritySum / processedSegments.size
-        } else 0f
-
-        val rlRiskScore = rlVotingEngine.score(avgSimilarity, maxDeepfakeProb, maxStressScore, sawCallCenterNoise)
-        val rlConvicts = rlVotingEngine.evaluate(avgSimilarity, maxDeepfakeProb, maxStressScore, sawCallCenterNoise)
+        val intentThreatScore = if (intentResult.isScam) intentResult.dominantThreatScore else 0f
+        val weightedRisk = riskScorer.score(
+            engineBResult.avgSimilarity,
+            cloneResult.confidence,
+            intentThreatScore,
+            engineBResult.maxLoudness
+        )
+        val weightedConvicts = riskScorer.evaluate(
+            engineBResult.avgSimilarity,
+            cloneResult.confidence,
+            intentThreatScore,
+            engineBResult.maxLoudness
+        )
         tVoteTotal += System.currentTimeMillis() - tVoteStart
 
-        val finalIsScam = verdict.isScam || rlConvicts
-        val finalScamType = verdict.scamType
-            ?: processedSegments.filter { it.matchedCategory != null }
-                .maxByOrNull { it.similarity }?.matchedCategory
-            ?: if (rlConvicts) "acoustic_anomaly" else null
+        val finalIsScam = ensembleVerdict.isScam || weightedConvicts
+        val finalScamType = when {
+            cloneResult.isCloned -> "ai_voice_kidnap"
+            ensembleVerdict.isScam -> ensembleVerdict.scamType
+            intentResult.isScam -> intentResult.dominantThreat ?: "unknown_scam"
+            weightedConvicts -> "acoustic_anomaly"
+            else -> null
+        }
         val finalConfidence = when {
-            verdict.isScam -> verdict.confidence
-            rlConvicts -> rlRiskScore.coerceIn(0f, 0.99f)
-            else -> maxOf(verdict.confidence, 0f)
+            cloneResult.isCloned -> maxOf(cloneResult.confidence, ensembleVerdict.confidence)
+            ensembleVerdict.isScam -> ensembleVerdict.confidence
+            weightedConvicts -> weightedRisk.coerceIn(0f, 0.99f)
+            else -> maxOf(ensembleVerdict.confidence, 0f)
         }
 
         Log.i(
             TAG,
-            "Verdict: voting=${verdict.isScam}(conf=%.2f) rl=$rlConvicts(score=%.2f) => scam=$finalIsScam".format(
-                verdict.confidence, rlRiskScore
+            "Verdict: ensemble=${ensembleVerdict.isScam}(conf=%.2f) clone=${cloneResult.isCloned}(conf=%.2f) intent=${intentResult.isScam} risk=%.2f => finalIsScam=$finalIsScam".format(
+                ensembleVerdict.confidence, cloneResult.confidence, weightedRisk
             )
         )
 
-        // A9: Frozen DetectionResult contract
-        val flaggedSegments = (if (verdict.isScam) verdict.hits else emptyList()).map {
+        val flaggedSegments = (if (finalIsScam) ensembleVerdict.hits else emptyList()).map {
             FlaggedSegment(
                 index = it.index,
                 startSec = it.startSec,
                 text = it.text,
                 similarity = it.similarity,
-                matchedCategory = it.matchedCategory ?: "unknown"
+                matchedCategory = it.matchedCategory ?: (finalScamType ?: "unknown")
             )
         }
 
@@ -236,11 +250,11 @@ class PipelineCoordinator(
             confidence = finalConfidence,
             scamType = finalScamType,
             flaggedSegments = flaggedSegments,
-            fullTranscript = fullTranscriptBuilder.toString().trim(),
+            fullTranscript = fullTranscript,
             pipelineMs = pipelineMs
         )
 
-        // Phase 4: local threat intel + forensic manifest (scam only)
+        // Local threat intel + forensic evidence pack (scam only)
         if (detectionResult.isScam) {
             ThreatIntelClient.reportThreat(context, detectionResult)
             EvidenceManager.generateEvidencePackage(context, detectionResult)
@@ -251,22 +265,31 @@ class PipelineCoordinator(
             }
         }
 
-        return detectionResult
+        return@coroutineScope detectionResult
     }
 
-    /**
-     * One-time per-process initialization of every dormant AI component.
-     */
+    private data class EngineBResult(
+        val fullTranscript: String,
+        val processedSegments: List<SegmentResult>,
+        val segmentTranscripts: List<String>,
+        val intentResult: IntentPrototypeClassifier.CallIntentResult,
+        val maxLoudness: Float,
+        val avgSimilarity: Float
+    )
+
     private fun bootstrapEngines() {
         try {
+            DeviceCapabilityManager.detectTier(context)
             FederatedLearningManager.attach(context)
             ScamPhraseLibrary.loadFromAssets(context)
-            EmbeddingEngine.ensureInitialized(
-                context,
-                ModelDownloadManager.validatedEmbeddingModelPath(context)
-            )
-            AcousticAnalyzer.init(context)
-            VoiceCloneDetector.init(context)
+            val embedPath = ModelDownloadManager.validatedEmbeddingModelPath(context)
+            EmbeddingEngine.ensureInitialized(context, embedPath)
+            intentClassifier.init()
+
+            val deepfakePath = ModelDownloadManager.validatedDeepfakeModelPath(context)
+            if (deepfakePath != null) {
+                cloneDetector.init(deepfakePath)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Engine bootstrap incomplete — degraded mode active.", e)
         }

@@ -70,6 +70,12 @@ object ModelDownloadManager {
         "https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/onnx/model_quantized.onnx"
     const val EMBEDDING_FILENAME = "MiniLM_quantized.onnx"
 
+    private const val AASIST_LITE_URL =
+        "https://huggingface.co/clovaai/aasist/resolve/main/aasist_lite_quantized.onnx"
+    private const val AASIST_FULL_URL =
+        "https://huggingface.co/clovaai/aasist/resolve/main/aasist_quantized.onnx"
+    const val DEEPFAKE_FILENAME = "aasist_model.onnx"
+
     data class AsrSpec(
         val langKey: String,
         val displayName: String,
@@ -143,6 +149,16 @@ object ModelDownloadManager {
 
     fun markEmbeddingReady(context: Context) {
         prefs(context).edit().putBoolean(KEY_MINILM_DONE, true).apply()
+    }
+
+    fun deepfakeModelFile(context: Context): File = File(modelsRoot(context), DEEPFAKE_FILENAME)
+
+    fun isDeepfakeModelReady(context: Context): Boolean =
+        deepfakeModelFile(context).let { it.exists() && it.length() > 100_000 }
+
+    fun validatedDeepfakeModelPath(context: Context): String? {
+        val f = deepfakeModelFile(context)
+        return if (f.exists() && f.length() > 100_000) f.absolutePath else null
     }
 
     /** Downloads and extracts the Vosk model for the given language. */
@@ -281,6 +297,35 @@ object ModelDownloadManager {
         } catch (e: Exception) {
             Log.e(TAG, "MiniLM download failed (partial at ${tmp.name}: ${tmp.length()} bytes)", e)
             emit(DownloadState.Error("${e.javaClass.simpleName} — will resume next attempt"))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /** Voice clone / deepfake detection model provision. */
+    fun downloadDeepfakeModel(context: Context): Flow<DownloadState> = flow {
+        val dest = deepfakeModelFile(context)
+        if (dest.exists() && dest.length() > 100_000) {
+            emit(DownloadState.Success)
+            return@flow
+        }
+        val tmp = File(modelsRoot(context), "$DEEPFAKE_FILENAME.tmp")
+        val tier = DeviceCapabilityManager.detectTier(context)
+        val url = if (tier == DeviceCapabilityManager.AiTier.FULL) AASIST_FULL_URL else AASIST_LITE_URL
+        val modelLabel = if (tier == DeviceCapabilityManager.AiTier.FULL) "AASIST (Full)" else "AASIST-Lite"
+
+        try {
+            emit(DownloadState.Downloading(0f, modelLabel))
+            downloadWithResume(tmp, url)
+            tmp.copyTo(dest, overwrite = true)
+            tmp.delete()
+            if (dest.length() > 100_000) {
+                emit(DownloadState.Success)
+            } else {
+                dest.delete()
+                emit(DownloadState.Error("Deepfake model download incomplete"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Deepfake model download failed: ${e.message}", e)
+            emit(DownloadState.Error("Voice clone model: ${e.message ?: "download failed"}"))
         }
     }.flowOn(Dispatchers.IO)
 
