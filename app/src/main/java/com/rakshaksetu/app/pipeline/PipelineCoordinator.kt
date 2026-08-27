@@ -212,6 +212,20 @@ class PipelineCoordinator(
         } else null
 
         // ============================================================
+        // AI-P5: Cross-Session Speaker Consistency & Vocal Stress Analysis
+        // ============================================================
+        val voiceprint = SpeakerVoiceProfileStore.extractVoiceprint(pcmSegments)
+        val speakerConsistency = SpeakerVoiceProfileStore.verifyConsistency(context, phoneNumber, voiceprint)
+
+        val totalPcm = if (pcmSegments.isNotEmpty()) pcmSegments.reduce { acc, b -> acc + b } else ByteArray(0)
+        val stressAssessment = VocalStressDetector.evaluateStress(totalPcm)
+
+        val isIdentityImpersonation = speakerConsistency.isIdentityAnomaly
+        if (isIdentityImpersonation) {
+            Log.w(TAG, "🚨 IDENTITY SPOOF ANOMALY: Ongoing voice does not match historical profile for $phoneNumber!")
+        }
+
+        // ============================================================
         // MULTI-SIGNAL ENSEMBLE DECISION
         // ============================================================
         val tVoteStart = System.currentTimeMillis()
@@ -237,11 +251,11 @@ class PipelineCoordinator(
         val fallbackConvicts = fallbackVerdict?.isScam == true && fallbackVerdict.confidence >= 0.70f
 
         val isTrusted = com.rakshaksetu.app.telephony.TrustedContactManager.isTrustedContact(context, phoneNumber)
-        val rawIsScam = ensembleVerdict.isScam || weightedConvicts || fallbackConvicts
+        val rawIsScam = ensembleVerdict.isScam || weightedConvicts || fallbackConvicts || isIdentityImpersonation
 
         // Trusted Contact Whitelist Rule: If caller is in user's saved contacts/guardians,
-        // only convict if voice clone is explicitly detected (impersonation attack).
-        val finalIsScam = if (isTrusted && !cloneResult.isCloned) {
+        // only convict if voice clone is explicitly detected or voiceprint deviates (impersonation attack).
+        val finalIsScam = if (isTrusted && !cloneResult.isCloned && !isIdentityImpersonation) {
             Log.i(TAG, "Caller $phoneNumber is a verified trusted contact — suppressed false positive.")
             false
         } else {
@@ -249,7 +263,7 @@ class PipelineCoordinator(
         }
 
         val finalScamType = when {
-            cloneResult.isCloned -> "ai_voice_kidnap"
+            cloneResult.isCloned || isIdentityImpersonation -> "ai_voice_kidnap"
             ensembleVerdict.isScam -> ensembleVerdict.scamType
             intentResult.isScam -> intentResult.dominantThreat ?: "unknown_scam"
             fallbackConvicts -> fallbackVerdict!!.category
@@ -257,11 +271,20 @@ class PipelineCoordinator(
             else -> null
         }
         val finalConfidence = when {
-            cloneResult.isCloned -> maxOf(cloneResult.confidence, ensembleVerdict.confidence)
-            ensembleVerdict.isScam -> ensembleVerdict.confidence
-            fallbackConvicts -> fallbackVerdict!!.confidence
-            weightedConvicts -> weightedRisk.coerceIn(0f, 0.99f)
-            else -> maxOf(ensembleVerdict.confidence, 0f)
+            cloneResult.isCloned || isIdentityImpersonation -> maxOf(cloneResult.confidence, 0.88f)
+            finalIsScam -> maxOf(
+                ensembleVerdict.confidence,
+                weightedRisk,
+                if (fallbackConvicts) fallbackVerdict!!.confidence else 0f
+            )
+            else -> minOf(
+                ensembleVerdict.confidence, cloneResult.confidence, weightedRisk
+            )
+        }
+
+        // Continuous Model Enhancement: If verified genuine call from trusted contact, update speaker baseline
+        if (!finalIsScam && isTrusted && pcmSegments.isNotEmpty()) {
+            SpeakerVoiceProfileStore.updateProfile(context, phoneNumber, null, voiceprint)
         }
 
         Log.i(
