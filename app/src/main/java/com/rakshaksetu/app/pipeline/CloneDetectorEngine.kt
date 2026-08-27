@@ -95,11 +95,12 @@ class CloneDetectorEngine(private val context: Context) {
         val segmentScores = mutableListOf<Float>()
         val suspectIndices = mutableListOf<Int>()
 
-        // Acoustic & Prosody features from all segments combined
+        // Acoustic, Prosody, and Neural Vocoder Artifact features from all segments combined
         val allPcm = segments.reduce { acc, bytes -> acc + bytes }
         val speechRate = SpectralFeatureExtractor.estimateSpeechRate(allPcm)
         val silenceRatio = SpectralFeatureExtractor.computeSilenceRatio(allPcm)
         val prosody = ProsodyAnalyzer.analyze(allPcm)
+        val vocoderResult = NeuralVocoderDetector.analyzeVocoderArtifacts(allPcm)
 
         for ((idx, segment) in segments.withIndex()) {
             val score = analyzeSegment(segment)
@@ -114,28 +115,29 @@ class CloneDetectorEngine(private val context: Context) {
             segmentScores.sum() / segmentScores.size
         } else 0f
 
-        // Prosody fusion: if pitch microvariations indicate neural TTS synthesis
-        if (prosody.ttsAnomalyScore > 0.50f) {
-            maxScore = (maxScore + prosody.ttsAnomalyScore * 0.20f).coerceAtMost(1.0f)
-            avgScore = (avgScore + prosody.ttsAnomalyScore * 0.15f).coerceAtMost(1.0f)
+        // Prosody & Neural Vocoder fusion (WaveRNN / Subscale artifacts)
+        val syntheticPrior = (prosody.ttsAnomalyScore * 0.55f + vocoderResult.neuralVocoderConfidence * 0.45f).coerceIn(0f, 1f)
+        if (syntheticPrior > 0.45f) {
+            maxScore = (maxScore + syntheticPrior * 0.22f).coerceAtMost(1.0f)
+            avgScore = (avgScore + syntheticPrior * 0.18f).coerceAtMost(1.0f)
         }
 
         // Decision: require multiple suspicious segments for conviction
         // Single-segment spikes could be codec artifacts
         val isCloned = when {
-            segments.size == 1 -> maxScore > CLONE_THRESHOLD + 0.10f
-            segments.size <= 3 -> suspectIndices.size >= 1 && avgScore > SUSPECT_THRESHOLD
-            else -> (suspectIndices.size >= 2 && avgScore > SUSPECT_THRESHOLD) || (prosody.ttsAnomalyScore > 0.75f && maxScore > SUSPECT_THRESHOLD)
+            segments.size == 1 -> maxScore > CLONE_THRESHOLD + 0.10f || syntheticPrior > 0.82f
+            segments.size <= 3 -> (suspectIndices.size >= 1 && avgScore > SUSPECT_THRESHOLD) || syntheticPrior > 0.78f
+            else -> (suspectIndices.size >= 2 && avgScore > SUSPECT_THRESHOLD) || (syntheticPrior > 0.70f && maxScore > SUSPECT_THRESHOLD)
         }
 
         val confidence = if (isCloned) {
-            (maxScore * 0.5f + avgScore * 0.3f + prosody.ttsAnomalyScore * 0.2f).coerceIn(0f, 1f)
+            (maxScore * 0.45f + avgScore * 0.25f + syntheticPrior * 0.30f).coerceIn(0f, 1f)
         } else {
             avgScore.coerceIn(0f, 1f)
         }
 
-        Log.d(TAG, "Clone analysis: max=%.3f avg=%.3f suspects=%d/%d cloned=%s prosodyTTS=%.2f"
-            .format(maxScore, avgScore, suspectIndices.size, segments.size, isCloned, prosody.ttsAnomalyScore))
+        Log.d(TAG, "Clone analysis: max=%.3f avg=%.3f suspects=%d/%d cloned=%s prosodyTTS=%.2f vocoderArt=%.2f"
+            .format(maxScore, avgScore, suspectIndices.size, segments.size, isCloned, prosody.ttsAnomalyScore, vocoderResult.neuralVocoderConfidence))
 
         return CloneResult(
             isCloned = isCloned,
