@@ -302,6 +302,29 @@ private fun EvidenceContent(
             }
         }
 
+        // Share Evidence Dossier with Cyber Cell / Police
+        Button(
+            onClick = {
+                try {
+                    val statement = StatementGenerator.generate(result)
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, "Cybercrime Evidence Dossier - Call ${result.callId.take(8)}")
+                        putExtra(Intent.EXTRA_TEXT, statement)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Cybercrime Evidence Dossier"))
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Could not share dossier", Toast.LENGTH_SHORT).show()
+                }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Share Evidence Dossier (Police / Cyber Cell)", fontSize = 13.sp)
+        }
+
         // 3. Elder Mode one-tap family alert
         if (elderEnabled) {
             Button(

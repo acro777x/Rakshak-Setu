@@ -236,7 +236,18 @@ class PipelineCoordinator(
         // EmbeddingEngine per-segment matching (e.g. scattered keywords across segments)
         val fallbackConvicts = fallbackVerdict?.isScam == true && fallbackVerdict.confidence >= 0.70f
 
-        val finalIsScam = ensembleVerdict.isScam || weightedConvicts || fallbackConvicts
+        val isTrusted = com.rakshaksetu.app.telephony.TrustedContactManager.isTrustedContact(context, phoneNumber)
+        val rawIsScam = ensembleVerdict.isScam || weightedConvicts || fallbackConvicts
+
+        // Trusted Contact Whitelist Rule: If caller is in user's saved contacts/guardians,
+        // only convict if voice clone is explicitly detected (impersonation attack).
+        val finalIsScam = if (isTrusted && !cloneResult.isCloned) {
+            Log.i(TAG, "Caller $phoneNumber is a verified trusted contact — suppressed false positive.")
+            false
+        } else {
+            rawIsScam
+        }
+
         val finalScamType = when {
             cloneResult.isCloned -> "ai_voice_kidnap"
             ensembleVerdict.isScam -> ensembleVerdict.scamType
