@@ -65,7 +65,7 @@ object ProtectedFieldPolicy {
 object PortalFieldMapper {
 
     enum class Portal(val url: String, val displayName: String) {
-        NCRP_CYBERCRIME("https://cybercrime.gov.in/Webform/Crime_AuthoLogin.aspx", "NCRP (cybercrime.gov.in)"),
+        NCRP_CYBERCRIME("https://cybercrime.gov.in/Webpages/Citizen_Login.aspx", "NCRP (cybercrime.gov.in)"),
         CHAKSHU_SANCHARSAATHI("https://sancharsaathi.gov.in/sfc/", "Chakshu (Sanchar Saathi)")
     }
 

@@ -691,9 +691,12 @@ private fun ComplaintProfileSection() {
 private fun ProfileDialog(store: UserProfileStore, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf(store.fullName) }
     var phone by remember { mutableStateOf(store.phone) }
+    var altPhone by remember { mutableStateOf(store.alternatePhone) }
     var email by remember { mutableStateOf(store.email) }
     var state by remember { mutableStateOf(store.state) }
     var city by remember { mutableStateOf(store.city) }
+    var address by remember { mutableStateOf(store.address) }
+    var age by remember { mutableStateOf(store.ageDeclared) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -703,25 +706,52 @@ private fun ProfileDialog(store: UserProfileStore, onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Full Name") }, singleLine = true)
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Full Name *") }, singleLine = true)
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it.filter { c -> c.isDigit() || c == '+' } },
-                    label = { Text("Mobile") }, singleLine = true,
+                    label = { Text("Mobile *") }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                 )
-                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, singleLine = true)
+                OutlinedTextField(
+                    value = altPhone,
+                    onValueChange = { altPhone = it.filter { c -> c.isDigit() || c == '+' } },
+                    label = { Text("Alternate Mobile") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email *") }, singleLine = true)
+                OutlinedTextField(
+                    value = age,
+                    onValueChange = { age = it.filter { c -> c.isDigit() }.take(3) },
+                    label = { Text("Age") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
                 OutlinedTextField(value = state, onValueChange = { state = it }, label = { Text("State / UT") }, singleLine = true)
                 OutlinedTextField(value = city, onValueChange = { city = it }, label = { Text("City / District") }, singleLine = true)
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    label = { Text("Full Address") },
+                    minLines = 2,
+                    maxLines = 4
+                )
+                Text(
+                    "* Required for NCRP filing. All data stays on-device only.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         },
         confirmButton = {
             Button(onClick = {
                 store.fullName = name
                 store.phone = phone
+                store.alternatePhone = altPhone
                 store.email = email
                 store.state = state
                 store.city = city
+                store.address = address
+                store.ageDeclared = age
                 onDismiss()
             }) { Text("Save") }
         },

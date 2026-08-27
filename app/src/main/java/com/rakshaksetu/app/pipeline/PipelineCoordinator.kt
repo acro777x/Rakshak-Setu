@@ -179,6 +179,20 @@ class PipelineCoordinator(
         Log.i(TAG, "Full transcript: '${fullTranscript.take(500)}'")
 
         // ============================================================
+        // SAFETY-NET: ScamEngineFallback 3-Tier evaluation on full transcript
+        // ============================================================
+        val fallbackVerdict = if (fullTranscript.isNotBlank()) {
+            try {
+                ScamEngineFallback.evaluate(fullTranscript).also {
+                    Log.i(TAG, "ScamEngineFallback: isScam=${it.isScam} conf=%.2f cat=${it.category} tier=${it.tierUsed}".format(it.confidence))
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "ScamEngineFallback evaluation failed, skipping.", e)
+                null
+            }
+        } else null
+
+        // ============================================================
         // MULTI-SIGNAL ENSEMBLE DECISION
         // ============================================================
         val tVoteStart = System.currentTimeMillis()
@@ -199,17 +213,23 @@ class PipelineCoordinator(
         )
         tVoteTotal += System.currentTimeMillis() - tVoteStart
 
-        val finalIsScam = ensembleVerdict.isScam || weightedConvicts
+        // ScamEngineFallback acts as safety-net: catches scams that slip past
+        // EmbeddingEngine per-segment matching (e.g. scattered keywords across segments)
+        val fallbackConvicts = fallbackVerdict?.isScam == true && fallbackVerdict.confidence >= 0.70f
+
+        val finalIsScam = ensembleVerdict.isScam || weightedConvicts || fallbackConvicts
         val finalScamType = when {
             cloneResult.isCloned -> "ai_voice_kidnap"
             ensembleVerdict.isScam -> ensembleVerdict.scamType
             intentResult.isScam -> intentResult.dominantThreat ?: "unknown_scam"
+            fallbackConvicts -> fallbackVerdict!!.category
             weightedConvicts -> "acoustic_anomaly"
             else -> null
         }
         val finalConfidence = when {
             cloneResult.isCloned -> maxOf(cloneResult.confidence, ensembleVerdict.confidence)
             ensembleVerdict.isScam -> ensembleVerdict.confidence
+            fallbackConvicts -> fallbackVerdict!!.confidence
             weightedConvicts -> weightedRisk.coerceIn(0f, 0.99f)
             else -> maxOf(ensembleVerdict.confidence, 0f)
         }

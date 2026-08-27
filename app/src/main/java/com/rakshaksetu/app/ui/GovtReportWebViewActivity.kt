@@ -229,6 +229,51 @@ fun GovtReportScreen(
                                 label = { Text("👤 Name", fontSize = 11.sp) }
                             )
                         }
+                        if (profile.phone.isNotBlank()) {
+                            SuggestionChip(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(profile.phone))
+                                    scope.launch { snackbarHostState.showSnackbar("Copied Phone: ${profile.phone}") }
+                                },
+                                label = { Text("📱 Phone", fontSize = 11.sp) }
+                            )
+                        }
+                        if (profile.email.isNotBlank()) {
+                            SuggestionChip(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(profile.email))
+                                    scope.launch { snackbarHostState.showSnackbar("Copied Email: ${profile.email}") }
+                                },
+                                label = { Text("✉️ Email", fontSize = 11.sp) }
+                            )
+                        }
+                        if (profile.alternatePhone.isNotBlank()) {
+                            SuggestionChip(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(profile.alternatePhone))
+                                    scope.launch { snackbarHostState.showSnackbar("Copied Alt Phone: ${profile.alternatePhone}") }
+                                },
+                                label = { Text("📞 Alt Phone", fontSize = 11.sp) }
+                            )
+                        }
+                        if (profile.address.isNotBlank()) {
+                            SuggestionChip(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(profile.address))
+                                    scope.launch { snackbarHostState.showSnackbar("Copied Address") }
+                                },
+                                label = { Text("🏠 Address", fontSize = 11.sp) }
+                            )
+                        }
+                        if (profile.ageDeclared.isNotBlank()) {
+                            SuggestionChip(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(profile.ageDeclared))
+                                    scope.launch { snackbarHostState.showSnackbar("Copied Age: ${profile.ageDeclared}") }
+                                },
+                                label = { Text("🎂 Age", fontSize = 11.sp) }
+                            )
+                        }
                     }
 
                     Spacer(Modifier.height(6.dp))
@@ -374,13 +419,15 @@ fun GovtReportScreen(
 private fun PortalGuideSheet(portal: PortalFieldMapper.Portal, onDismiss: () -> Unit) {
     val steps: List<PortalStep> = when (portal) {
         PortalFieldMapper.Portal.NCRP_CYBERCRIME -> listOf(
-            PortalStep("1. Choose complaint type", "Money LOST → 'Financial Fraud'. Threats / Impersonation → 'Other Cybercrime'."),
-            PortalStep("2. Citizen Login (YOU)", "Enter YOUR mobile number, type OTP & CAPTCHA yourself (Rakshak Setu never accesses credentials)."),
-            PortalStep("3. Category selection", "Pick: Digital Arrest / Impersonation / Fake CBI-Police / KYC Expiry."),
-            PortalStep("4. Complainant details", "Click 'FILL THIS FORM' or use quick-copy chips."),
-            PortalStep("5. Incident details", "Suspect mobile number, date and time auto-filled from call dossier."),
-            PortalStep("6. Complaint description", "Auto-fills standard legal complaint text mentioning IT Act & BNS provisions."),
-            PortalStep("7. Submit", "Enter CAPTCHA and submit. Save the acknowledgment number.")
+            PortalStep("1. Register as New User", "Click 'Click Here for New User'. Enter State, Login ID (email), Mobile Number → Get OTP → Enter CAPTCHA → Submit."),
+            PortalStep("2. Login", "After registration, login with your credentials. OTP & CAPTCHA entered by YOU only (Rakshak Setu never touches credentials)."),
+            PortalStep("3. Select 'Report Other Cyber Crime'", "Click 'Report Other Cyber Crime' on the main page."),
+            PortalStep("4. Category", "For voice clone/AI scam: 'Online Financial Fraud' → 'Cheating by Impersonation'. For digital arrest: 'Other Cyber Crime' → 'Digital Arrest Scam'."),
+            PortalStep("5. Complainant details", "Click 'FILL THIS FORM' or use quick-copy chips to paste Name, Phone, Email, Address."),
+            PortalStep("6. Incident details", "Suspect phone, date & time auto-filled from call analysis. Description auto-generated (≥200 chars with IT Act & BNS provisions)."),
+            PortalStep("7. Evidence upload", "Upload call recording (.wav/.mp3) and screenshots from Rakshak Setu evidence pack as supporting documents."),
+            PortalStep("8. Review & Submit", "Preview all details → Check declaration checkbox → Enter CAPTCHA → Submit. Save your 14-digit acknowledgment number."),
+            PortalStep("💡 Tip: Call 1930", "For immediate financial fraud, call helpline 1930 within 1-2 hours (Golden Hour) for instant account freeze.")
         )
         PortalFieldMapper.Portal.CHAKSHU_SANCHARSAATHI -> listOf(
             PortalStep("1. Login (YOU)", "Mobile number + OTP entered by you."),
@@ -484,7 +531,7 @@ internal fun buildFillerScript(payloadJson: String): String {
           function assocText(el){
             try{
               var id=el.id;
-              if(id){ var l=el.ownerDocument.querySelector('label[for="'+id.replace(/"/g,'\\\"')+'"]'); if(l&&l.textContent) return l.textContent.trim(); }
+              if(id){ var l=el.ownerDocument.querySelector('label[for="'+id.replace(/"/g,'\\"')+'"]'); if(l&&l.textContent) return l.textContent.trim(); }
               var wrap=el.closest?el.closest('label'):null; if(wrap&&wrap.textContent) return wrap.textContent.trim();
               var td=el.closest?el.closest('td'):null;
               if(td){ var prev=td.previousElementSibling; while(prev&&!prev.textContent.trim()){prev=prev.previousElementSibling;} if(prev&&prev.textContent) return prev.textContent.trim(); }
@@ -494,21 +541,31 @@ internal fun buildFillerScript(payloadJson: String): String {
             return (el.getAttribute('aria-label')||el.placeholder||'');
           }
 
+          function triggerAspNetPostback(el){
+            try{
+              if(typeof __doPostBack==='function' && el.name){
+                __doPostBack(el.name,'');
+              }
+            }catch(e){}
+          }
+
           function setValue(el,value){
             try{
               if(!el) return false;
               if(el.tagName==='SELECT'){
-                var opts=el.options;
+                var opts=el.options; var matched=false;
                 for(var i=0;i<opts.length;i++){
                   if(opts[i].text.toLowerCase().indexOf(value.toLowerCase())>=0 || opts[i].value.toLowerCase().indexOf(value.toLowerCase())>=0){
-                    el.selectedIndex=i;
+                    el.selectedIndex=i; matched=true;
                     el.dispatchEvent(new Event('change',{bubbles:true}));
-                    return true;
+                    triggerAspNetPostback(el);
+                    break;
                   }
                 }
-                return false;
+                return matched;
               }
               el.focus();
+              el.dispatchEvent(new Event('focus',{bubbles:true}));
               try {
                 var proto = el.tagName==='TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
                 var desc = Object.getOwnPropertyDescriptor(proto,'value');
@@ -520,6 +577,9 @@ internal fun buildFillerScript(payloadJson: String): String {
               } catch(pe) {
                 el.value = value;
               }
+              el.setAttribute('value', value);
+              el.dispatchEvent(new Event('keydown',{bubbles:true}));
+              el.dispatchEvent(new Event('keyup',{bubbles:true}));
               el.dispatchEvent(new Event('input',{bubbles:true}));
               el.dispatchEvent(new Event('change',{bubbles:true}));
               el.dispatchEvent(new Event('blur',{bubbles:true}));
@@ -529,7 +589,7 @@ internal fun buildFillerScript(payloadJson: String): String {
 
           function fillDoc(doc){
             if(!doc||!doc.querySelectorAll) return;
-            var els = doc.querySelectorAll('input:not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]), textarea, select');
+            var els = doc.querySelectorAll('input:not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea, select');
             stats.scanned += els.length;
             var done={};
             for(var j=0;j<payload.length;j++){
@@ -557,7 +617,7 @@ internal fun buildFillerScript(payloadJson: String): String {
             }
           }
 
-          try{ fillDoc(document); }catch(e){}
+          try{ fillDoc(document); }catch(e){ console.log('RakshakFill main error:',e); }
           function walk(w){
             try{
               for(var i=0;i<w.frames.length;i++){
@@ -566,6 +626,19 @@ internal fun buildFillerScript(payloadJson: String): String {
             }catch(e){}
           }
           walk(window);
+          console.log('RakshakFill pass1:', JSON.stringify(stats));
+
+          // Delayed retry for ASP.NET dynamic fields loaded after postback
+          setTimeout(function(){
+            var retryStats = {scanned:0, filled:0, blocked:0};
+            var origStats = JSON.parse(JSON.stringify(stats));
+            try{ fillDoc(document); }catch(e){}
+            walk(window);
+            stats.scanned = Math.max(stats.scanned, origStats.scanned);
+            console.log('RakshakFill pass2:', JSON.stringify(stats));
+            try{ AndroidBridge.onFillResults(JSON.stringify(stats)); }catch(be){}
+          }, 1500);
+
           try{ AndroidBridge.onFillResults(JSON.stringify(stats)); }catch(be){}
         })();
     """.trimIndent()
