@@ -32,6 +32,10 @@ class RakshakSetuApp : Application() {
             }
             // OEM swipe-up/force-stop kill recovery: resume any interrupted analysis
             com.rakshaksetu.app.service.AnalysisService.resumeIfPending(this)
+            // 24/7 background shield service keeps monitoring alive when app is closed
+            if (com.rakshaksetu.app.consent.ConsentStore(this).isShieldActive) {
+                com.rakshaksetu.app.service.RakshakShieldService.start(this)
+            }
         } catch (e: Exception) {
             // Never crash the shield on bootstrap issues
             android.util.Log.e("RakshakSetuApp", "Bootstrap failure contained", e)

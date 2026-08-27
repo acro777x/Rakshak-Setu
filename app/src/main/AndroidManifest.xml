@@ -81,6 +81,16 @@
             android:usesCleartextTraffic="false"
             android:theme="@style/Theme.Material3.DayNight" />
 
+        <!-- Continuous 24/7 Shield ForegroundService -->
+        <service
+            android:name=".service.RakshakShieldService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Continuous call scam protection shield and background telephony monitoring" />
+        </service>
+
         <!-- Analysis ForegroundService -->
         <service
             android:name=".service.AnalysisService"

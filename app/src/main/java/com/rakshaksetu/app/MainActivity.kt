@@ -138,6 +138,14 @@ fun MainDashboardScreen() {
         }
     }
 
+    LaunchedEffect(isShieldActive) {
+        if (isShieldActive) {
+            com.rakshaksetu.app.service.RakshakShieldService.start(context)
+        } else {
+            com.rakshaksetu.app.service.RakshakShieldService.stop(context)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -172,6 +180,11 @@ fun MainDashboardScreen() {
             ShieldStatusCard(isShieldActive) { active ->
                 isShieldActive = active
                 consentStore.isShieldActive = active
+                if (active) {
+                    com.rakshaksetu.app.service.RakshakShieldService.start(context)
+                } else {
+                    com.rakshaksetu.app.service.RakshakShieldService.stop(context)
+                }
             }
 
             PermissionChecklistSection(
@@ -448,6 +461,32 @@ private fun AiModelsSection() {
                     enabled = !busy && !embedReady
                 ) {
                     Text(if (embedReady) "Encoder Ready" else "Get Encoder")
+                }
+
+                var deepfakeReady by remember { mutableStateOf(ModelDownloadManager.isDeepfakeModelReady(context)) }
+                OutlinedButton(
+                    onClick = {
+                        busy = true
+                        scope.launch {
+                            ModelDownloadManager.downloadDeepfakeModel(context).collectLatest { state ->
+                                when (state) {
+                                    is ModelDownloadManager.DownloadState.Downloading ->
+                                        progressText = "AASIST: ${state.fileName} ${(state.progress * 100).toInt()}%"
+                                    is ModelDownloadManager.DownloadState.Success -> {
+                                        deepfakeReady = true
+                                        progressText = "AASIST voice clone model ready!"
+                                    }
+                                    is ModelDownloadManager.DownloadState.Error ->
+                                        snackbar.showSnackbar("AASIST error: ${state.message}")
+                                    else -> {}
+                                }
+                            }
+                            busy = false
+                        }
+                    },
+                    enabled = !busy && !deepfakeReady && embedReady
+                ) {
+                    Text(if (deepfakeReady) "🛡️ AASIST Ready" else "Get AASIST Clone Detector")
                 }
             }
         }

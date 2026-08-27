@@ -71,9 +71,9 @@ object ModelDownloadManager {
     const val EMBEDDING_FILENAME = "MiniLM_quantized.onnx"
 
     private const val AASIST_LITE_URL =
-        "https://huggingface.co/clovaai/aasist/resolve/main/aasist_lite_quantized.onnx"
+        "https://huggingface.co/SpeechAntiSpoofingBenchmarks/AASIST-L/resolve/main/aasist-l.onnx"
     private const val AASIST_FULL_URL =
-        "https://huggingface.co/clovaai/aasist/resolve/main/aasist_quantized.onnx"
+        "https://huggingface.co/SpeechAntiSpoofingBenchmarks/AASIST/resolve/main/aasist.onnx"
     const val DEEPFAKE_FILENAME = "aasist_model.onnx"
 
     data class AsrSpec(

@@ -29,14 +29,20 @@ object ScamEngineFallback {
     private var isTier2Loaded = false
 
     private val TIER3_KEYWORDS = mapOf(
-        "digital_arrest" to listOf("cbi", "arrest", "warrant", "court", "police", "narcotics", "customs drugs", "digital arrest"),
-        "kyc_fraud" to listOf("kyc", "pan card", "freeze", "block", "suspend", "debit card expire", "aadhar link"),
-        "courier_customs" to listOf("fedex", "parcel", "customs", "illegal package", "contraband", "clearance fee"),
-        "tech_support" to listOf("anydesk", "teamviewer", "quicksupport", "trojan", "virus detected", "remote access"),
-        "lottery_refund" to listOf("lottery", "kbc", "prize", "cashback", "lucky draw", "tax fee", "pre-approved loan"),
-        "family_emergency" to listOf("accident", "hospital", "police station", "emergency deposit", "bail money"),
-        "job_task_scam" to listOf("work from home", "daily 5000", "telegram task", "youtube review", "like videos"),
-        "upi_qr_scam" to listOf("qr code", "scan receive", "collect request", "advance payment", "upi pin daalo")
+        "digital_arrest" to listOf("cbi", "arrest", "warrant", "court", "police", "narcotics", "customs drugs", "digital arrest", "गिरफ्तार", "वारंट", "पुलिस", "कोर्ट", "नार्कोटिक्स"),
+        "kyc_fraud" to listOf("kyc", "pan card", "freeze", "block", "suspend", "debit card expire", "aadhar link", "आधार", "पैन कार्ड", "केवाईसी", "ब्लॉक"),
+        "courier_customs" to listOf("fedex", "parcel", "customs", "illegal package", "contraband", "clearance fee", "पार्सल", "कस्टम", "कूरियर"),
+        "screen_share_scam" to listOf("anydesk", "teamviewer", "quicksupport", "trojan", "virus detected", "remote access", "screen share", "एनीडेस्क", "रिमोट एक्सेस", "स्क्रीन शेयर"),
+        "loan_lottery" to listOf("lottery", "kbc", "prize", "cashback", "lucky draw", "tax fee", "pre-approved loan", "लॉटरी", "केबीसी", "इनाम", "लकी ड्रॉ", "बधाई हो", "जीती है", "प्राइज"),
+        "ai_voice_kidnap" to listOf("accident", "hospital", "police station", "emergency deposit", "bail money", "kidnap", "ransom", "एक्सीडेंट", "हॉस्पिटल", "जमानत", "अपहरण"),
+        "job_task_scam" to listOf("work from home", "daily 5000", "telegram task", "youtube review", "like videos", "घर बैठे", "रोजाना", "टेलीग्राम"),
+        "upi_qr_scam" to listOf("qr code", "scan receive", "collect request", "advance payment", "upi pin daalo", "क्यूआर कोड", "यूपीआई पिन"),
+        "sextortion_blackmail" to listOf("video call record", "viral", "nude", "blackmail", "whatsapp contacts", "वीडियो कॉल", "वायरल", "ब्लैकमेल"),
+        "crypto_investment" to listOf("crypto", "bitcoin", "stock market", "guaranteed profit", "vip telegram", "शेयर मार्केट", "क्रिप्टो"),
+        "traffic_challan" to listOf("traffic challan", "e-challan", "rto", "vehicle impound", "traffic fine", "ट्रैफिक चालान", "ई-चालान", "गाड़ी जब्त"),
+        "pension_epfo" to listOf("pension", "epfo", "life certificate", "pf withdrawal", "पेंशन", "ईपीएफओ", "जीवन प्रमाण"),
+        "trai_sim_block" to listOf("trai", "sim block", "telecom", "disconnect", "ट्राई", "सिम ब्लॉक", "दूरसंचार"),
+        "electricity_bill" to listOf("electricity bill", "power cut", "meter", "bijli", "बिजली बिल", "बिजली कट")
     )
 
     fun init(context: Context) {

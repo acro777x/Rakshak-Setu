@@ -28,7 +28,7 @@ class CloneDetectorEngine(private val context: Context) {
         private const val TAG = "CloneDetector"
         private const val CLONE_THRESHOLD = 0.70f
         private const val SUSPECT_THRESHOLD = 0.50f
-        private const val TARGET_AUDIO_LENGTH = 16000  // 1 second at 16kHz
+        private const val TARGET_AUDIO_LENGTH = 64600  // AASIST: ~4.04s at 16kHz
     }
 
     data class CloneResult(
@@ -162,8 +162,9 @@ class CloneDetectorEngine(private val context: Context) {
                 }
             }
 
+            // AASIST expects [batch, samples] for raw waveform
             val shape = when (modelMode) {
-                ModelMode.RAW_WAVEFORM -> longArrayOf(1, 1, TARGET_AUDIO_LENGTH.toLong())
+                ModelMode.RAW_WAVEFORM -> longArrayOf(1, TARGET_AUDIO_LENGTH.toLong())
                 ModelMode.LFCC_FEATURES -> {
                     val numFrames = inputFeatures.size / 60
                     longArrayOf(1, numFrames.toLong(), 60)
@@ -176,12 +177,22 @@ class CloneDetectorEngine(private val context: Context) {
             val inputName = ortSession!!.inputNames.first()
             val result = ortSession!!.run(mapOf(inputName to inputTensor))
 
+            // AASIST output: [1, 2] logits where [0]=spoof, [1]=bonafide
             val outputTensor = result[0].value
-            val score = when (outputTensor) {
+            val spoofScore = when (outputTensor) {
                 is Array<*> -> {
                     @Suppress("UNCHECKED_CAST")
-                    val arr = outputTensor as Array<FloatArray>
-                    arr[0][0]
+                    val logits = outputTensor as Array<FloatArray>
+                    if (logits[0].size >= 2) {
+                        // Softmax: P(spoof) = exp(logit_spoof) / (exp(logit_spoof) + exp(logit_bonafide))
+                        val spoofLogit = logits[0][0].toDouble()
+                        val bonafideLogit = logits[0][1].toDouble()
+                        val expSpoof = Math.exp(spoofLogit)
+                        val expBonafide = Math.exp(bonafideLogit)
+                        (expSpoof / (expSpoof + expBonafide)).toFloat()
+                    } else {
+                        logits[0][0]
+                    }
                 }
                 is FloatArray -> outputTensor[0]
                 else -> 0f
@@ -190,13 +201,11 @@ class CloneDetectorEngine(private val context: Context) {
             result.close()
             inputTensor.close()
 
-            // Apply sigmoid if raw logit
-            val probability = if (score < -10f || score > 10f) {
-                (1.0f / (1.0f + Math.exp(-score.toDouble()))).toFloat()
-            } else if (score < 0f || score > 1f) {
-                (1.0f / (1.0f + Math.exp(-score.toDouble()))).toFloat()
+            // Apply sigmoid only if single logit output (non-AASIST model)
+            val probability = if (spoofScore < 0f || spoofScore > 1f) {
+                (1.0f / (1.0f + Math.exp(-spoofScore.toDouble()))).toFloat()
             } else {
-                score
+                spoofScore
             }
 
             probability

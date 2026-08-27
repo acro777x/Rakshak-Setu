@@ -129,12 +129,25 @@ class VotingEngine(
         if (isIntentScam) {
             val dominantThreat = intentResult?.dominantThreat ?: "unknown_scam"
             val intentConf = intentResult?.dominantThreatScore ?: 0.75f
-            Log.w(TAG, "Ensemble: Unknown scam detected via intent behavioral patterns: $dominantThreat (conf=$intentConf)")
+
+            // If phrase matcher had high-confidence hits (but not enough for quorum),
+            // prefer the phrase-based category — it's more specific than intent classification.
+            val bestPhraseHit = phraseVerdict.hits.maxByOrNull { it.similarity }
+            val phraseCategory = if (bestPhraseHit != null && bestPhraseHit.similarity >= 0.85f) {
+                bestPhraseHit.matchedCategory
+            } else null
+
+            val finalCategory = phraseCategory ?: dominantThreat
+            val finalConf = if (phraseCategory != null) {
+                maxOf(intentConf, bestPhraseHit!!.similarity)
+            } else intentConf
+
+            Log.w(TAG, "Ensemble: Scam detected via intent patterns: $dominantThreat → resolved category: $finalCategory (conf=$finalConf)")
             return DetectionVerdict(
                 isScam = true,
-                scamType = dominantThreat,
-                confidence = intentConf,
-                hits = segments
+                scamType = finalCategory,
+                confidence = finalConf,
+                hits = if (phraseVerdict.hits.isNotEmpty()) phraseVerdict.hits else segments
             )
         }
 

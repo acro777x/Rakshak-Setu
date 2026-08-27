@@ -139,7 +139,16 @@ class AnalysisService : Service() {
             }
         }
 
-        startForeground(NOTIFICATION_ID, buildProgressNotification(phoneNumber ?: ""))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            androidx.core.app.ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                buildProgressNotification(phoneNumber ?: ""),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, buildProgressNotification(phoneNumber ?: ""))
+        }
         acquireWakeLock()
 
         val fCallId = callId

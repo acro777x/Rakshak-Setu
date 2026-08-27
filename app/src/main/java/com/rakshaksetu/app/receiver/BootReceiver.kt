@@ -17,8 +17,11 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d(TAG, "Boot completed — re-registering telephony listener")
+            Log.d(TAG, "Boot completed — re-registering telephony listener and launching shield")
             RakshakCallStateListener.register(context.applicationContext)
+            if (com.rakshaksetu.app.consent.ConsentStore(context).isShieldActive) {
+                com.rakshaksetu.app.service.RakshakShieldService.start(context)
+            }
             // Resume any analysis that an OEM kill (or reboot) interrupted mid-flight
             com.rakshaksetu.app.service.AnalysisService.resumeIfPending(context)
         }

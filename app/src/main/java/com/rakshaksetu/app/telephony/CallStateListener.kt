@@ -130,16 +130,27 @@ object AnalysisTrigger {
             putExtra(AnalysisService.EXTRA_PHONE_NUMBER, number ?: "Incoming Call")
             putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
         }
+        var startedService = false
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 ctx.startForegroundService(serviceIntent)
             } else {
                 ctx.startService(serviceIntent)
             }
+            startedService = true
             Log.i(TAG, "[$source] AnalysisService triggered for callId=$callId (duration=${durationSec}s)")
         } catch (e: Exception) {
-            Log.e(TAG, "[$source] Failed to start AnalysisService (OEM background restriction?)", e)
-            return false
+            Log.e(TAG, "[$source] Direct start of AnalysisService failed (Android 14/15 background restriction); using WorkManager fallback", e)
+        }
+
+        if (!startedService) {
+            // Immediate JobScheduler execution bypasses FGS background start restrictions on Android 14/15
+            com.rakshaksetu.app.service.CallAnalysisWorker.enqueue(
+                ctx,
+                callId,
+                number ?: "Incoming Call",
+                durationSec.toInt()
+            )
         }
         CallStateTracker.reset(ctx)
         return true
