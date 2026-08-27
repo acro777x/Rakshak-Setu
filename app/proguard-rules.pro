@@ -21,3 +21,15 @@
 -keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class *
 -dontwarn androidx.room.paging.**
+
+# ONNX Runtime JNI & Native methods
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
+
+# Vosk ASR JNI & Native methods
+-keep class org.vosk.** { *; }
+-dontwarn org.vosk.**
+
+# WorkManager
+-keep class androidx.work.** { *; }
+-dontwarn androidx.work.**

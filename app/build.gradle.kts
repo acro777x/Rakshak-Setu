@@ -20,13 +20,13 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
-    // Generate separate lightweight APKs per architecture
+    // Generate separate lightweight APKs per architecture PLUS a universal APK that works on any phone
     splits {
         abi {
             isEnable = true
             reset()
             include("armeabi-v7a", "arm64-v8a")
-            isUniversalApk = false
+            isUniversalApk = true
         }
     }
 
@@ -59,7 +59,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("release")
         }
