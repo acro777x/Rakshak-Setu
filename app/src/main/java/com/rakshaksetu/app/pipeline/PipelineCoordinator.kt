@@ -74,7 +74,9 @@ class PipelineCoordinator(
         bootstrapEngines()
 
         // A1: Fetch (ContentObserver-driven wait for slow OEM media scanners)
-        val audioUri = AudioFetcher.fetchWithRetries(context, callEndEpoch / 1000, oemPaths)
+        // OEM recorders stamp files at call START. Use callStartEpochSec to never miss long calls.
+        val callStartEpochSec = ((callEndEpoch / 1000) - callDurationSec.coerceAtLeast(0)).coerceAtLeast(0L)
+        val audioUri = AudioFetcher.fetchWithRetries(context, callStartEpochSec, oemPaths)
         if (audioUri == null) {
             Log.e(TAG, "No recording found for callId=$callId — pipeline abstains.")
             return@coroutineScope null
@@ -103,68 +105,85 @@ class PipelineCoordinator(
 
         // ENGINE A (async): Voice Clone / Deepfake Detection
         val engineADeferred = async(Dispatchers.Default) {
-            val t0 = System.currentTimeMillis()
-            val result = cloneDetector.detectClone(pcmSegments)
-            Log.i(TAG, "Engine A (CloneDetector) finished in ${System.currentTimeMillis() - t0}ms: isCloned=${result.isCloned}, conf=%.2f".format(result.confidence))
-            result
+            try {
+                val t0 = System.currentTimeMillis()
+                val result = cloneDetector.detectClone(pcmSegments)
+                Log.i(TAG, "Engine A (CloneDetector) finished in ${System.currentTimeMillis() - t0}ms: isCloned=${result.isCloned}, conf=%.2f".format(result.confidence))
+                result
+            } catch (e: Exception) {
+                Log.e(TAG, "Engine A encountered error; defaulting to safe fallback", e)
+                CloneDetectorEngine.CloneResult(false, 0f, 0f, 0f, emptyList(), 0f, 1f)
+            }
         }
 
         // ENGINE B (async): ASR Transcription + Normalization + Intent + Phrase Matching
         val engineBDeferred = async(Dispatchers.Default) {
-            val fullTranscriptBuilder = StringBuilder()
-            val processedSegments = mutableListOf<SegmentResult>()
-            val segmentTranscripts = mutableListOf<String>()
-            var maxLoudness = 0f
-            var simSum = 0f
+            try {
+                val fullTranscriptBuilder = StringBuilder()
+                val processedSegments = mutableListOf<SegmentResult>()
+                val segmentTranscripts = mutableListOf<String>()
+                var maxLoudness = 0f
+                var simSum = 0f
 
-            for (seg in activeSegments) {
-                // A5: Offline ASR
-                val tAsrStart = System.currentTimeMillis()
-                val rawTranscript = asrEngine.transcribe(seg.pcmData)
-                tAsrTotal += System.currentTimeMillis() - tAsrStart
+                for (seg in activeSegments) {
+                    // A5: Offline ASR
+                    val tAsrStart = System.currentTimeMillis()
+                    val rawTranscript = asrEngine.transcribe(seg.pcmData)
+                    tAsrTotal += System.currentTimeMillis() - tAsrStart
 
-                // Fuzzy transcription normalizer
-                val transcript = TranscriptNormalizer.normalize(rawTranscript).trim()
+                    // Fuzzy transcription normalizer
+                    val transcript = TranscriptNormalizer.normalize(rawTranscript).trim()
 
-                if (transcript.isNotBlank()) {
-                    fullTranscriptBuilder.append(transcript).append(" ")
-                    segmentTranscripts.add(transcript)
+                    if (transcript.isNotBlank()) {
+                        fullTranscriptBuilder.append(transcript).append(" ")
+                        segmentTranscripts.add(transcript)
+                    }
+
+                    // Loudness
+                    val loudness = LoudnessDetector.analyzeLoudness(seg.pcmData)
+                    if (loudness > maxLoudness) maxLoudness = loudness
+
+                    // Semantic phrase matching
+                    val tEmbedStart = System.currentTimeMillis()
+                    val (similarity, matchedCategory) = EmbeddingEngine.findBestMatch(transcript.ifBlank { "" })
+                    tEmbedTotal += System.currentTimeMillis() - tEmbedStart
+
+                    val finalSim = if (transcript.isBlank()) 0f else similarity
+                    processedSegments.add(
+                        SegmentResult(
+                            index = seg.index,
+                            startSec = seg.startSec,
+                            text = transcript,
+                            similarity = finalSim,
+                            matchedCategory = matchedCategory
+                        )
+                    )
+                    if (finalSim > 0f) simSum += finalSim
                 }
 
-                // Loudness
-                val loudness = LoudnessDetector.analyzeLoudness(seg.pcmData)
-                if (loudness > maxLoudness) maxLoudness = loudness
+                // Intent Prototype Classification over all transcripts
+                val intentResult = intentClassifier.analyzeCall(segmentTranscripts)
+                Log.i(TAG, "Engine B (IntentClassifier): isScam=${intentResult.isScam}, threats=${intentResult.distinctThreatCount}, dominant=${intentResult.dominantThreat}")
 
-                // Semantic phrase matching
-                val tEmbedStart = System.currentTimeMillis()
-                val (similarity, matchedCategory) = EmbeddingEngine.findBestMatch(transcript.ifBlank { "" })
-                tEmbedTotal += System.currentTimeMillis() - tEmbedStart
-
-                val finalSim = if (transcript.isBlank()) 0f else similarity
-                processedSegments.add(
-                    SegmentResult(
-                        index = seg.index,
-                        startSec = seg.startSec,
-                        text = transcript,
-                        similarity = finalSim,
-                        matchedCategory = matchedCategory
-                    )
+                EngineBResult(
+                    fullTranscript = fullTranscriptBuilder.toString().trim(),
+                    processedSegments = processedSegments,
+                    segmentTranscripts = segmentTranscripts,
+                    intentResult = intentResult,
+                    maxLoudness = maxLoudness,
+                    avgSimilarity = if (processedSegments.isNotEmpty()) simSum / processedSegments.size else 0f
                 )
-                if (finalSim > 0f) simSum += finalSim
+            } catch (e: Exception) {
+                Log.e(TAG, "Engine B encountered error; returning empty transcript result", e)
+                EngineBResult(
+                    fullTranscript = "",
+                    processedSegments = emptyList(),
+                    segmentTranscripts = emptyList(),
+                    intentResult = IntentPrototypeClassifier.CallIntentResult(false, emptyMap(), 0, emptyList()),
+                    maxLoudness = 0f,
+                    avgSimilarity = 0f
+                )
             }
-
-            // Intent Prototype Classification over all transcripts
-            val intentResult = intentClassifier.analyzeCall(segmentTranscripts)
-            Log.i(TAG, "Engine B (IntentClassifier): isScam=${intentResult.isScam}, threats=${intentResult.distinctThreatCount}, dominant=${intentResult.dominantThreat}")
-
-            EngineBResult(
-                fullTranscript = fullTranscriptBuilder.toString().trim(),
-                processedSegments = processedSegments,
-                segmentTranscripts = segmentTranscripts,
-                intentResult = intentResult,
-                maxLoudness = maxLoudness,
-                avgSimilarity = if (processedSegments.isNotEmpty()) simSum / processedSegments.size else 0f
-            )
         }
 
         // Await results from both parallel engines

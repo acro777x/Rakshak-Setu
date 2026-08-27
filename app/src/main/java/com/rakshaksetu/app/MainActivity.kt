@@ -406,6 +406,8 @@ private fun AiModelsSection() {
 
             StatusDot("Speech recognition (Vosk)", asrReady)
             StatusDot("Semantic phrase encoder (MiniLM)", embedReady)
+            var deepfakeReady by remember { mutableStateOf(ModelDownloadManager.isDeepfakeModelReady(context)) }
+            StatusDot("Voice clone detector (AASIST)", deepfakeReady)
 
             if (progressText.isNotBlank()) {
                 LinearProgressIndicator(progress = { progressFloatFrom(progressText) }, modifier = Modifier.fillMaxWidth())
@@ -463,7 +465,6 @@ private fun AiModelsSection() {
                     Text(if (embedReady) "Encoder Ready" else "Get Encoder")
                 }
 
-                var deepfakeReady by remember { mutableStateOf(ModelDownloadManager.isDeepfakeModelReady(context)) }
                 OutlinedButton(
                     onClick = {
                         busy = true
@@ -484,7 +485,7 @@ private fun AiModelsSection() {
                             busy = false
                         }
                     },
-                    enabled = !busy && !deepfakeReady && embedReady
+                    enabled = !busy && !deepfakeReady
                 ) {
                     Text(if (deepfakeReady) "🛡️ AASIST Ready" else "Get AASIST Clone Detector")
                 }

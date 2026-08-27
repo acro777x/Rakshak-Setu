@@ -177,19 +177,20 @@ class CloneDetectorEngine(private val context: Context) {
             val inputName = ortSession!!.inputNames.first()
             val result = ortSession!!.run(mapOf(inputName to inputTensor))
 
-            // AASIST output: [1, 2] logits where [0]=spoof, [1]=bonafide
+            // AASIST output: [1, 2] logits where [0]=bonafide, [1]=spoof
             val outputTensor = result[0].value
             val spoofScore = when (outputTensor) {
                 is Array<*> -> {
                     @Suppress("UNCHECKED_CAST")
                     val logits = outputTensor as Array<FloatArray>
                     if (logits[0].size >= 2) {
-                        // Softmax: P(spoof) = exp(logit_spoof) / (exp(logit_spoof) + exp(logit_bonafide))
-                        val spoofLogit = logits[0][0].toDouble()
-                        val bonafideLogit = logits[0][1].toDouble()
-                        val expSpoof = Math.exp(spoofLogit)
+                        // Softmax: P(spoof) = exp(logit_spoof) / (exp(logit_bonafide) + exp(logit_spoof))
+                        val bonafideLogit = logits[0][0].toDouble()
+                        val spoofLogit = logits[0][1].toDouble()
                         val expBonafide = Math.exp(bonafideLogit)
-                        (expSpoof / (expSpoof + expBonafide)).toFloat()
+                        val expSpoof = Math.exp(spoofLogit)
+                        val denom = expBonafide + expSpoof
+                        if (denom > 0.0) (expSpoof / denom).toFloat() else 0.5f
                     } else {
                         logits[0][0]
                     }

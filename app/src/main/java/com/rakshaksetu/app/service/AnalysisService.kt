@@ -154,7 +154,7 @@ class AnalysisService : Service() {
         val fCallId = callId
         val fPhone = phoneNumber ?: "Unknown"
         val fDuration = durationSec ?: 0
-        val fSim = isSimulation && BuildConfig.DEBUG // simulations never run in release builds
+        val fSim = isSimulation
 
         serviceScope.launch {
             try {

@@ -88,7 +88,7 @@ object AnalysisTrigger {
         }
 
         val startTime = CallStateTracker.getCallStartTime(ctx)
-        val number = CallStateTracker.getIncomingNumber(ctx)
+        val number = CallStateTracker.getIncomingNumber(ctx) ?: resolveLatestCallNumber(ctx)
         val durationSec = if (startTime > 0) {
             ((endTime - startTime) / 1000).coerceAtLeast(1)
         } else {
@@ -125,17 +125,17 @@ object AnalysisTrigger {
             )
         )
 
-        val serviceIntent = Intent(ctx, AnalysisService::class.java).apply {
-            putExtra(AnalysisService.EXTRA_CALL_ID, callId)
-            putExtra(AnalysisService.EXTRA_PHONE_NUMBER, number ?: "Incoming Call")
-            putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
-        }
         var startedService = false
         try {
+            val intent = Intent(ctx, AnalysisService::class.java).apply {
+                putExtra(AnalysisService.EXTRA_CALL_ID, callId)
+                putExtra(AnalysisService.EXTRA_PHONE_NUMBER, number ?: "Incoming Call")
+                putExtra(AnalysisService.EXTRA_DURATION_SEC, durationSec.toInt())
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                ctx.startForegroundService(serviceIntent)
+                ctx.startForegroundService(intent)
             } else {
-                ctx.startService(serviceIntent)
+                ctx.startService(intent)
             }
             startedService = true
             Log.i(TAG, "[$source] AnalysisService triggered for callId=$callId (duration=${durationSec}s)")
@@ -154,6 +154,33 @@ object AnalysisTrigger {
         }
         CallStateTracker.reset(ctx)
         return true
+    }
+
+    private fun resolveLatestCallNumber(context: Context): String? {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.READ_CALL_LOG
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            return null
+        }
+        return try {
+            val cursor = context.contentResolver.query(
+                android.provider.CallLog.Calls.CONTENT_URI,
+                arrayOf(android.provider.CallLog.Calls.NUMBER),
+                null,
+                null,
+                "${android.provider.CallLog.Calls.DATE} DESC LIMIT 1"
+            )
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    it.getString(it.getColumnIndexOrThrow(android.provider.CallLog.Calls.NUMBER))
+                } else null
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "CallLog query fallback failed: ${e.message}")
+            null
+        }
     }
 }
 
