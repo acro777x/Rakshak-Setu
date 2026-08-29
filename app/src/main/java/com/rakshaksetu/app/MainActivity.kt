@@ -51,6 +51,9 @@ import com.rakshaksetu.app.ui.GovtReportWebViewActivity
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+import com.rakshaksetu.app.ui.navigation.SafeShieldNavGraph
+import com.rakshaksetu.app.ui.theme.SafeShieldTheme
+
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,16 +64,17 @@ class MainActivity : ComponentActivity() {
         } catch (ignored: Exception) {
         }
 
-        val elderMode = ElderModeStore(applicationContext).isEnabled
+        try {
+            val consentStore = ConsentStore(applicationContext)
+            if (consentStore.isShieldActive) {
+                com.rakshaksetu.app.service.RakshakShieldService.start(applicationContext)
+            }
+        } catch (ignored: Exception) {
+        }
 
         setContent {
-            RakshakAppTheme(elderModeEnabled = elderMode) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    MainDashboardScreen()
-                }
+            SafeShieldTheme {
+                SafeShieldNavGraph()
             }
         }
     }
