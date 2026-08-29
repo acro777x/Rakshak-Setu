@@ -116,9 +116,9 @@ object ProsodyAnalyzer {
         // Neural vocoders (HiFi-GAN, WaveGlow, ElevenLabs) generate overly flat microvariations (jitter < 0.008, shimmer < 0.015)
         // or unnaturally invariant pitch contours (f0StdDev < 8.0Hz in emotional context).
         var anomalyScore = 0.0f
-        if (jitterLocal in 0.0001f..0.007f) anomalyScore += 0.35f
-        if (shimmerLocal in 0.0001f..0.018f) anomalyScore += 0.25f
-        if (f0StdDev in 1.0f..10.0f && pitchTrack.size > 15) anomalyScore += 0.25f
+        if (voicedRatio > 0.3f && jitterLocal < 0.007f) anomalyScore += 0.35f
+        if (voicedRatio > 0.3f && shimmerLocal < 0.018f) anomalyScore += 0.25f
+        if (f0StdDev in 0.0f..10.0f && pitchTrack.size > 15) anomalyScore += 0.25f
         if (hnrDb > 25.0f) anomalyScore += 0.15f
 
         val finalScore = anomalyScore.coerceIn(0f, 1f)

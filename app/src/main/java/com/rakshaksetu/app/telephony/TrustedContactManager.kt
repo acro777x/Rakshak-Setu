@@ -27,9 +27,9 @@ object TrustedContactManager {
         // 1. Check Elder Mode Family Guardians
         try {
             val elderStore = ElderModeStore(context.applicationContext)
-            val guardians = elderStore.guardianNumbers
+            val guardians = elderStore.getGuardians()
             for (g in guardians) {
-                if (NumberNormalizer.normalize(g) == normalized) {
+                if (NumberNormalizer.normalize(g.number) == normalized) {
                     Log.i(TAG, "Caller $normalized is a registered Elder Mode Guardian.")
                     return true
                 }
