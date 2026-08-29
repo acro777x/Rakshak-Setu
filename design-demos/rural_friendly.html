@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RakSetu - Rural Friendly Direction</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF5722; /* High visibility Warm Orange */
+            --navy: #1A237E;
+            --emerald: #0F9D58;
+            --danger: #DB4437;
+            --yellow: #F4B400;
+            --bg: #FFFDF9; /* Warm off-white */
+            --white: #ffffff;
+            --text-main: #3E2723; /* Dark brown for high readability */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #F0E6D2;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .showcase-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .direction-label {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--navy);
+            background: rgba(26, 35, 126, 0.1);
+            padding: 6px 16px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .device {
+            width: 380px;
+            height: 780px;
+            background: #2D241C;
+            border-radius: 40px;
+            padding: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            border-radius: 32px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .status-bar {
+            height: 36px;
+            background: var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            color: var(--white);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .camera-punch {
+            width: 16px;
+            height: 16px;
+            background: #000;
+            border-radius: 50%;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 10px;
+        }
+
+        .app-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .lang-switch {
+            align-self: flex-end;
+            background: var(--navy);
+            color: var(--white);
+            border: none;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--navy);
+            margin-bottom: 4px;
+            line-height: 1.2;
+        }
+
+        .sub-title {
+            font-size: 15px;
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        /* Large Action buttons representing physical buttons */
+        .rural-btn {
+            background: var(--white);
+            border: 3px solid var(--navy);
+            border-radius: 18px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 14px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 var(--navy);
+            transition: all 0.1s;
+        }
+
+        .rural-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 var(--navy);
+        }
+
+        .icon-box {
+            font-size: 32px;
+            background: rgba(26, 35, 126, 0.08);
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-content {
+            text-align: left;
+        }
+
+        .btn-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--navy);
+        }
+
+        .btn-sub {
+            font-size: 13px;
+            color: #5D4037;
+            font-weight: 500;
+        }
+
+        /* Main Big Proceed Button */
+        .proceed-btn {
+            background: var(--emerald);
+            color: var(--white);
+            font-size: 20px;
+            font-weight: 800;
+            border: none;
+            padding: 18px;
+            border-radius: 20px;
+            width: 100%;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #0b703e;
+            margin-top: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .proceed-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #0b703e;
+        }
+
+        /* Audio Helper Widget */
+        .audio-helper {
+            background: #FFE082;
+            border: 2px dashed #FFB300;
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .audio-icon {
+            font-size: 24px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .home-indicator {
+            height: 5px;
+            width: 140px;
+            background: #ccc;
+            border-radius: 3px;
+            margin: 8px auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="showcase-container">
+    <div class="direction-label">Direction 2: Rural Friendly (Accessibility-Centric)</div>
+
+    <div class="device">
+        <div class="screen">
+            <div class="status-bar">
+                <span>12:30</span>
+                <div class="camera-punch"></div>
+                <span>SAFE 🔋</span>
+            </div>
+
+            <div class="app-body">
+                <button class="lang-switch">हिन्दी / English 🔄</button>
+
+                <h1>Terms Approval</h1>
+                <div class="sub-title">नियम और शर्तें स्वीकार करें</div>
+
+                <div class="audio-helper">
+                    <span class="audio-icon">🔊</span>
+                    <span style="font-size: 13px; font-weight: 600;">Tap button below to listen to policy details in Hindi.</span>
+                </div>
+
+                <div class="rural-btn">
+                    <div class="icon-box">🎙️</div>
+                    <div class="btn-content">
+                        <div class="btn-title">Call Recording</div>
+                        <div class="btn-sub">कॉल रिकॉर्डिंग शुरू करें</div>
+                    </div>
+                </div>
+
+                <div class="rural-btn" style="border-color: var(--danger); box-shadow: 0 6px 0 var(--danger);">
+                    <div class="icon-box" style="background: rgba(219, 68, 55, 0.08);">🚨</div>
+                    <div class="btn-content">
+                        <div class="btn-title" style="color: var(--danger);">Red Alert</div>
+                        <div class="btn-sub" style="color: #c62828;">पैसे चोरी का खतरा</div>
+                    </div>
+                </div>
+
+                <div class="rural-btn" style="border-color: var(--yellow); box-shadow: 0 6px 0 var(--yellow);">
+                    <div class="icon-box" style="background: rgba(244, 180, 0, 0.08);">⚠️</div>
+                    <div class="btn-content">
+                        <div class="btn-title" style="color: #b38f00;">Yellow Alert</div>
+                        <div class="btn-sub" style="color: #b38f00;">धोखे की कोशिश</div>
+                    </div>
+                </div>
+
+                <button class="proceed-btn">
+                    <span>AGREE & NEXT STEP</span>
+                    <span>आगे बढ़ें ➔</span>
+                </button>
+            </div>
+
+            <div class="home-indicator"></div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

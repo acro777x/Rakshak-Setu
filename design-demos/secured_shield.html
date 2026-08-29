@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RakSetu - Secured Shield Direction</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1A237E;
+            --primary-light: #303F9F;
+            --accent-green: #0F9D58;
+            --accent-orange: #F4B400;
+            --accent-red: #DB4437;
+            --bg-light: #F8F9FA;
+            --text-dark: #212121;
+            --text-muted: #666666;
+            --white: #ffffff;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            --border-radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #EBF0F5;
+            color: var(--text-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .showcase-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .direction-label {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary);
+            background: rgba(26, 35, 126, 0.1);
+            padding: 6px 16px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        /* Mock Android Device */
+        .device {
+            width: 380px;
+            height: 780px;
+            background: #000;
+            border-radius: 40px;
+            padding: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            position: relative;
+        }
+
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: var(--bg-light);
+            border-radius: 32px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            height: 36px;
+            background: var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            color: var(--white);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .camera-punch {
+            width: 16px;
+            height: 16px;
+            background: #000;
+            border-radius: 50%;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 10px;
+        }
+
+        /* App Content */
+        .app-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        h1, h2 {
+            font-family: 'Playfair Display', serif;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .badge-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 157, 88, 0.1);
+            padding: 10px 16px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            border: 1px solid rgba(15, 157, 88, 0.2);
+        }
+
+        .badge-icon {
+            font-size: 20px;
+        }
+
+        .badge-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-green);
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 6px;
+        }
+
+        .card-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Buttons */
+        .btn {
+            background: var(--primary);
+            color: var(--white);
+            border: none;
+            padding: 14px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+            transition: background 0.2s;
+            box-shadow: 0 4px 6px rgba(26, 35, 126, 0.2);
+            margin-top: auto;
+        }
+
+        .btn:hover {
+            background: var(--primary-light);
+        }
+
+        /* Alert Overlay */
+        .alert-banner {
+            background: var(--accent-red);
+            color: var(--white);
+            padding: 16px;
+            border-radius: var(--border-radius);
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(219, 68, 55, 0.3);
+        }
+
+        .alert-title {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        /* Footer indicator */
+        .home-indicator {
+            height: 5px;
+            width: 140px;
+            background: #ccc;
+            border-radius: 3px;
+            margin: 8px auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="showcase-container">
+    <div class="direction-label">Direction 1: Secured Shield (Trust-Centric)</div>
+
+    <div class="device">
+        <div class="screen">
+            <div class="status-bar">
+                <span>12:30</span>
+                <div class="camera-punch"></div>
+                <span>LTE 🔋</span>
+            </div>
+
+            <div class="app-body">
+                <div class="badge-container">
+                    <span class="badge-icon">🛡️</span>
+                    <span class="badge-text">100% On-Device Protection Verified</span>
+                </div>
+
+                <h1>Privacy Consent</h1>
+                <p style="font-size: 14px; line-height: 1.5; color: var(--text-muted); margin-bottom: 24px;">
+                    RakSetu requires your permission to read locally stored call recordings and check caller database status. All security processing stays strictly offline.
+                </p>
+
+                <div class="card">
+                    <div class="card-title">Call Recording Connection</div>
+                    <div class="card-desc">Links directly to your smartphone's system-level audio folder to identify threat voices automatically.</div>
+                </div>
+
+                <div class="card" style="border-left: 4px solid var(--accent-red);">
+                    <div class="alert-title" style="color: var(--accent-red); font-size: 14px; margin-bottom: 4px;">🔴 RED ALERT THREATS</div>
+                    <p style="font-size: 12px; color: var(--text-muted);">Blocks and flags numbers where successful financial fraud has been completed.</p>
+                </div>
+
+                <div class="card" style="border-left: 4px solid var(--accent-orange);">
+                    <div class="alert-title" style="color: var(--accent-orange); font-size: 14px; margin-bottom: 4px;">⚠️ YELLOW ALERT THREATS</div>
+                    <p style="font-size: 12px; color: var(--text-muted);">Flags suspicious calls where attempts were aborted without financial loss.</p>
+                </div>
+
+                <button class="btn">I Agree & Proceed</button>
+            </div>
+
+            <div class="home-indicator"></div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

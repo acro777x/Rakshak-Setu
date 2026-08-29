@@ -60,3 +60,12 @@ build_*.txt
 test_*.txt
 push_*.txt
 rakshak_live.log
+
+# Extra ignores for SafeShield workspace
+dist/
+*.spec
+.agents/
+*.zip
+SafeShield_Frontend_Prompt_PRD_UI_Flow_Assets/
+local.properties
+

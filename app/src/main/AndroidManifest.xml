@@ -1,142 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-
-    <!-- Telephony -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.READ_CALL_LOG" />
-    
-    <!-- Notifications -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    
-    <!-- Foreground Service -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    
-    <!-- Actions -->
-    <uses-permission android:name="android.permission.CALL_PHONE" />
-    <uses-permission android:name="android.permission.SEND_SMS" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    
-    <!-- Storage -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    
-    <!-- Boot -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    
-    <!-- Queries for Android 11+ Package Visibility -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="https" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.SENDTO" />
-            <data android:scheme="mailto" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.DIAL" />
-            <data android:scheme="tel" />
-        </intent>
-    </queries>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:name=".RakshakSetuApp"
-        android:allowBackup="false"
+        android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.DayNight"
-        android:extractNativeLibs="true">
-
-        <!-- Launcher Activity -->
+        android:theme="@style/Theme.SafeShield">
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Material3.DayNight">
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Evidence Dossier Activity -->
-        <activity
-            android:name=".ui.EvidenceActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Material3.DayNight" />
-
-        <!-- Government Reporting Assistant (NCRP / Chakshu guided WebView) -->
-        <activity
-            android:name=".ui.GovtReportWebViewActivity"
-            android:exported="false"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:usesCleartextTraffic="false"
-            android:theme="@style/Theme.Material3.DayNight" />
-
-        <!-- Continuous 24/7 Shield ForegroundService -->
-        <service
-            android:name=".service.RakshakShieldService"
-            android:foregroundServiceType="specialUse"
-            android:exported="false">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Continuous call scam protection shield and background telephony monitoring" />
-        </service>
-
-        <!-- Analysis ForegroundService -->
-        <service
-            android:name=".service.AnalysisService"
-            android:foregroundServiceType="specialUse"
-            android:exported="false">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Post-call audio analysis for scam detection" />
-        </service>
-
-        <!-- Telephony BroadcastReceiver -->
-        <receiver
-            android:name=".telephony.CallStateReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.PHONE_STATE" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Boot Completed Receiver -->
-        <receiver
-            android:name=".receiver.BootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Not-a-Scam Feedback Receiver -->
-        <receiver
-            android:name=".receiver.FeedbackReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.rakshaksetu.app.ACTION_NOT_SCAM" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Elder Mode one-tap family alert + SMS delivery intents -->
-        <receiver
-            android:name=".receiver.ElderAlertReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.rakshaksetu.app.ACTION_ALERT_FAMILY" />
-                <action android:name="com.rakshaksetu.app.ACTION_ELDER_SMS_SENT" />
-            </intent-filter>
-        </receiver>
-
     </application>
+
 </manifest>

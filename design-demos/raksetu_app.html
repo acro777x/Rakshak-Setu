@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>RakSetu — Scam Shield App</title>
+<meta name="description" content="RakSetu: India's on-device AI scam detection shield. Protect yourself from phone fraud.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0F172A;
+    --navy-700: #1E3A5F;
+    --navy-600: #1E3A8A;
+    --navy-500: #2563EB;
+    --emerald: #059669;
+    --emerald-light: #D1FAE5;
+    --emerald-dark: #065F46;
+    --amber: #D97706;
+    --amber-light: #FEF3C7;
+    --amber-vivid: #F59E0B;
+    --red: #DC2626;
+    --red-light: #FEE2E2;
+    --red-dark: #991B1B;
+    --bg: #F0F4F8;
+    --card: #FFFFFF;
+    --muted: #64748B;
+    --border: #E2E8F0;
+    --text: #0F172A;
+    --text-soft: #475569;
+    --font: 'Lexend', 'Noto Sans Devanagari', sans-serif;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 4px 24px rgba(15,23,42,0.10);
+    --shadow-lg: 0 12px 40px rgba(15,23,42,0.16);
+    --transition: 220ms cubic-bezier(.4,0,.2,1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: #0F172A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  /* ── DEVICE SHELL ─────────────────────────── */
+  .device-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .device-label {
+    color: #94A3B8;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: #111827;
+    border-radius: 48px;
+    padding: 14px;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.06),
+      0 30px 80px rgba(0,0,0,.6),
+      inset 0 0 0 1px rgba(255,255,255,.04);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .phone-notch {
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 34px;
+    background: #111827;
+    border-radius: 0 0 20px 20px;
+    z-index: 50;
+  }
+
+  .screen {
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    border-radius: 36px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── SCREEN LAYER SYSTEM ──────────────────── */
+  .layer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    scrollbar-width: none;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(18px);
+    transition: opacity var(--transition), transform var(--transition);
+    background: var(--bg);
+    border-radius: 36px;
+  }
+  .layer.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateY(0);
+    z-index: 10;
+  }
+  .layer.exit {
+    opacity: 0;
+    transform: translateY(-18px);
+    z-index: 9;
+    pointer-events: none;
+  }
+  .layer::-webkit-scrollbar { display: none; }
+
+  /* ── STATUS BAR ───────────────────────────── */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 48px 20px 12px;
+    flex-shrink: 0;
+  }
+  .status-bar .time { font-size: 15px; font-weight: 600; color: var(--text); }
+  .status-icons { display: flex; gap: 6px; align-items: center; }
+  .status-icons svg { width: 16px; height: 16px; color: var(--text); }
+
+  /* ── TYPOGRAPHY ───────────────────────────── */
+  .screen-title {
+    font-size: 26px; font-weight: 700;
+    color: var(--navy); line-height: 1.25;
+  }
+  .screen-sub {
+    font-size: 14px; color: var(--text-soft);
+    line-height: 1.6; margin-top: 8px;
+  }
+  .label { font-size: 13px; font-weight: 600; color: var(--navy); }
+  .caption { font-size: 12px; color: var(--muted); }
+
+  /* ── PADDING/SPACING ──────────────────────── */
+  .pad { padding: 0 20px; }
+  .gap-8 { height: 8px; flex-shrink: 0; }
+  .gap-12 { height: 12px; flex-shrink: 0; }
+  .gap-16 { height: 16px; flex-shrink: 0; }
+  .gap-20 { height: 20px; flex-shrink: 0; }
+  .gap-24 { height: 24px; flex-shrink: 0; }
+  .gap-32 { height: 32px; flex-shrink: 0; }
+  .flex-1 { flex: 1; }
+
+  /* ── BUTTON ───────────────────────────────── */
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 16px 24px;
+    border: none; border-radius: var(--radius-sm); cursor: pointer;
+    font-family: var(--font); font-size: 16px; font-weight: 600;
+    transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+    text-decoration: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--navy-700); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.12); box-shadow: 0 6px 20px rgba(30,58,95,.35); }
+  .btn-primary:disabled { background: #CBD5E1; color: #94A3B8; cursor: not-allowed; }
+  .btn-emerald { background: var(--emerald); color: #fff; }
+  .btn-emerald:hover { filter: brightness(1.08); }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-red:hover { filter: brightness(1.08); }
+  .btn-amber { background: var(--amber-vivid); color: #fff; }
+  .btn-amber:hover { filter: brightness(1.08); }
+  .btn-outline { background: transparent; color: var(--navy); border: 1.5px solid var(--border); }
+  .btn-outline:hover { background: #F1F5F9; }
+  .btn-ghost { background: transparent; color: var(--text-soft); font-size: 14px; }
+  .btn-ghost:hover { color: var(--navy); }
+  .btn-sm { padding: 10px 18px; font-size: 14px; }
+
+  /* ── CARD ─────────────────────────────────── */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card-body { padding: 16px; }
+
+  /* ── CHECKBOX ─────────────────────────────── */
+  .check-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: background var(--transition);
+  }
+  .check-row:hover { background: #F8FAFC; }
+  .check-box {
+    width: 22px; height: 22px; flex-shrink: 0;
+    border-radius: 6px; border: 2px solid var(--border);
+    background: #fff; display: flex; align-items: center; justify-content: center;
+    margin-top: 1px; transition: border-color var(--transition), background var(--transition);
+  }
+  .check-box.checked { border-color: var(--emerald); background: var(--emerald); }
+  .check-box.checked::after {
+    content: '';
+    width: 12px; height: 6px;
+    border-left: 2.5px solid #fff; border-bottom: 2.5px solid #fff;
+    transform: rotate(-45deg) translateY(-2px);
+    display: block;
+  }
+  .check-text { flex: 1; }
+  .check-text strong { font-size: 14px; font-weight: 600; color: var(--navy); display: block; }
+  .check-text span { font-size: 12px; color: var(--muted); }
+
+  /* ── PROGRESS STEPS ───────────────────────── */
+  .step-bar {
+    display: flex; gap: 6px; padding: 0 20px;
+  }
+  .step-dot {
+    flex: 1; height: 4px; border-radius: 99px;
+    background: var(--border); transition: background var(--transition);
+  }
+  .step-dot.done { background: var(--emerald); }
+  .step-dot.active { background: var(--navy-700); }
+
+  /* ── BACK BTN ─────────────────────────────── */
+  .back-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: none; border: none; cursor: pointer;
+    color: var(--navy-700); font-family: var(--font);
+    font-size: 14px; font-weight: 600; padding: 0;
+    transition: opacity var(--transition);
+  }
+  .back-btn:hover { opacity: .7; }
+  .back-btn svg { width: 18px; height: 18px; }
+
+  /* ── PERMISSION ROW ───────────────────────── */
+  .perm-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--card);
+    box-shadow: var(--shadow);
+  }
+  .perm-icon {
+    width: 40px; height: 40px; flex-shrink: 0;
+    border-radius: 10px; background: #EFF6FF;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .perm-icon svg { width: 20px; height: 20px; color: var(--navy-600); }
+  .perm-status {
+    margin-left: auto; flex-shrink: 0;
+    font-size: 11px; font-weight: 700; padding: 3px 10px;
+    border-radius: 99px;
+  }
+  .perm-status.granted { background: var(--emerald-light); color: var(--emerald-dark); }
+  .perm-status.pending { background: var(--amber-light); color: #92400E; }
+
+  /* ── SHIELD CARD ──────────────────────────── */
+  .shield-card {
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    position: relative; overflow: hidden;
+  }
+  .shield-card.armed {
+    background: linear-gradient(135deg, #065F46 0%, #059669 100%);
+    box-shadow: 0 8px 32px rgba(5,150,105,.35);
+  }
+  .shield-card.disarmed {
+    background: linear-gradient(135deg, #991B1B 0%, #DC2626 100%);
+    box-shadow: 0 8px 32px rgba(220,38,38,.35);
+  }
+  .shield-ring {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.15);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .shield-ring svg { width: 44px; height: 44px; color: #fff; }
+  .shield-status { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: .03em; }
+  .shield-desc { font-size: 13px; color: rgba(255,255,255,.8); text-align: center; }
+
+  /* ── TOGGLE ───────────────────────────────── */
+  .toggle-wrap {
+    display: flex; align-items: center; gap: 10px; justify-content: center;
+  }
+  .toggle {
+    width: 52px; height: 28px; border-radius: 99px;
+    background: rgba(255,255,255,.25); border: none; cursor: pointer;
+    position: relative; transition: background var(--transition);
+  }
+  .toggle.on { background: rgba(255,255,255,.55); }
+  .toggle::after {
+    content: ''; position: absolute;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #fff; top: 3px; left: 3px;
+    transition: transform var(--transition);
+    box-shadow: 0 1px 6px rgba(0,0,0,.2);
+  }
+  .toggle.on::after { transform: translateX(24px); }
+  .toggle-label { font-size: 13px; color: rgba(255,255,255,.85); font-weight: 500; }
+
+  /* ── GRID 2 ───────────────────────────────── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .feature-tile {
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    padding: 16px; cursor: pointer;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 10px;
+    border: 1.5px solid transparent;
+    transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  }
+  .feature-tile:hover {
+    border-color: var(--navy-700);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+  .feature-tile:active { transform: scale(0.97); }
+  .tile-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px; background: #EFF6FF;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tile-icon svg { width: 18px; height: 18px; color: var(--navy-600); }
+  .tile-label { font-size: 13px; font-weight: 600; color: var(--navy); }
+
+  /* ── ALERT SCREENS ────────────────────────── */
+  .alert-layer-yellow { background: linear-gradient(160deg, #78350F 0%, #D97706 40%, #F59E0B 100%); }
+  .alert-layer-red { background: linear-gradient(160deg, #450A0A 0%, #B91C1C 40%, #DC2626 100%); }
+
+  .alert-icon-ring {
+    width: 100px; height: 100px; border-radius: 50%;
+    background: rgba(255,255,255,.15);
+    display: flex; align-items: center; justify-content: center;
+    animation: pulse-ring 2s ease-in-out infinite;
+  }
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,.3); }
+    50% { box-shadow: 0 0 0 20px rgba(255,255,255,.0); }
+  }
+  .alert-icon-ring svg { width: 56px; height: 56px; color: #fff; }
+  .alert-title { font-size: 24px; font-weight: 800; color: #fff; text-align: center; line-height: 1.2; }
+  .alert-number { font-size: 20px; font-weight: 700; color: rgba(255,255,255,.9); font-family: monospace; }
+  .alert-desc { font-size: 14px; color: rgba(255,255,255,.85); text-align: center; line-height: 1.6; padding: 0 12px; }
+  .alert-badge {
+    padding: 6px 16px; border-radius: 99px;
+    background: rgba(255,255,255,.2);
+    font-size: 12px; font-weight: 700; color: #fff;
+    letter-spacing: .05em;
+  }
+
+  /* ── DIAGNOSTIC ROW ───────────────────────── */
+  .diag-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+  }
+  .diag-left { display: flex; align-items: center; gap: 10px; }
+  .diag-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-green { background: var(--emerald); }
+  .dot-amber { background: var(--amber-vivid); }
+  .dot-red { background: var(--red); }
+  .diag-name { font-size: 13px; font-weight: 600; color: var(--navy); }
+  .diag-val { font-size: 12px; font-weight: 600; }
+  .val-green { color: var(--emerald-dark); }
+  .val-amber { color: #92400E; }
+  .val-red { color: var(--red-dark); }
+
+  /* ── EVIDENCE HIGHLIGHT ───────────────────── */
+  .evidence-card {
+    border-radius: var(--radius-sm);
+    border-left: 4px solid var(--red);
+    background: var(--red-light);
+    padding: 12px 14px;
+    font-size: 13px; color: var(--red-dark);
+    font-style: italic; line-height: 1.5;
+  }
+
+  /* ── ACTION HUB ROW ───────────────────────── */
+  .action-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px;
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: border-color var(--transition), transform var(--transition);
+  }
+  .action-row:hover { border-color: var(--navy-700); transform: translateX(3px); }
+  .action-row:active { transform: scale(0.98); }
+  .action-icon {
+    width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .action-icon svg { width: 22px; height: 22px; }
+  .action-text strong { font-size: 14px; font-weight: 700; color: var(--navy); display: block; }
+  .action-text span { font-size: 12px; color: var(--muted); }
+  .action-arrow { margin-left: auto; flex-shrink: 0; }
+  .action-arrow svg { width: 18px; height: 18px; color: var(--muted); }
+
+  /* ── NUMBER LOOKUP ────────────────────────── */
+  .input-wrap {
+    display: flex; gap: 10px;
+  }
+  .input-field {
+    flex: 1; padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font); font-size: 15px;
+    color: var(--navy); background: var(--card);
+    outline: none; transition: border-color var(--transition);
+  }
+  .input-field:focus { border-color: var(--navy-700); }
+  .input-field::placeholder { color: var(--muted); }
+
+  .lookup-result {
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    display: none;
+    animation: fadeUp .25s ease;
+  }
+  .lookup-result.show { display: block; }
+  .lookup-result.safe { background: var(--emerald-light); }
+  .lookup-result.yellow { background: var(--amber-light); }
+  .lookup-result.red { background: var(--red-light); }
+  .lookup-result-title { font-size: 15px; font-weight: 700; }
+  .lookup-result-title.safe { color: var(--emerald-dark); }
+  .lookup-result-title.yellow { color: #92400E; }
+  .lookup-result-title.red { color: var(--red-dark); }
+  .lookup-result-desc { font-size: 12px; margin-top: 4px; color: var(--text-soft); }
+
+  /* ── PROFILE ITEM ─────────────────────────── */
+  .profile-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 15px 16px;
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: background var(--transition);
+  }
+  .profile-row:hover { background: #F8FAFC; }
+  .profile-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .profile-icon svg { width: 18px; height: 18px; }
+  .profile-text strong { font-size: 14px; font-weight: 600; color: var(--navy); display: block; }
+  .profile-text span { font-size: 12px; color: var(--muted); }
+  .profile-row svg.chevron { margin-left: auto; width: 16px; height: 16px; color: var(--muted); }
+
+  /* ── ELDER MODE ───────────────────────────── */
+  .elder-safe-card {
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
+    border: 2px solid #A7F3D0;
+    padding: 28px 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    box-shadow: 0 4px 20px rgba(5,150,105,.12);
+  }
+  .elder-btn {
+    width: 100%; padding: 24px;
+    border: none; border-radius: var(--radius);
+    cursor: pointer; font-family: var(--font);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    transition: transform 140ms ease, filter 140ms ease;
+    box-shadow: var(--shadow-lg);
+  }
+  .elder-btn:active { transform: scale(0.97); }
+  .elder-btn svg { width: 40px; height: 40px; }
+  .elder-btn-label { font-size: 20px; font-weight: 700; color: #fff; }
+  .elder-btn-label-hi { font-size: 16px; color: rgba(255,255,255,.8); font-weight: 500; }
+  .elder-btn.family { background: linear-gradient(135deg, #1E3A8A, #2563EB); }
+  .elder-btn.helpline { background: linear-gradient(135deg, #991B1B, #DC2626); }
+
+  /* ── CLOUD SCANNER ────────────────────────── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 40px 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    cursor: pointer; background: var(--card);
+    transition: border-color var(--transition), background var(--transition);
+  }
+  .upload-zone:hover { border-color: var(--navy-700); background: #F8FAFC; }
+  .upload-zone svg { width: 40px; height: 40px; color: var(--muted); }
+  .upload-zone-text { font-size: 14px; font-weight: 600; color: var(--navy); text-align: center; }
+  .upload-zone-sub { font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* ── LANGUAGE CHIPS ───────────────────────── */
+  .lang-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lang-chip {
+    padding: 8px 18px; border-radius: 99px;
+    border: 1.5px solid var(--border);
+    background: var(--card); cursor: pointer;
+    font-family: var(--font); font-size: 14px; font-weight: 600;
+    color: var(--text-soft);
+    transition: border-color var(--transition), background var(--transition), color var(--transition);
+  }
+  .lang-chip.selected { border-color: var(--navy-700); background: var(--navy-700); color: #fff; }
+
+  /* ── SUMMARY ITEMS ────────────────────────── */
+  .summary-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: var(--emerald-light);
+    border-radius: var(--radius-sm);
+  }
+  .summary-item svg { width: 18px; height: 18px; color: var(--emerald); flex-shrink: 0; }
+  .summary-item span { font-size: 13px; font-weight: 600; color: var(--emerald-dark); }
+
+  /* ── OEM STATUS ───────────────────────────── */
+  .oem-status {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600;
+  }
+  .oem-status.linked { background: var(--emerald-light); color: var(--emerald-dark); }
+  .oem-status.unlinked { background: var(--red-light); color: var(--red-dark); }
+  .oem-status svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+  /* ── ANIMATIONS ───────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── HOME STATS ───────────────────────────── */
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-tile {
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    box-shadow: var(--shadow);
+  }
+  .stat-num { font-size: 26px; font-weight: 800; color: var(--navy); }
+  .stat-label { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: .05em; }
+
+  /* ── NAV TABS ─────────────────────────────── */
+  .bottom-nav {
+    display: flex; justify-content: space-around;
+    padding: 12px 0 24px;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .nav-tab {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: none; border: none; cursor: pointer;
+    font-family: var(--font); font-size: 10px; font-weight: 600;
+    color: var(--muted); padding: 4px 12px;
+    transition: color var(--transition);
+  }
+  .nav-tab.active { color: var(--navy-700); }
+  .nav-tab svg { width: 22px; height: 22px; }
+
+  /* ── SCROLLABLE CONTENT ───────────────────── */
+  .scroll-content {
+    flex: 1; overflow-y: auto; scrollbar-width: none;
+  }
+  .scroll-content::-webkit-scrollbar { display: none; }
+
+  /* ── INLINE FLEX ──────────────────────────── */
+  .row { display: flex; align-items: center; }
+  .row-between { display: flex; align-items: center; justify-content: space-between; }
+  .col { display: flex; flex-direction: column; }
+
+  /* ── BADGE ────────────────────────────────── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 12px; border-radius: 99px;
+    font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  }
+  .badge-emerald { background: var(--emerald-light); color: var(--emerald-dark); }
+  .badge-amber { background: var(--amber-light); color: #92400E; }
+  .badge-red { background: var(--red-light); color: var(--red-dark); }
+  .badge-navy { background: #EFF6FF; color: var(--navy-600); }
+
+  /* ── API Loader ───────────────────────────── */
+  .spinner {
+    width: 24px; height: 24px; border: 3px solid var(--border);
+    border-top-color: var(--navy-700); border-radius: 50%;
+    animation: spin .7s linear infinite; margin: auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="device-wrap">
+  <div class="device-label">RakSetu · Interactive Prototype · All Screens</div>
+
+  <div class="phone">
+    <div class="phone-notch"></div>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- S0: CONSENT SCREEN                               -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div class="screen">
+
+      <div class="layer active" id="s0-consent">
+        <div class="status-bar">
+          <span class="time">9:41</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12.5a9 9 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0M12 20.5h.01"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="11" rx="2"/><path d="M22 11v4"/></svg>
+          </div>
+        </div>
+
+        <div class="scroll-content pad">
+          <!-- Logo -->
+          <div class="row" style="gap:12px; margin-bottom:24px;">
+            <div style="width:52px;height:52px;background:linear-gradient(135deg,#1E3A5F,#059669);border-radius:14px;display:flex;align-items:center;justify-content:center;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <div style="font-size:22px;font-weight:800;color:var(--navy);">RakSetu</div>
+              <div style="font-size:11px;font-weight:600;color:var(--emerald);letter-spacing:.06em;">रक्षा सेतु · YOUR SCAM SHIELD</div>
+            </div>
+          </div>
+
+          <div class="screen-title">Privacy & Consent Setup</div>
+          <div class="screen-sub">Your call recordings are processed entirely <strong>on your device</strong>. No audio or transcripts leave without your consent.</div>
+
+          <div class="gap-24"></div>
+
+          <div style="padding:16px;background:#EFF6FF;border-radius:var(--radius-sm);border-left:4px solid var(--navy-600);">
+            <div style="font-size:13px;font-weight:600;color:var(--navy-600);margin-bottom:4px;">🔐 On-Device Processing</div>
+            <div style="font-size:12px;color:var(--text-soft);line-height:1.6;">AI analysis runs 100% locally. The RakSetu server only receives anonymised risk scores — never your voice or personal data.</div>
+          </div>
+
+          <div class="gap-20"></div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="check-row" id="ck1" onclick="toggleCheck('ck1','chk1')">
+              <div class="check-box" id="chk1"></div>
+              <div class="check-text">
+                <strong>Terms & Conditions — Call Recording</strong>
+                <span>I authorise RakSetu to monitor OEM call recordings on this device for scam detection only.</span>
+              </div>
+            </div>
+            <div class="check-row" id="ck2" onclick="toggleCheck('ck2','chk2')">
+              <div class="check-box" id="chk2"></div>
+              <div class="check-text">
+                <strong>On-Device AI Processing Consent</strong>
+                <span>I consent to local AI transcript scanning and risk scoring of my calls.</span>
+              </div>
+            </div>
+            <div class="check-row" id="ck3" onclick="toggleCheck('ck3','chk3')">
+              <div class="check-box" id="chk3"></div>
+              <div class="check-text">
+                <strong>Community Reporting Network</strong>
+                <span>I agree to share anonymised scam-number flags to protect other users.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;">
+          <button class="btn btn-emerald" id="consent-proceed" onclick="goTo('s1-perms')" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Proceed Forward
+          </button>
+          <div class="gap-8"></div>
+          <div style="font-size:11px;color:var(--muted);text-align:center;">Accept all three consents to continue. You may revoke anytime in Settings.</div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- S1: PERMISSIONS                                  -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="s1-perms">
+        <div class="status-bar">
+          <span class="time">9:43</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12.5a9 9 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0M12 20.5h.01"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="11" rx="2"/><path d="M22 11v4"/></svg>
+          </div>
+        </div>
+
+        <div class="pad">
+          <div class="step-bar">
+            <div class="step-dot done"></div>
+            <div class="step-dot active"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+          </div>
+        </div>
+        <div class="gap-16"></div>
+
+        <div class="scroll-content pad">
+          <div class="screen-title">Step 1 of 4<br>Required Permissions</div>
+          <div class="screen-sub">RakSetu needs these permissions to arm your shield. Tap each row to grant.</div>
+          <div class="gap-20"></div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="perm-row" id="perm1" onclick="grantPerm('perm1')">
+              <div class="perm-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56A16 16 0 0 0 16 16.56l.88-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </div>
+              <div class="col" style="flex:1;gap:2px;">
+                <div class="label">Phone State</div>
+                <div class="caption">Detects active calls to arm the shield</div>
+              </div>
+              <div class="perm-status pending" id="perm1-status">Tap to Grant</div>
+            </div>
+
+            <div class="perm-row" id="perm2" onclick="grantPerm('perm2')">
+              <div class="perm-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              </div>
+              <div class="col" style="flex:1;gap:2px;">
+                <div class="label">Notifications</div>
+                <div class="caption">Delivers immediate post-call alerts</div>
+              </div>
+              <div class="perm-status pending" id="perm2-status">Tap to Grant</div>
+            </div>
+
+            <div class="perm-row" id="perm3" onclick="grantPerm('perm3')">
+              <div class="perm-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              </div>
+              <div class="col" style="flex:1;gap:2px;">
+                <div class="label">Audio / Media Access</div>
+                <div class="caption">Reads OEM call recording files locally</div>
+              </div>
+              <div class="perm-status pending" id="perm3-status">Tap to Grant</div>
+            </div>
+
+            <div class="perm-row" id="perm4" onclick="grantPerm('perm4')">
+              <div class="perm-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+              </div>
+              <div class="col" style="flex:1;gap:2px;">
+                <div class="label">Battery Optimization</div>
+                <div class="caption">Keeps shield armed in background</div>
+              </div>
+              <div class="perm-status pending" id="perm4-status">Tap to Grant</div>
+            </div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;">
+          <button class="btn btn-primary" id="perms-next" onclick="goTo('s2-oem')" disabled>
+            Grant & Continue
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- S2: OEM RECORDING TEST                           -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="s2-oem">
+        <div class="status-bar">
+          <span class="time">9:46</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12.5a9 9 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0M12 20.5h.01"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="11" rx="2"/><path d="M22 11v4"/></svg>
+          </div>
+        </div>
+
+        <div class="pad">
+          <div class="step-bar">
+            <div class="step-dot done"></div>
+            <div class="step-dot done"></div>
+            <div class="step-dot active"></div>
+            <div class="step-dot"></div>
+          </div>
+        </div>
+        <div class="gap-16"></div>
+
+        <div class="scroll-content pad">
+          <div class="screen-title">Step 2 of 4<br>Connect Call Recording</div>
+          <div class="screen-sub">RakSetu reads from your phone's built-in OEM call recorder — no third-party app needed.</div>
+          <div class="gap-20"></div>
+
+          <div class="card">
+            <div class="card-body">
+              <div class="row-between" style="margin-bottom:12px;">
+                <div class="label">OEM Recorder Detection</div>
+                <div class="badge badge-navy" id="oem-badge">Not Linked</div>
+              </div>
+              <div class="oem-status unlinked" id="oem-status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="oem-status-text">Not connected. Tap "Test Now" to establish link.</span>
+              </div>
+              <div class="gap-12"></div>
+              <div class="caption" style="line-height:1.6;">Supported OEMs: Samsung · Xiaomi · OPPO · Vivo · Realme · OnePlus · Motorola · Nokia</div>
+            </div>
+          </div>
+
+          <div class="gap-16"></div>
+          <button class="btn btn-primary btn-sm" style="width:auto;" onclick="linkOEM()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/></svg>
+            Test Now & Link OEM Folder
+          </button>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;">
+          <button class="btn btn-primary" id="oem-next" onclick="goTo('s3-optional')" disabled>
+            Next Step
+          </button>
+          <div class="gap-8"></div>
+          <button class="btn btn-ghost" onclick="goTo('s3-optional')">Skip for now</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- S3: OPTIONAL SETUP                               -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="s3-optional">
+        <div class="status-bar">
+          <span class="time">9:49</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12.5a9 9 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0M12 20.5h.01"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="11" rx="2"/><path d="M22 11v4"/></svg>
+          </div>
+        </div>
+
+        <div class="pad">
+          <div class="step-bar">
+            <div class="step-dot done"></div>
+            <div class="step-dot done"></div>
+            <div class="step-dot done"></div>
+            <div class="step-dot active"></div>
+          </div>
+        </div>
+        <div class="gap-16"></div>
+
+        <div class="scroll-content pad">
+          <div class="screen-title">Step 3 of 4<br>Account & Safeguards</div>
+          <div class="screen-sub">Optional — Fill to speed up recovery if you are scammed. Stored only on your device.</div>
+          <div class="gap-20"></div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+              <div class="label" style="margin-bottom:6px;">Primary Bank Name</div>
+              <input class="input-field" style="width:100%;" placeholder="e.g. State Bank of India" type="text">
+            </div>
+            <div>
+              <div class="label" style="margin-bottom:6px;">Emergency Family Contact</div>
+              <input class="input-field" style="width:100%;" placeholder="+91 99999 00000" type="tel">
+            </div>
+            <div>
+              <div class="label" style="margin-bottom:6px;">Government Helpline</div>
+              <input class="input-field" style="width:100%;background:#EFF6FF;" value="1930 — Cyber Crime" readonly>
+            </div>
+            <div>
+              <div class="label" style="margin-bottom:6px;">Govt. ID for Reports (Optional)</div>
+              <input class="input-field" style="width:100%;" placeholder="Aadhaar / PAN (for filing reports)" type="text">
+            </div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;display:flex;gap:10px;">
+          <button class="btn btn-outline" onclick="goTo('s4-summary')" style="flex:1;">Skip Setup</button>
+          <button class="btn btn-primary" onclick="goTo('s4-summary')" style="flex:2;">Save & Continue</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- S4: SETUP SUMMARY                                -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="s4-summary">
+        <div class="status-bar">
+          <span class="time">9:52</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12.5a9 9 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0M12 20.5h.01"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="11" rx="2"/><path d="M22 11v4"/></svg>
+          </div>
+        </div>
+
+        <div class="scroll-content pad">
+          <div class="gap-8"></div>
+          <div style="text-align:center;padding:20px 0;">
+            <div style="width:72px;height:72px;background:linear-gradient(135deg,#1E3A5F,#059669);border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="screen-title" style="text-align:center;">Shield Armed!</div>
+            <div class="screen-sub" style="text-align:center;margin-top:6px;">RakSetu is ready to protect you<br>रक्षेतु आपकी रक्षा के लिए तैयार है</div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="summary-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>Shield armed successfully · सफलतापूर्वक सक्रिय</span>
+            </div>
+            <div class="summary-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/></svg>
+              <span>OEM call recordings linked</span>
+            </div>
+            <div class="summary-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/></svg>
+              <span>Background protection active</span>
+            </div>
+            <div class="summary-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              <span>Emergency contacts saved</span>
+            </div>
+          </div>
+
+          <div class="gap-24"></div>
+          <div class="label" style="margin-bottom:10px;">Choose Language (भाषा चुनें / ভাষা বেছে নিন)</div>
+          <div class="lang-chips" id="lang-chips">
+            <div class="lang-chip selected" onclick="selectLang(this)">English</div>
+            <div class="lang-chip" onclick="selectLang(this)">हिन्दी</div>
+            <div class="lang-chip" onclick="selectLang(this)">বাংলা</div>
+            <div class="lang-chip" onclick="selectLang(this)">मराठी</div>
+            <div class="lang-chip" onclick="selectLang(this)">தமிழ்</div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;">
+          <button class="btn btn-emerald" onclick="goTo('home')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Start Protecting Me · सुरक्षित करें
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- HOME DASHBOARD                                   -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="home">
+        <div class="status-bar">
+          <span class="time">10:12</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12.5a9 9 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0M12 20.5h.01"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="11" rx="2"/><path d="M22 11v4"/></svg>
+          </div>
+        </div>
+
+        <div class="scroll-content pad">
+          <div class="row-between" style="margin-bottom:16px;">
+            <div>
+              <div style="font-size:22px;font-weight:800;color:var(--navy);">RakSetu</div>
+              <div style="font-size:11px;font-weight:600;color:var(--emerald);letter-spacing:.05em;">रक्षा सेतु</div>
+            </div>
+            <button onclick="goTo('profile')" style="background:none;border:none;cursor:pointer;padding:4px;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
+            </button>
+          </div>
+
+          <!-- Shield Card -->
+          <div class="shield-card armed" id="home-shield">
+            <div class="shield-ring">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="shield-status" id="shield-status-text">SHIELD ACTIVE</div>
+            <div class="shield-desc" id="shield-desc-text">Scanning all incoming calls locally.<br>सभी कॉल स्कैन हो रहे हैं।</div>
+            <div class="toggle-wrap">
+              <span class="toggle-label">Disarm</span>
+              <button class="toggle on" id="shield-toggle" onclick="toggleShield()"></button>
+              <span class="toggle-label">Arm</span>
+            </div>
+          </div>
+
+          <div class="gap-16"></div>
+
+          <!-- Stats -->
+          <div class="stats-row">
+            <div class="stat-tile">
+              <div class="stat-num" style="color:var(--red);">3</div>
+              <div class="stat-label">Scams Blocked</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-num" style="color:var(--amber);">7</div>
+              <div class="stat-label">Suspicious Calls</div>
+            </div>
+          </div>
+
+          <div class="gap-16"></div>
+
+          <div class="label" style="margin-bottom:10px;">Features</div>
+          <div class="grid-2">
+            <div class="feature-tile" onclick="goTo('shield-health')">
+              <div class="tile-icon" style="background:#EFF6FF;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--navy-600);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <div class="tile-label">Shield Health<br><span style="font-weight:400;color:var(--muted);font-size:11px;">ढाल की स्थिति</span></div>
+            </div>
+            <div class="feature-tile" onclick="goTo('cloud-scanner')">
+              <div class="tile-icon" style="background:#F0FDF4;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--emerald);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </div>
+              <div class="tile-label">Cloud Scanner<br><span style="font-weight:400;color:var(--muted);font-size:11px;">स्कैनर</span></div>
+            </div>
+            <div class="feature-tile" onclick="goTo('number-lookup')">
+              <div class="tile-icon" style="background:#FFF7ED;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--amber);"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56A16 16 0 0 0 16 16.56l.88-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </div>
+              <div class="tile-label">Lookup Number<br><span style="font-weight:400;color:var(--muted);font-size:11px;">नंबर जांचें</span></div>
+            </div>
+            <div class="feature-tile" onclick="goTo('elder-mode')">
+              <div class="tile-icon" style="background:#FDF4FF;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#7C3AED;"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
+              </div>
+              <div class="tile-label">Elder Mode<br><span style="font-weight:400;color:var(--muted);font-size:11px;">बुजुर्ग मोड</span></div>
+            </div>
+          </div>
+
+          <div class="gap-16"></div>
+
+          <!-- Demo Alert Triggers -->
+          <div class="label" style="margin-bottom:8px;">Simulate Post-Call Detection</div>
+          <div class="grid-2">
+            <button class="btn btn-amber btn-sm" onclick="goTo('alert-yellow')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+              Yellow Alert
+            </button>
+            <button class="btn btn-red btn-sm" onclick="goTo('alert-red')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Red Alert
+            </button>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <!-- Bottom Nav -->
+        <div class="bottom-nav">
+          <button class="nav-tab active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Home
+          </button>
+          <button class="nav-tab" onclick="goTo('number-lookup')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Lookup
+          </button>
+          <button class="nav-tab" onclick="goTo('cloud-scanner')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            Scanner
+          </button>
+          <button class="nav-tab" onclick="goTo('profile')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
+            Profile
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- YELLOW ALERT                                     -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer alert-layer-yellow" id="alert-yellow" style="--bg:transparent;">
+        <div class="status-bar" style="padding-top:48px;">
+          <span class="time" style="color:#fff;">10:15</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12.5a9 9 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0M12 20.5h.01"/></svg>
+          </div>
+        </div>
+
+        <div class="scroll-content" style="display:flex;flex-direction:column;align-items:center;padding:0 20px;gap:12px;">
+          <div class="gap-8"></div>
+          <div class="alert-badge">⚠ SUSPICIOUS CALL DETECTED</div>
+          <div class="alert-icon-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="alert-title">WARNING<br>Suspicious Call</div>
+          <div class="alert-number">+91 9876 543 210</div>
+          <div class="alert-desc">Scam attempts were initiated by this number but were <strong>not completed</strong>. Remain cautious — do not call back.</div>
+
+          <div style="width:100%;background:rgba(255,255,255,.15);border-radius:var(--radius-sm);padding:14px;margin-top:4px;">
+            <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Community Reports</div>
+            <div style="font-size:22px;font-weight:800;color:#fff;">15 <span style="font-size:13px;font-weight:500;">attempts</span></div>
+            <div style="font-size:12px;color:rgba(255,255,255,.75);">Scams prevented successfully · 0 completed</div>
+          </div>
+
+          <div class="gap-8"></div>
+        </div>
+
+        <div style="padding:0 20px 32px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;">
+          <button class="btn" style="background:#fff;color:#D97706;" onclick="goTo('evidence-review-yellow')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+            Review Call Evidence
+          </button>
+          <button class="btn btn-ghost" style="color:rgba(255,255,255,.8);" onclick="goTo('home')">
+            Not a Scam (Report False Positive)
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- RED ALERT                                        -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer alert-layer-red" id="alert-red" style="--bg:transparent;">
+        <div class="status-bar" style="padding-top:48px;">
+          <span class="time" style="color:#fff;">10:22</span>
+        </div>
+
+        <div class="scroll-content" style="display:flex;flex-direction:column;align-items:center;padding:0 20px;gap:12px;">
+          <div class="gap-8"></div>
+          <div class="alert-badge" style="background:rgba(255,255,255,.25);">🚨 CONFIRMED SCAM NETWORK</div>
+          <div class="alert-icon-ring" style="animation:pulse-ring 1.5s ease-in-out infinite;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="alert-title">DANGER<br>Scam Detected</div>
+          <div class="alert-number">+91 9112 233 445</div>
+          <div class="alert-desc">This number is confirmed in the RakSetu network for <strong>successfully executing money scams</strong>. Take immediate action.</div>
+
+          <div style="width:100%;background:rgba(255,255,255,.15);border-radius:var(--radius-sm);padding:14px;margin-top:4px;">
+            <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Confirmed Damage</div>
+            <div style="font-size:22px;font-weight:800;color:#fff;">4 <span style="font-size:13px;font-weight:500;">completed scams</span></div>
+            <div style="font-size:12px;color:rgba(255,255,255,.75);">₹45,000 lost across victims · 27 total reports</div>
+          </div>
+
+          <div class="gap-8"></div>
+        </div>
+
+        <div style="padding:0 20px 32px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;">
+          <button class="btn" style="background:#fff;color:var(--red-dark);" onclick="goTo('evidence-review-red')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+            Review Call Evidence
+          </button>
+          <button class="btn" style="background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.3);" onclick="goTo('action-hub')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            Launch Recovery Hub
+          </button>
+          <button class="btn btn-ghost" style="color:rgba(255,255,255,.7);" onclick="goTo('home')">Not a Scam</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- EVIDENCE REVIEW (Yellow)                         -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="evidence-review-yellow">
+        <div class="status-bar"><span class="time">10:16</span></div>
+        <div class="pad"><button class="back-btn" onclick="goTo('alert-yellow')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button></div>
+        <div class="gap-12"></div>
+
+        <div class="scroll-content pad">
+          <div class="screen-title">Call Evidence</div>
+          <div class="gap-12"></div>
+
+          <div class="card">
+            <div class="card-body">
+              <div class="row-between" style="margin-bottom:8px;">
+                <div class="label">Detection Summary</div>
+                <div class="badge badge-amber">YELLOW · SUSPICIOUS</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <div class="row-between"><span class="caption">Caller ID</span><span style="font-size:13px;font-weight:600;">9876543210</span></div>
+                <div class="row-between"><span class="caption">Confidence</span><span style="font-size:13px;font-weight:600;color:var(--amber);">67%</span></div>
+                <div class="row-between"><span class="caption">Scam Type</span><span style="font-size:13px;font-weight:600;">Prize / KYC Fraud</span></div>
+                <div class="row-between"><span class="caption">Call Duration</span><span style="font-size:13px;font-weight:600;">3m 42s</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gap-16"></div>
+          <div class="label" style="margin-bottom:10px;">Flagged Phrases (Local AI Scan)</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="evidence-card" style="border-color:var(--amber);background:var(--amber-light);color:#92400E;">"Your mobile number has won a Rs. 50,000 prize from our lottery."</div>
+            <div class="evidence-card" style="border-color:var(--amber);background:var(--amber-light);color:#92400E;">"Please share your Aadhaar number to claim your prize today."</div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;">
+          <button class="btn btn-primary" onclick="goTo('home')">Return Home</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- EVIDENCE REVIEW (Red)                            -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="evidence-review-red">
+        <div class="status-bar"><span class="time">10:23</span></div>
+        <div class="pad"><button class="back-btn" onclick="goTo('alert-red')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button></div>
+        <div class="gap-12"></div>
+
+        <div class="scroll-content pad">
+          <div class="screen-title">Call Evidence</div>
+          <div class="gap-12"></div>
+
+          <div class="card">
+            <div class="card-body">
+              <div class="row-between" style="margin-bottom:8px;">
+                <div class="label">Detection Summary</div>
+                <div class="badge badge-red">RED · CONFIRMED SCAM</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <div class="row-between"><span class="caption">Caller ID</span><span style="font-size:13px;font-weight:600;">9112233445</span></div>
+                <div class="row-between"><span class="caption">Confidence</span><span style="font-size:13px;font-weight:600;color:var(--red);">94%</span></div>
+                <div class="row-between"><span class="caption">Scam Type</span><span style="font-size:13px;font-weight:600;">Banking & OTP Fraud</span></div>
+                <div class="row-between"><span class="caption">Call Duration</span><span style="font-size:13px;font-weight:600;">8m 17s</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gap-16"></div>
+          <div class="label" style="margin-bottom:10px;">Flagged Phrases (Local AI Scan)</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="evidence-card">"I am calling from government bank support unit."</div>
+            <div class="evidence-card">"Please read out the OTP number you just received."</div>
+            <div class="evidence-card">"Your account will be permanently blocked today."</div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;">
+          <button class="btn btn-red" onclick="goTo('action-hub')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            Launch Recovery Action Hub
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- ACTION HUB                                       -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="action-hub">
+        <div class="status-bar"><span class="time">10:25</span></div>
+        <div class="pad row-between">
+          <button class="back-btn" onclick="goTo('evidence-review-red')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back
+          </button>
+          <div class="badge badge-red">RECOVERY MODE</div>
+        </div>
+        <div class="gap-12"></div>
+
+        <div class="scroll-content pad">
+          <div class="screen-title">Mitigation & Recovery</div>
+          <div class="screen-sub">Take immediate action to protect your money. ₹ बचाओ।</div>
+          <div class="gap-20"></div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="action-row" onclick="this.style.borderColor='var(--emerald)'">
+              <div class="action-icon" style="background:#EFF6FF;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--navy-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56A16 16 0 0 0 16 16.56l.88-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </div>
+              <div class="action-text">
+                <strong>Call 1930 Govt Helpline</strong>
+                <span>Dials security desk with scam scripts ready · अभी कॉल करें</span>
+              </div>
+              <div class="action-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+
+            <div class="action-row">
+              <div class="action-icon" style="background:#F0FDF4;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </div>
+              <div class="action-text">
+                <strong>Email Bank Immediately</strong>
+                <span>Pre-filled email with transaction history</span>
+              </div>
+              <div class="action-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+
+            <div class="action-row">
+              <div class="action-icon" style="background:#FFF7ED;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div class="action-text">
+                <strong>File Government Report</strong>
+                <span>Chakshu / NCRP guided wizard · शिकायत दर्ज करें</span>
+              </div>
+              <div class="action-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+
+            <div class="action-row" onclick="goTo('home')">
+              <div class="action-icon" style="background:#FEE2E2;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+              </div>
+              <div class="action-text">
+                <strong>Block & Share to Network</strong>
+                <span>Sync number to community blacklists · ब्लॉक करें</span>
+              </div>
+              <div class="action-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;">
+          <button class="btn btn-primary" onclick="goTo('home')">Done — Return Home</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- SHIELD HEALTH                                    -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="shield-health">
+        <div class="status-bar"><span class="time">10:30</span></div>
+        <div class="pad"><button class="back-btn" onclick="goTo('home')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button></div>
+        <div class="gap-12"></div>
+
+        <div class="scroll-content pad">
+          <div class="screen-title">Shield Diagnostics</div>
+          <div class="screen-sub">Real-time status of all protection systems</div>
+          <div class="gap-20"></div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="diag-row">
+              <div class="diag-left"><div class="diag-dot dot-green"></div><div class="diag-name">Android Permissions</div></div>
+              <div class="diag-val val-green">Granted ✓</div>
+            </div>
+            <div class="diag-row">
+              <div class="diag-left"><div class="diag-dot dot-green"></div><div class="diag-name">OEM Recorder Access</div></div>
+              <div class="diag-val val-green">Samsung Auto ✓</div>
+            </div>
+            <div class="diag-row">
+              <div class="diag-left"><div class="diag-dot dot-green"></div><div class="diag-name">Battery Optimization</div></div>
+              <div class="diag-val val-green">Exempt ✓</div>
+            </div>
+            <div class="diag-row">
+              <div class="diag-left"><div class="diag-dot dot-green"></div><div class="diag-name">AI Model Version</div></div>
+              <div class="diag-val val-green">v12.4 ✓</div>
+            </div>
+            <div class="diag-row">
+              <div class="diag-left"><div class="diag-dot dot-amber"></div><div class="diag-name">Cloud Sync</div></div>
+              <div class="diag-val val-amber">Pending WiFi</div>
+            </div>
+            <div class="diag-row">
+              <div class="diag-left"><div class="diag-dot dot-green"></div><div class="diag-name">Backend API</div></div>
+              <div class="diag-val val-green">Connected ✓</div>
+            </div>
+          </div>
+
+          <div class="gap-20"></div>
+          <div style="padding:14px;background:#EFF6FF;border-radius:var(--radius-sm);border-left:4px solid var(--navy-600);">
+            <div style="font-size:13px;font-weight:700;color:var(--navy-600);">5/6 systems fully operational</div>
+            <div style="font-size:12px;color:var(--text-soft);margin-top:4px;">Cloud sync will resume when WiFi is available. Shield remains fully active on mobile data.</div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;">
+          <button class="btn btn-outline" onclick="goTo('home')">Close</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- NUMBER LOOKUP                                    -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="number-lookup">
+        <div class="status-bar"><span class="time">10:35</span></div>
+        <div class="pad"><button class="back-btn" onclick="goTo('home')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button></div>
+        <div class="gap-12"></div>
+
+        <div class="scroll-content pad">
+          <div class="screen-title">Number Risk Lookup</div>
+          <div class="screen-sub">Query RakSetu database + live backend API · नंबर की जांच करें</div>
+          <div class="gap-20"></div>
+
+          <div class="input-wrap">
+            <input class="input-field" id="lookup-input" placeholder="+91 99999 00000" type="tel">
+            <button class="btn btn-primary btn-sm" style="width:auto;white-space:nowrap;" onclick="lookupNumber()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Check
+            </button>
+          </div>
+
+          <div class="gap-12"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" style="width:auto;" onclick="document.getElementById('lookup-input').value='9876543210'">Try 9876543210</button>
+            <button class="btn btn-outline btn-sm" style="width:auto;" onclick="document.getElementById('lookup-input').value='9112233445'">Try 9112233445</button>
+          </div>
+
+          <div class="gap-16"></div>
+
+          <div id="lookup-spinner" style="display:none;padding:20px;">
+            <div class="spinner"></div>
+          </div>
+
+          <div id="lookup-result" class="lookup-result">
+            <div class="lookup-result-title" id="lookup-result-title"></div>
+            <div class="lookup-result-desc" id="lookup-result-desc"></div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- CLOUD SCANNER                                    -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="cloud-scanner">
+        <div class="status-bar"><span class="time">10:40</span></div>
+        <div class="pad"><button class="back-btn" onclick="goTo('home')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button></div>
+        <div class="gap-12"></div>
+
+        <div class="scroll-content pad">
+          <div class="screen-title">Manual Cloud Scanner</div>
+          <div class="screen-sub">Upload screenshots, voice notes, or pasted text for explicit consent-based scanning.</div>
+          <div class="gap-20"></div>
+
+          <div style="padding:12px;background:var(--amber-light);border-radius:var(--radius-sm);border-left:4px solid var(--amber-vivid);margin-bottom:16px;">
+            <div style="font-size:12px;font-weight:600;color:#92400E;">Consent Required</div>
+            <div style="font-size:11px;color:#78350F;margin-top:3px;">Items uploaded here are sent to the RakSetu cloud server for analysis. This requires your explicit action.</div>
+          </div>
+
+          <div class="upload-zone" onclick="simulateScan()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            <div class="upload-zone-text">Tap to Select Files</div>
+            <div class="upload-zone-sub">Screenshots · Voice recordings · Pasted text<br>Max 50MB · Any format</div>
+          </div>
+
+          <div class="gap-16"></div>
+          <div id="scan-result" style="display:none;padding:14px;background:var(--emerald-light);border-radius:var(--radius-sm);">
+            <div style="font-weight:700;color:var(--emerald-dark);">✓ No scam content found</div>
+            <div style="font-size:12px;color:var(--text-soft);margin-top:4px;">AI confidence: 98% · Scanned locally + cloud verified</div>
+          </div>
+
+          <div class="gap-24"></div>
+          <div class="label" style="margin-bottom:10px;">Scan Types</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="perm-row">
+              <div class="perm-icon" style="background:#EFF6FF;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--navy-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+              <div class="col" style="flex:1;gap:2px;"><div class="label">Screenshot / Image</div><div class="caption">QR codes, UPI payment screens, fake messages</div></div>
+            </div>
+            <div class="perm-row">
+              <div class="perm-icon" style="background:#EFF6FF;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--navy-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/></svg></div>
+              <div class="col" style="flex:1;gap:2px;"><div class="label">Voice Note</div><div class="caption">WhatsApp audio, voicemail recordings</div></div>
+            </div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;">
+          <button class="btn btn-primary" onclick="simulateScan()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/></svg>
+            Upload & Scan Item
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- PROFILE / SETTINGS                               -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="profile">
+        <div class="status-bar"><span class="time">10:45</span></div>
+        <div class="pad"><button class="back-btn" onclick="goTo('home')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button></div>
+        <div class="gap-12"></div>
+
+        <div class="scroll-content pad">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;">
+            <div style="width:52px;height:52px;background:linear-gradient(135deg,#1E3A5F,#059669);border-radius:14px;display:flex;align-items:center;justify-content:center;">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
+            </div>
+            <div>
+              <div style="font-size:18px;font-weight:700;color:var(--navy);">Settings & Data Control</div>
+              <div class="badge badge-emerald" style="margin-top:4px;">RakSetu Active</div>
+            </div>
+          </div>
+
+          <div class="label" style="margin-bottom:10px;">App Preferences</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+            <div class="profile-row">
+              <div class="profile-icon" style="background:#EFF6FF;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--navy-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              </div>
+              <div class="profile-text" style="flex:1;">
+                <strong>Language Selection</strong>
+                <span>Hindi · Bengali · English · Marathi · Tamil</span>
+              </div>
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="profile-row">
+              <div class="profile-icon" style="background:#EFF6FF;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--navy-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+              </div>
+              <div class="profile-text" style="flex:1;">
+                <strong>Export Case Files</strong>
+                <span>Save all scam logs and audio for police use</span>
+              </div>
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="profile-row">
+              <div class="profile-icon" style="background:#FFF7ED;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </div>
+              <div class="profile-text" style="flex:1;">
+                <strong>Data Purge</strong>
+                <span>Permanently delete all recording cache files</span>
+              </div>
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+
+          <div class="label" style="margin-bottom:10px;">About</div>
+          <div style="padding:14px;background:var(--card);border-radius:var(--radius-sm);box-shadow:var(--shadow);">
+            <div class="row-between"><span class="caption">Version</span><span style="font-size:13px;font-weight:600;">1.0.0 beta</span></div>
+            <div class="row-between" style="margin-top:8px;"><span class="caption">Backend API</span><span style="font-size:13px;font-weight:600;color:var(--emerald);">Connected</span></div>
+            <div class="row-between" style="margin-top:8px;"><span class="caption">AI Model</span><span style="font-size:13px;font-weight:600;">RakSetu v12.4</span></div>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+
+        <div class="pad" style="padding-bottom:32px;flex-shrink:0;">
+          <button class="btn btn-red" onclick="goTo('s0-consent')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Revoke Consents & Exit App
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- ELDER MODE                                       -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="layer" id="elder-mode">
+        <div class="status-bar"><span class="time">10:50</span></div>
+        <div class="pad row-between">
+          <div style="font-size:18px;font-weight:800;color:var(--navy);">Elder Mode<br><span style="font-size:14px;font-weight:500;color:var(--muted);">सुरक्षित मोड</span></div>
+          <button class="btn btn-outline btn-sm" style="width:auto;" onclick="goTo('home')">Exit</button>
+        </div>
+        <div class="gap-16"></div>
+
+        <div class="scroll-content pad">
+          <div class="elder-safe-card">
+            <div style="width:72px;height:72px;background:var(--emerald);border-radius:50%;display:flex;align-items:center;justify-content:center;">
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div style="font-size:26px;font-weight:800;color:var(--emerald-dark);text-align:center;">YOU ARE SAFE</div>
+            <div style="font-size:18px;font-weight:600;color:var(--emerald-dark);">आप सुरक्षित हैं</div>
+            <div style="font-size:13px;color:var(--text-soft);text-align:center;">RakSetu is watching over your calls and alerting you of any danger.</div>
+          </div>
+
+          <div class="gap-24"></div>
+
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <button class="elder-btn family" onclick="">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56A16 16 0 0 0 16 16.56l.88-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              <div class="elder-btn-label">Call Family</div>
+              <div class="elder-btn-label-hi">परिवार को कॉल करें</div>
+            </button>
+
+            <button class="elder-btn helpline" onclick="">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div class="elder-btn-label">Call Helpline 1930</div>
+              <div class="elder-btn-label-hi">मदद लें 1930</div>
+            </button>
+          </div>
+
+          <div class="gap-32"></div>
+        </div>
+      </div>
+
+    </div><!-- /screen -->
+  </div><!-- /phone -->
+
+  <!-- Navigation Guide -->
+  <div style="max-width:390px;width:100%;padding:16px;background:rgba(255,255,255,.05);border-radius:12px;border:1px solid rgba(255,255,255,.08);">
+    <div style="font-size:11px;font-weight:700;color:#94A3B8;letter-spacing:.08em;margin-bottom:10px;text-transform:uppercase;">All Screens · Navigate via in-app buttons</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      <button onclick="goTo('s0-consent')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">S0 Consent</button>
+      <button onclick="goTo('s1-perms')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">S1 Permissions</button>
+      <button onclick="goTo('s2-oem')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">S2 OEM Setup</button>
+      <button onclick="goTo('s3-optional')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">S3 Optional</button>
+      <button onclick="goTo('s4-summary')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">S4 Summary</button>
+      <button onclick="goTo('home')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">Home Dashboard</button>
+      <button onclick="goTo('alert-yellow')" style="background:rgba(217,119,6,.2);border:none;color:#FCD34D;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">⚠ Yellow Alert</button>
+      <button onclick="goTo('alert-red')" style="background:rgba(220,38,38,.2);border:none;color:#FCA5A5;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">🚨 Red Alert</button>
+      <button onclick="goTo('action-hub')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">Action Hub</button>
+      <button onclick="goTo('shield-health')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">Shield Health</button>
+      <button onclick="goTo('number-lookup')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">Number Lookup</button>
+      <button onclick="goTo('cloud-scanner')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">Cloud Scanner</button>
+      <button onclick="goTo('profile')" style="background:rgba(255,255,255,.08);border:none;color:#94A3B8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">Profile</button>
+      <button onclick="goTo('elder-mode')" style="background:rgba(124,58,237,.2);border:none;color:#C4B5FD;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);">Elder Mode</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── NAVIGATION ──────────────────────────────────────────
+  let current = 's0-consent';
+
+  function goTo(id) {
+    const from = document.getElementById(current);
+    const to = document.getElementById(id);
+    if (!to || current === id) return;
+
+    from.classList.remove('active');
+    from.classList.add('exit');
+    setTimeout(() => from.classList.remove('exit'), 300);
+
+    to.classList.add('active');
+    current = id;
+
+    // Scroll to top
+    to.querySelector('.scroll-content')?.scrollTo(0, 0);
+  }
+
+  // ── CONSENT CHECKBOXES ──────────────────────────────────
+  const checkState = {};
+
+  function toggleCheck(rowId, boxId) {
+    checkState[boxId] = !checkState[boxId];
+    const box = document.getElementById(boxId);
+    box.classList.toggle('checked', checkState[boxId]);
+    updateConsentBtn();
+  }
+
+  function updateConsentBtn() {
+    const all = checkState['chk1'] && checkState['chk2'] && checkState['chk3'];
+    const btn = document.getElementById('consent-proceed');
+    btn.disabled = !all;
+    if (all) { btn.classList.remove('btn-primary'); btn.classList.add('btn-emerald'); }
+    else { btn.classList.add('btn-primary'); btn.classList.remove('btn-emerald'); }
+  }
+
+  // ── PERMISSIONS ─────────────────────────────────────────
+  const permGranted = {};
+
+  function grantPerm(id) {
+    permGranted[id] = true;
+    const statusEl = document.getElementById(id + '-status');
+    statusEl.textContent = 'Granted ✓';
+    statusEl.classList.remove('pending');
+    statusEl.classList.add('granted');
+    checkAllPerms();
+  }
+
+  function checkAllPerms() {
+    const all = permGranted['perm1'] && permGranted['perm2'] && permGranted['perm3'] && permGranted['perm4'];
+    document.getElementById('perms-next').disabled = !all;
+  }
+
+  // ── OEM LINK ────────────────────────────────────────────
+  function linkOEM() {
+    const badge = document.getElementById('oem-badge');
+    const status = document.getElementById('oem-status');
+    const text = document.getElementById('oem-status-text');
+    const next = document.getElementById('oem-next');
+
+    badge.textContent = 'Linking...';
+    badge.className = 'badge badge-amber';
+
+    setTimeout(() => {
+      badge.textContent = 'Linked ✓';
+      badge.className = 'badge badge-emerald';
+      status.className = 'oem-status linked';
+      status.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Connected: Samsung Auto-Recording folder linked successfully.</span>';
+      next.disabled = false;
+    }, 1500);
+  }
+
+  // ── LANGUAGE CHIP ───────────────────────────────────────
+  function selectLang(el) {
+    document.querySelectorAll('.lang-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  // ── SHIELD TOGGLE ───────────────────────────────────────
+  function toggleShield() {
+    const toggle = document.getElementById('shield-toggle');
+    const card = document.getElementById('home-shield');
+    const text = document.getElementById('shield-status-text');
+    const desc = document.getElementById('shield-desc-text');
+
+    toggle.classList.toggle('on');
+    const armed = toggle.classList.contains('on');
+    card.className = 'shield-card ' + (armed ? 'armed' : 'disarmed');
+    text.textContent = armed ? 'SHIELD ACTIVE' : 'SHIELD DISARMED';
+    desc.innerHTML = armed
+      ? 'Scanning all incoming calls locally.<br>सभी कॉल स्कैन हो रहे हैं।'
+      : 'Your device is vulnerable to financial fraud.<br>आपका डिवाइस असुरक्षित है।';
+  }
+
+  // ── NUMBER LOOKUP (calls simulated backend) ─────────────
+  async function lookupNumber() {
+    const input = document.getElementById('lookup-input').value.replace(/\D/g, '');
+    const result = document.getElementById('lookup-result');
+    const title = document.getElementById('lookup-result-title');
+    const desc = document.getElementById('lookup-result-desc');
+    const spinner = document.getElementById('lookup-spinner');
+
+    result.className = 'lookup-result';
+    spinner.style.display = 'block';
+    result.style.display = 'none';
+
+    // Simulate backend /api/lookup/{phoneNumber}
+    await new Promise(r => setTimeout(r, 900));
+    spinner.style.display = 'none';
+    result.style.display = 'block';
+    result.classList.add('show');
+
+    if (input === '9112233445') {
+      result.classList.add('red');
+      title.className = 'lookup-result-title red';
+      title.textContent = '🚨 RED ALERT — Confirmed Scammer';
+      desc.textContent = '4 completed scams · ₹45,000 total losses · 27 community reports. Do NOT answer or call back.';
+    } else if (input === '9876543210') {
+      result.classList.add('yellow');
+      title.className = 'lookup-result-title yellow';
+      title.textContent = '⚠ YELLOW ALERT — Suspicious Number';
+      desc.textContent = '15 attempted scams · 0 completed. Scams prevented successfully. Remain cautious.';
+    } else if (input.length >= 10) {
+      result.classList.add('safe');
+      title.className = 'lookup-result-title safe';
+      title.textContent = '✓ SAFE NUMBER';
+      desc.textContent = 'No scam records found in RakSetu database. Always stay cautious with unknown callers.';
+    } else {
+      result.classList.add('safe');
+      title.className = 'lookup-result-title';
+      title.style.color = 'var(--text-soft)';
+      title.textContent = 'Enter a valid 10-digit number';
+      desc.textContent = '';
+    }
+  }
+
+  // ── CLOUD SCAN SIMULATE ─────────────────────────────────
+  function simulateScan() {
+    const result = document.getElementById('scan-result');
+    result.style.display = 'none';
+    setTimeout(() => { result.style.display = 'block'; }, 1200);
+  }
+</script>
+</body>
+</html>

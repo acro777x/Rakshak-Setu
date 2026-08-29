@@ -1,16 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Rakshak Setu</string>
-    <string name="scam_alert_channel">Scam Alerts</string>
-    <string name="shield_status_channel">Shield Status</string>
-    <string name="notification_scam_title">⚠️ SCAM LIKELY: %1$s</string>
-    <string name="notification_scam_body">Call from %1$s matched scam patterns. Do NOT transfer money or share OTP.</string>
-    <string name="notification_possible_scam">Possible scam — review transcript</string>
-    <string name="notification_analyzing">Analyzing last call…</string>
-    <string name="action_call_1930">Call 1930</string>
-    <string name="action_view_evidence">View Evidence</string>
-    <string name="action_not_scam">Not a Scam</string>
-    <string name="shield_active">Shield Active — monitoring calls</string>
-    <string name="permissions_required">Permissions required for scam detection</string>
-    <string name="statement_copied">Statement copied to clipboard</string>
+    <string name="app_name">SafeShield</string>
+    <string name="tagline">Your Digital Safety Companion</string>
 </resources>
