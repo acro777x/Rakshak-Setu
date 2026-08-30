@@ -171,7 +171,7 @@ class AnalysisService : Service() {
 
                 val result = if (fSim) {
                     DetectionStore.getLastResult(applicationContext)
-                        ?: FakePipelineEmitter.scamResult()
+                        ?: FakePipelineEmitter.voiceCloneResult()
                 } else {
                     val asrEngine = VoskAsrEngine(applicationContext)
                     val coordinator = PipelineCoordinator(

@@ -36,13 +36,15 @@ fun ReportsScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     val lastResult = remember { DetectionStore.getLastResult(context) }
 
     val realReports = if (lastResult != null) {
+        val epochMs = if (lastResult.callEndEpoch > 100_000_000_000L) lastResult.callEndEpoch else lastResult.callEndEpoch * 1000L
+        val dateStr = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(epochMs))
         listOf(
             ReportItem(
                 id = lastResult.callId,
                 title = "Call from ${lastResult.phoneNumber}",
                 type = "Calls",
                 status = if (lastResult.isScam) RiskStatus.HIGH_RISK else RiskStatus.SAFE,
-                date = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(lastResult.callEndEpoch)),
+                date = dateStr,
                 description = if (lastResult.isScam) "${lastResult.scamType?.replace('_', ' ') ?: "Scam"} detected with ${(lastResult.confidence * 100).toInt()}% confidence. Flagged: ${lastResult.flaggedSegments.joinToString("; ") { it.text }}" else "Call verified safe. No threats detected."
             )
         )
@@ -148,16 +150,19 @@ fun ReportDetailsScreen(reportId: String, onNavigate: (String) -> Unit, onBack: 
     val lastResult = remember { DetectionStore.getLastResult(context) }
 
     val report = if (lastResult != null && (reportId.isBlank() || reportId == lastResult.callId)) {
+        val epochMs = if (lastResult.callEndEpoch > 100_000_000_000L) lastResult.callEndEpoch else lastResult.callEndEpoch * 1000L
+        val dateStr = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(epochMs))
         ReportItem(
             id = lastResult.callId,
             title = "Call from ${lastResult.phoneNumber}",
             type = "Calls",
             status = if (lastResult.isScam) RiskStatus.HIGH_RISK else RiskStatus.SAFE,
-            date = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(lastResult.callEndEpoch)),
+            date = dateStr,
             description = if (lastResult.isScam) "${lastResult.scamType?.replace('_', ' ') ?: "Scam"} detected with ${(lastResult.confidence * 100).toInt()}% confidence. ${lastResult.flaggedSegments.size} flagged segments." else "Call verified safe. No threats detected."
         )
     } else {
-        ReportItem(id = "none", title = "Incident Dossier", type = "Calls", status = RiskStatus.SAFE, date = "Today", description = "No active threat dossier.")
+        val dateStr = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
+        ReportItem(id = "none", title = "Incident Dossier", type = "Calls", status = RiskStatus.SAFE, date = dateStr, description = "No active threat dossier.")
     }
 
     Scaffold(

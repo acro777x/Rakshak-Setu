@@ -403,4 +403,29 @@ object ModelDownloadManager {
             }
         }
     }
+
+    /** Downloads all required models in sequence: ASR, MiniLM, and AASIST. */
+    fun downloadAllModels(context: Context): Flow<DownloadState> = flow {
+        emit(DownloadState.Downloading(0.1f, "Vosk ASR Model"))
+        downloadAsrModel(context, selectedLanguage(context)).collect { s ->
+            if (s is DownloadState.Downloading) emit(DownloadState.Downloading(s.progress * 0.4f, s.fileName, s.mbPerSec))
+            else if (s is DownloadState.Extracting) emit(DownloadState.Extracting(s.fileName))
+            else if (s is DownloadState.Error) emit(s)
+        }
+
+        emit(DownloadState.Downloading(0.45f, "MiniLM Embeddings"))
+        downloadEmbeddingModel(context).collect { s ->
+            if (s is DownloadState.Downloading) emit(DownloadState.Downloading(0.4f + s.progress * 0.3f, s.fileName, s.mbPerSec))
+            else if (s is DownloadState.Error) emit(s)
+        }
+
+        emit(DownloadState.Downloading(0.75f, "AASIST Deepfake Model"))
+        downloadDeepfakeModel(context).collect { s ->
+            if (s is DownloadState.Downloading) emit(DownloadState.Downloading(0.7f + s.progress * 0.3f, s.fileName, s.mbPerSec))
+            else if (s is DownloadState.Error) emit(s)
+        }
+
+        emit(DownloadState.Success)
+    }.flowOn(Dispatchers.IO)
+
 }

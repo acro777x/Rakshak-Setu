@@ -67,7 +67,7 @@ fun RakshakSetuTopBar(
     )
 }
 
-// ── BOTTOM NAVIGATION BAR ─────────────────────────────────────
+// ── BOTTOM NAVIGATION BAR (YUGANSH 5-ITEM WITH RAISED SHIELD) ──
 @Composable
 fun BottomNavBar(
     currentRoute: String,
@@ -75,52 +75,44 @@ fun BottomNavBar(
 ) {
     NavigationBar(
         containerColor = SurfaceWhite,
-        tonalElevation = 8.dp
+        tonalElevation = 4.dp
     ) {
-        NavigationBarItem(
-            selected = currentRoute == Screen.Dashboard.route,
-            onClick = { onNavigate(Screen.Dashboard.route) },
-            icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
-            label = { Text("Home") },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = RakshakSetuBlue,
-                selectedTextColor = RakshakSetuBlue,
-                indicatorColor = RakshakSetuBlue.copy(alpha = 0.12f)
-            )
+        val items = listOf(
+            Triple("Home", Icons.Filled.Home, Screen.Dashboard.route),
+            Triple("Scan", Icons.Filled.Search, Screen.ScanHub.route),
+            Triple("Shield", Icons.Filled.Shield, Screen.Dashboard.route),
+            Triple("Reports", Icons.Filled.Assessment, Screen.Reports.route),
+            Triple("Profile", Icons.Filled.Person, Screen.Profile.route)
         )
-        NavigationBarItem(
-            selected = currentRoute == Screen.ScanHub.route,
-            onClick = { onNavigate(Screen.ScanHub.route) },
-            icon = { Icon(Icons.Filled.Search, contentDescription = "Scan") },
-            label = { Text("Scan") },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = RakshakSetuBlue,
-                selectedTextColor = RakshakSetuBlue,
-                indicatorColor = RakshakSetuBlue.copy(alpha = 0.12f)
+        items.forEachIndexed { index, (label, icon, route) ->
+            NavigationBarItem(
+                selected = currentRoute == route && index != 2,
+                onClick = { onNavigate(route) },
+                icon = {
+                    if (index == 2) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(RakshakSetuBlue),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(icon, contentDescription = label, tint = SurfaceWhite, modifier = Modifier.size(24.dp))
+                        }
+                    } else {
+                        Icon(icon, contentDescription = label)
+                    }
+                },
+                label = { if (index != 2) Text(label, style = MaterialTheme.typography.labelSmall) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = RakshakSetuBlue,
+                    selectedTextColor = RakshakSetuBlue,
+                    unselectedIconColor = Color(0xFF757575),
+                    unselectedTextColor = Color(0xFF757575),
+                    indicatorColor = RakshakSetuBlue.copy(alpha = 0.1f)
+                )
             )
-        )
-        NavigationBarItem(
-            selected = currentRoute == Screen.Reports.route,
-            onClick = { onNavigate(Screen.Reports.route) },
-            icon = { Icon(Icons.Filled.Assessment, contentDescription = "Reports") },
-            label = { Text("Reports") },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = RakshakSetuBlue,
-                selectedTextColor = RakshakSetuBlue,
-                indicatorColor = RakshakSetuBlue.copy(alpha = 0.12f)
-            )
-        )
-        NavigationBarItem(
-            selected = currentRoute == Screen.Profile.route,
-            onClick = { onNavigate(Screen.Profile.route) },
-            icon = { Icon(Icons.Filled.Person, contentDescription = "Profile") },
-            label = { Text("Profile") },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = RakshakSetuBlue,
-                selectedTextColor = RakshakSetuBlue,
-                indicatorColor = RakshakSetuBlue.copy(alpha = 0.12f)
-            )
-        )
+        }
     }
 }
 
@@ -280,7 +272,7 @@ fun QuickActionCard(
 ) {
     Card(
         modifier = Modifier
-            .width(80.dp)
+            .width(84.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
@@ -306,7 +298,8 @@ fun QuickActionCard(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 color = TextPrimary,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 1
             )
         }
     }
@@ -326,7 +319,7 @@ fun StatCard(
         colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = count.toString(),
                 style = MaterialTheme.typography.headlineMedium,

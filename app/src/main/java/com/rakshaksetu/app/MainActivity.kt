@@ -72,9 +72,11 @@ class MainActivity : ComponentActivity() {
         } catch (ignored: Exception) {
         }
 
+        val startRoute = intent.getStringExtra("NAV_ROUTE") ?: com.rakshaksetu.app.ui.navigation.Screen.Splash.route
+
         setContent {
             RakshakSetuTheme {
-                RakshakSetuNavGraph()
+                RakshakSetuNavGraph(startDestination = startRoute)
             }
         }
     }
