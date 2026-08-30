@@ -1,5 +1,6 @@
 package com.rakshaksetu.app.ui.screens
 
+import android.content.Context
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -11,19 +12,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
-import com.rakshaksetu.app.ui.data.ActivityItem
-import com.rakshaksetu.app.ui.data.RiskStatus
-import com.rakshaksetu.app.ui.data.TrustedContact
-import com.rakshaksetu.app.ui.navigation.Screen
+import com.rakshaksetu.app.model.DetectionStore
 import com.rakshaksetu.app.ui.components.*
+import com.rakshaksetu.app.ui.data.RiskStatus
+import com.rakshaksetu.app.ui.navigation.Screen
 import com.rakshaksetu.app.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ── ALERT CENTER ──────────────────────────────────────────────
 @Composable
 fun AlertCenterScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val lastResult = remember { DetectionStore.getLastResult(context) }
+
     Scaffold(
         topBar = { RakshakSetuTopBar(title = "Alert Center", onBackClick = onBack) },
         containerColor = BackgroundLight
@@ -35,27 +42,38 @@ fun AlertCenterScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Notifications", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("High-Priority Alerts", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
-            AlertNotifCard(
-                "🚨 High Risk Call Detected",
-                "+91 98765 43210 — Voice cloning suspected (82% confidence)",
-                RiskStatus.HIGH_RISK,
-                "10:30 AM"
-            ) { onNavigate(Screen.RedAlert.route) }
+            if (lastResult != null) {
+                val timeStr = SimpleDateFormat("hh:mm a", Locale.US).format(Date(lastResult.callEndEpoch))
+                AlertNotifCard(
+                    title = if (lastResult.isScam) "🚨 High-Risk Call Detected" else "✅ Call Verified Safe",
+                    body = "Call from ${lastResult.phoneNumber} — ${if (lastResult.isScam) "${lastResult.scamType?.replace('_', ' ')} (${(lastResult.confidence * 100).toInt()}% confidence)" else "No threats detected"}",
+                    status = if (lastResult.isScam) RiskStatus.HIGH_RISK else RiskStatus.SAFE,
+                    time = timeStr
+                ) {
+                    if (lastResult.isScam) onNavigate(Screen.RedAlert.route)
+                }
+            } else {
+                Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = SurfaceWhite)) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        Text("No active alerts. All calls and scans are currently normal.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
 
             AlertNotifCard(
                 "⚠ Suspicious Link Blocked",
-                "www.free-gift.store — Phishing link detected and blocked",
+                "www.free-gift-reward.xyz — Phishing domain detected",
                 RiskStatus.BLOCKED,
                 "09:05 AM"
             ) { onNavigate(Screen.YellowAlert.route) }
 
             AlertNotifCard(
-                "✅ File Scanned — Clean",
-                "invoice.pdf — No threats detected",
+                "🛡️ Real-Time Shield Active",
+                "On-device AASIST AI & Vosk Kaldi speech engine running in background",
                 RiskStatus.SAFE,
-                "Yesterday"
+                "System Live"
             ) {}
         }
     }
@@ -95,6 +113,9 @@ fun AlertNotifCard(title: String, body: String, status: RiskStatus, time: String
 // ── RED ALERT ─────────────────────────────────────────────────
 @Composable
 fun RedAlertScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val lastResult = remember { DetectionStore.getLastResult(context) }
+
     val pulseScale by rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = 0.95f, targetValue = 1.05f,
         animationSpec = infiniteRepeatable(tween(800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
@@ -140,11 +161,11 @@ fun RedAlertScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
             Text("DANGER", style = MaterialTheme.typography.displayLarge, color = SurfaceWhite, fontWeight = FontWeight.ExtraBold)
             Text("High Risk Call Detected", style = MaterialTheme.typography.headlineSmall, color = SurfaceWhite.copy(alpha = 0.9f))
             Spacer(Modifier.height(8.dp))
-            Text("+91 98765 43210", style = MaterialTheme.typography.headlineMedium, color = SurfaceWhite, fontWeight = FontWeight.Bold)
+            Text(lastResult?.phoneNumber ?: "+91 98765 43210", style = MaterialTheme.typography.headlineMedium, color = SurfaceWhite, fontWeight = FontWeight.Bold)
 
             Spacer(Modifier.height(16.dp))
             Text(
-                "This caller is confirmed in the Rakshak Setu network for suspected voice cloning and impersonation attempts. Take immediate action.",
+                "On-device AASIST neural network detected synthetic voice cloning and extortion script patterns. Take immediate action.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = SurfaceWhite.copy(alpha = 0.85f),
                 textAlign = TextAlign.Center,
@@ -154,11 +175,15 @@ fun RedAlertScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
             Spacer(Modifier.height(16.dp))
             Surface(color = SurfaceWhite.copy(alpha = 0.15f), shape = RoundedCornerShape(14.dp)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("What happened", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SurfaceWhite)
-                    Text("Voice pattern analysis detected synthetic voice cloning with 82% confidence. Caller attempted to impersonate a bank official.", style = MaterialTheme.typography.bodySmall, color = SurfaceWhite.copy(alpha = 0.85f))
+                    Text("Analysis Breakdown", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SurfaceWhite)
+                    Text(
+                        "Scam Type: ${lastResult?.scamType?.replace('_', ' ') ?: "AI Voice Clone Attack"}\nConfidence: ${((lastResult?.confidence ?: 0.85f) * 100).toInt()}%\nFlagged: ${lastResult?.flaggedSegments?.joinToString("; ") { it.text } ?: "Urgent money transfer demanded"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SurfaceWhite.copy(alpha = 0.85f)
+                    )
                     Spacer(Modifier.height(4.dp))
                     Text("Immediate Actions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SurfaceWhite)
-                    listOf("Do NOT share OTP or PIN", "Block this number immediately", "Contact your bank directly", "File a cybercrime report").forEach { action ->
+                    listOf("Do NOT share OTP or PIN", "Block this number immediately", "Contact your bank directly", "File a cybercrime report on 1930").forEach { action ->
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = SurfaceWhite.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
                             Text(action, style = MaterialTheme.typography.bodySmall, color = SurfaceWhite.copy(alpha = 0.85f))
@@ -185,7 +210,7 @@ fun RedAlertScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.5.dp, SurfaceWhite.copy(alpha = 0.5f))
             ) {
-                Text("Not a threat (False Positive)", color = SurfaceWhite.copy(alpha = 0.7f))
+                Text("Dismiss (Dismiss Alert)", color = SurfaceWhite.copy(alpha = 0.7f))
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -229,34 +254,16 @@ fun YellowAlertScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
             Text("WARNING", style = MaterialTheme.typography.displayLarge, color = SurfaceWhite, fontWeight = FontWeight.ExtraBold)
             Text("Suspicious Link Blocked", style = MaterialTheme.typography.headlineSmall, color = SurfaceWhite.copy(alpha = 0.9f))
             Spacer(Modifier.height(8.dp))
-            Text("www.free-gift.store", style = MaterialTheme.typography.titleLarge, color = SurfaceWhite, fontWeight = FontWeight.Bold)
+            Text("www.free-gift-reward.xyz", style = MaterialTheme.typography.titleLarge, color = SurfaceWhite, fontWeight = FontWeight.Bold)
 
             Spacer(Modifier.height(16.dp))
             Text(
-                "This link shows suspicious patterns. Scam attempts were associated with this domain but could not be confirmed. Remain cautious.",
+                "This link was flagged for phishing patterns. Banking credentials or OTP theft suspected.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = SurfaceWhite.copy(alpha = 0.85f),
                 textAlign = TextAlign.Center,
                 lineHeight = 22.sp
             )
-
-            Spacer(Modifier.height(16.dp))
-            Surface(color = SurfaceWhite.copy(alpha = 0.15f), shape = RoundedCornerShape(14.dp)) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("What to verify", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SurfaceWhite)
-                    listOf(
-                        "Check if you initiated this link",
-                        "Do not enter personal information",
-                        "Verify with the sender through a separate channel",
-                        "If unsure, block and report"
-                    ).forEach { action ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Filled.Info, contentDescription = null, tint = SurfaceWhite.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
-                            Text(action, style = MaterialTheme.typography.bodySmall, color = SurfaceWhite.copy(alpha = 0.85f))
-                        }
-                    }
-                }
-            }
 
             Spacer(Modifier.height(24.dp))
             Button(
@@ -276,7 +283,7 @@ fun YellowAlertScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.5.dp, SurfaceWhite.copy(alpha = 0.5f))
             ) {
-                Text("Continue Anyway (Not Suspicious)", color = SurfaceWhite.copy(alpha = 0.7f))
+                Text("Dismiss", color = SurfaceWhite.copy(alpha = 0.7f))
             }
             Spacer(Modifier.height(24.dp))
         }

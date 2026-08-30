@@ -16,6 +16,7 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import com.rakshaksetu.app.ui.data.RiskStatus
+import com.rakshaksetu.app.ui.navigation.Screen
 import com.rakshaksetu.app.ui.theme.*
 
 // ── TOP APP BAR ──────────────────────────────────────────────
@@ -64,6 +65,119 @@ fun RakshakSetuTopBar(
             containerColor = SurfaceWhite
         )
     )
+}
+
+// ── BOTTOM NAVIGATION BAR ─────────────────────────────────────
+@Composable
+fun BottomNavBar(
+    currentRoute: String,
+    onNavigate: (String) -> Unit
+) {
+    NavigationBar(
+        containerColor = SurfaceWhite,
+        tonalElevation = 8.dp
+    ) {
+        NavigationBarItem(
+            selected = currentRoute == Screen.Dashboard.route,
+            onClick = { onNavigate(Screen.Dashboard.route) },
+            icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
+            label = { Text("Home") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = RakshakSetuBlue,
+                selectedTextColor = RakshakSetuBlue,
+                indicatorColor = RakshakSetuBlue.copy(alpha = 0.12f)
+            )
+        )
+        NavigationBarItem(
+            selected = currentRoute == Screen.ScanHub.route,
+            onClick = { onNavigate(Screen.ScanHub.route) },
+            icon = { Icon(Icons.Filled.Search, contentDescription = "Scan") },
+            label = { Text("Scan") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = RakshakSetuBlue,
+                selectedTextColor = RakshakSetuBlue,
+                indicatorColor = RakshakSetuBlue.copy(alpha = 0.12f)
+            )
+        )
+        NavigationBarItem(
+            selected = currentRoute == Screen.Reports.route,
+            onClick = { onNavigate(Screen.Reports.route) },
+            icon = { Icon(Icons.Filled.Assessment, contentDescription = "Reports") },
+            label = { Text("Reports") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = RakshakSetuBlue,
+                selectedTextColor = RakshakSetuBlue,
+                indicatorColor = RakshakSetuBlue.copy(alpha = 0.12f)
+            )
+        )
+        NavigationBarItem(
+            selected = currentRoute == Screen.Profile.route,
+            onClick = { onNavigate(Screen.Profile.route) },
+            icon = { Icon(Icons.Filled.Person, contentDescription = "Profile") },
+            label = { Text("Profile") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = RakshakSetuBlue,
+                selectedTextColor = RakshakSetuBlue,
+                indicatorColor = RakshakSetuBlue.copy(alpha = 0.12f)
+            )
+        )
+    }
+}
+
+// ── ANALYSIS ROW ──────────────────────────────────────────────
+@Composable
+fun AnalysisRow(
+    label: String,
+    value: String,
+    valueColor: Color = TextPrimary
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        Text(text = value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = valueColor)
+    }
+}
+
+// ── VOICE WAVEFORM ANIMATION ──────────────────────────────────
+@Composable
+fun VoiceWaveformAnimation() {
+    val infiniteTransition = rememberInfiniteTransition(label = "waveform")
+    val heights = (0..9).map { i ->
+        infiniteTransition.animateFloat(
+            initialValue = 8f,
+            targetValue = 32f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(400 + i * 80, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "h$i"
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        heights.forEach { h ->
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 3.dp)
+                    .width(4.dp)
+                    .height(h.value.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(RakshakSetuBlue)
+            )
+        }
+    }
 }
 
 // ── RISK BADGE ───────────────────────────────────────────────

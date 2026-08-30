@@ -1,5 +1,11 @@
-package com.rakshaksetu.app.ui.screens
+﻿package com.rakshaksetu.app.ui.screens
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -12,17 +18,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.*
 import androidx.compose.ui.unit.*
+import androidx.core.content.ContextCompat
 import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.theme.*
+import com.rakshaksetu.app.service.BatteryOptimizationHelper
 import kotlinx.coroutines.delay
 
 // ── SPLASH SCREEN ──────────────────────────────────────────────
 @Composable
-fun SplashScreen(onFinished: () -> Unit) {
+fun SplashScreen(onFinished: (Boolean) -> Unit) {
+    val context = LocalContext.current
     val alpha by animateFloatAsState(
         targetValue = 1f,
         animationSpec = tween(1000),
@@ -35,8 +45,11 @@ fun SplashScreen(onFinished: () -> Unit) {
     )
 
     LaunchedEffect(Unit) {
-        delay(2200)
-        onFinished()
+        delay(1600)
+        val prefs = context.getSharedPreferences("rakshak_prefs", Context.MODE_PRIVATE)
+        val hasCompletedOnboarding = prefs.getBoolean("onboarding_complete", false)
+        val hasPhonePerm = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        onFinished(hasCompletedOnboarding || hasPhonePerm)
     }
 
     Box(
@@ -67,7 +80,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                "Your Digital Safety Companion",
+                "AI Voice Clone & Scam Defense",
                 style = MaterialTheme.typography.bodyLarge,
                 color = SurfaceWhite.copy(alpha = 0.85f)
             )
@@ -109,7 +122,7 @@ fun BeforeLoginScreen(onGetStarted: () -> Unit) {
                 Text("Stay Safe. Stay Ahead.", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = TextPrimary, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "Your trusted digital safety companion.\nScan calls, links, files and more — all in one place.",
+                    "Real-time on-device AI protection against AI voice cloning, deepfake audio impersonation, and phone fraud.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = TextSecondary,
                     textAlign = TextAlign.Center,
@@ -128,13 +141,10 @@ fun BeforeLoginScreen(onGetStarted: () -> Unit) {
                     icon = Icons.Filled.ArrowForward
                 )
                 Text(
-                    "Already protected? Sign in",
-                    style = MaterialTheme.typography.bodyMedium,
+                    "Smart India Hackathon 2026 (SIH26104)",
+                    style = MaterialTheme.typography.bodySmall,
                     color = RakshakSetuBlue,
-                    modifier = Modifier
-                        .clickable(onClick = onGetStarted)
-                        .align(Alignment.CenterHorizontally),
-                    textDecoration = TextDecoration.Underline
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
             }
         }
@@ -144,6 +154,9 @@ fun BeforeLoginScreen(onGetStarted: () -> Unit) {
 // ── LOGIN SCREEN ───────────────────────────────────────────────
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit) {
+    val context = LocalContext.current
+    var phoneInput by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -154,44 +167,43 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     ) {
         Spacer(Modifier.height(40.dp))
         Icon(Icons.Filled.Shield, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(56.dp))
-        Text("Sign in to Rakshak Setu", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-        Text("Choose how you want to sign in", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+        Text("Get Started with Rakshak Setu", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text("Set up your device protection in seconds", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
 
         Spacer(Modifier.height(16.dp))
 
-        // Google
+        OutlinedTextField(
+            value = phoneInput,
+            onValueChange = { phoneInput = it.filter { c -> c.isDigit() || c == '+' } },
+            label = { Text("Mobile Number") },
+            placeholder = { Text("+91 98765 43210") },
+            leadingIcon = { Icon(Icons.Filled.Phone, contentDescription = null, tint = RakshakSetuBlue) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        PrimaryButton(
+            text = "Continue",
+            onClick = {
+                val prefs = context.getSharedPreferences("rakshak_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putString("user_phone", phoneInput).apply()
+                onLoginSuccess()
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Text("— OR —", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+
         OutlinedButton(
             onClick = onLoginSuccess,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(14.dp),
             border = BorderStroke(1.5.dp, BorderColor)
         ) {
-            Icon(Icons.Filled.Email, contentDescription = null, tint = Color(0xFFEA4335), modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.Shield, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(12.dp))
-            Text("Continue with Google", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
-        }
-
-        // Facebook
-        Button(
-            onClick = onLoginSuccess,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1877F2))
-        ) {
-            Icon(Icons.Filled.People, contentDescription = null, tint = SurfaceWhite, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(12.dp))
-            Text("Continue with Facebook", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium)
-        }
-
-        // Email
-        OutlinedButton(
-            onClick = onLoginSuccess,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Icon(Icons.Filled.AlternateEmail, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(12.dp))
-            Text("Continue with Email", style = MaterialTheme.typography.titleMedium, color = RakshakSetuBlue)
+            Text("Continue as Local Guest", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
         }
     }
 }
@@ -204,7 +216,7 @@ fun TermsScreen(onAgree: () -> Unit) {
             .fillMaxSize()
             .background(BackgroundLight)
     ) {
-        RakshakSetuTopBar(title = "Terms & Conditions")
+        RakshakSetuTopBar(title = "Privacy & Consent")
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -212,15 +224,14 @@ fun TermsScreen(onAgree: () -> Unit) {
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Privacy & Terms", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("DPDP Act 2023 Compliant Consent", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                "Rakshak Setu is a frontend demo application. All security results are simulated locally. No real personal data is transmitted to any server.\n\n" +
-                "• We do not record your calls.\n" +
-                "• We do not store your ID documents.\n" +
-                "• All scans run locally on your device in this prototype.\n" +
-                "• No actual cybercrime submissions are made.\n\n" +
-                "By agreeing, you acknowledge this is a frontend prototype and all data is mock/demo data for demonstration purposes only.\n\n" +
-                "Rakshak Setu uses probabilistic language for risk assessment. Results should not be relied upon as definitive security guarantees.",
+                "Rakshak Setu processes call metadata and audio features 100% on your device to protect you against voice cloning impersonation and financial fraud.\n\n" +
+                "• 100% On-Device AI: Audio processing, speech recognition, and deepfake detection run locally on your phone.\n" +
+                "• Zero Audio Uploads: Raw phone call audio is never uploaded to any remote server or cloud service.\n" +
+                "• Explicit User Control: You can pause or stop the shield anytime with a single tap from the dashboard.\n" +
+                "• Complete Data Purge: You can delete all local detection logs and cached evidence at any time.\n" +
+                "• Secure Government Filing: Incident reports for National Cyber Crime Portal (NCRP 1930 / Chakshu) are generated locally under your control.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
                 lineHeight = 22.sp
@@ -235,17 +246,29 @@ fun TermsScreen(onAgree: () -> Unit) {
 // ── PERMISSION EDUCATION ───────────────────────────────────────
 @Composable
 fun PermissionEducationScreen(onContinue: () -> Unit) {
+    val context = LocalContext.current
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        val prefs = context.getSharedPreferences("rakshak_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("onboarding_complete", true).apply()
+        try {
+            BatteryOptimizationHelper.requestBatteryOptimizationExemption(context)
+        } catch (ignored: Exception) {}
+        onContinue()
+    }
+
     val permissions = listOf(
-        Triple(Icons.Filled.Phone, "Call Recording / Audio", "Helps analyze suspicious calls for voice-clone patterns"),
-        Triple(Icons.Filled.Sms, "SMS / Notifications", "Detects phishing links in messages"),
-        Triple(Icons.Filled.Contacts, "Contacts", "Identifies unknown callers against your contact list"),
-        Triple(Icons.Filled.History, "Call Logs", "Reviews call patterns for suspicious activity"),
-        Triple(Icons.Filled.Photo, "Photos / Media", "Scans images for hidden QR codes or suspicious content"),
-        Triple(Icons.Filled.CameraAlt, "Camera", "Powers the QR code scanner")
+        Triple(Icons.Filled.Phone, "Telephony / Call State", "Detects when phone calls end to run on-device scam analysis"),
+        Triple(Icons.Filled.Notifications, "Notifications", "Sends immediate high-priority alerts if a scam or clone is detected"),
+        Triple(Icons.Filled.Sms, "Emergency SMS", "Allows Elder Mode to alert trusted family guardians in emergencies"),
+        Triple(Icons.Filled.Mic, "Audio Analysis", "Enables on-device speech recognition & AASIST deepfake detection"),
+        Triple(Icons.Filled.BatteryChargingFull, "Battery Optimization", "Keeps background shield active without being killed by the OS")
     )
 
     Column(modifier = Modifier.fillMaxSize().background(BackgroundLight)) {
-        RakshakSetuTopBar(title = "Permissions")
+        RakshakSetuTopBar(title = "Required Permissions")
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -253,8 +276,8 @@ fun PermissionEducationScreen(onContinue: () -> Unit) {
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("What Rakshak Setu needs", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("These permissions help protect you. All data stays on your device in this demo.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Text("System Permissions", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("Rakshak Setu requires these Android permissions to safeguard you from fraud calls in real-time.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
 
             permissions.forEach { (icon, title, reason) ->
                 Card(
@@ -278,7 +301,26 @@ fun PermissionEducationScreen(onContinue: () -> Unit) {
             }
         }
         Box(modifier = Modifier.padding(24.dp)) {
-            PrimaryButton(text = "Allow & Continue", onClick = onContinue, modifier = Modifier.fillMaxWidth())
+            PrimaryButton(
+                text = "Grant Permissions & Continue",
+                onClick = {
+                    val perms = mutableListOf(
+                        Manifest.permission.READ_PHONE_STATE,
+                        Manifest.permission.READ_CALL_LOG,
+                        Manifest.permission.SEND_SMS,
+                        Manifest.permission.CALL_PHONE,
+                        Manifest.permission.RECORD_AUDIO
+                    )
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        perms.add(Manifest.permission.POST_NOTIFICATIONS)
+                        perms.add(Manifest.permission.READ_MEDIA_AUDIO)
+                    } else {
+                        perms.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    }
+                    permissionLauncher.launch(perms.toTypedArray())
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -299,14 +341,14 @@ fun SecurityTourScreen(onContinue: () -> Unit) {
         TourPage(
             Icons.Filled.Dangerous,
             BlockedRed,
-            "Red Alert",
-            "A confirmed high-risk threat was detected. Take immediate action — block the number, stop the transaction, and consider filing a cybercrime report."
+            "Red Alert — Voice Clone & High Threat",
+            "A confirmed high-risk AI voice clone or financial extortion script was detected. Do NOT send money, share OTPs, or transfer bank funds."
         ),
         TourPage(
             Icons.Filled.Warning,
             SuspiciousAmber,
-            "Yellow Alert",
-            "Suspicious activity detected. The call, link, or file shows unusual patterns. Verify before proceeding and be cautious."
+            "Yellow Alert — Suspicious Call Pattern",
+            "Unusual pressure tactics, urgent bank KYC threats, or unverified caller numbers detected. Proceed with caution."
         )
     )
 
@@ -331,7 +373,7 @@ fun SecurityTourScreen(onContinue: () -> Unit) {
             ) {
                 Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(56.dp))
             }
-            Text(title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+            Text(title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = TextPrimary, textAlign = TextAlign.Center)
             Text(body, style = MaterialTheme.typography.bodyLarge, color = TextSecondary, textAlign = TextAlign.Center, lineHeight = 24.sp)
         }
 
@@ -346,11 +388,12 @@ fun SecurityTourScreen(onContinue: () -> Unit) {
 // ── BANK SETUP SCREEN ──────────────────────────────────────────
 @Composable
 fun BankSetupScreen(onContinue: () -> Unit) {
+    val context = LocalContext.current
     var bankName by remember { mutableStateOf("") }
     var upiId by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize().background(BackgroundLight)) {
-        RakshakSetuTopBar(title = "Bank & Payment Setup")
+        RakshakSetuTopBar(title = "Emergency & Reporting Profile")
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -358,8 +401,8 @@ fun BankSetupScreen(onContinue: () -> Unit) {
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Optional Setup", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("Add your bank details for faster cybercrime reporting. All stored locally only.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Text("Optional Profile Setup", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("Add your details for faster 1-tap Cybercrime 1930 / NCRP portal filing. All stored locally on your phone.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
 
             SectionCard {
                 Surface(color = RakshakSetuBlue.copy(alpha = 0.08f), shape = RoundedCornerShape(8.dp)) {
@@ -395,7 +438,11 @@ fun BankSetupScreen(onContinue: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             SecondaryButton("Skip", onClick = onContinue, modifier = Modifier.weight(1f))
-            PrimaryButton("Save & Continue", onClick = onContinue, modifier = Modifier.weight(2f))
+            PrimaryButton("Save & Finish", onClick = {
+                val prefs = context.getSharedPreferences("rakshak_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("onboarding_complete", true).apply()
+                onContinue()
+            }, modifier = Modifier.weight(2f))
         }
     }
 }

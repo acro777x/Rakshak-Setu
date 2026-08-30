@@ -1,4 +1,4 @@
-package com.rakshaksetu.app.ui.navigation
+﻿package com.rakshaksetu.app.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
@@ -26,8 +26,9 @@ fun RakshakSetuNavGraph() {
     ) {
         // ── ONBOARDING ────────────────────────────────────
         composable(Screen.Splash.route) {
-            SplashScreen(onFinished = {
-                navController.navigate(Screen.BeforeLogin.route) {
+            SplashScreen(onFinished = { alreadyOnboarded ->
+                val target = if (alreadyOnboarded) Screen.Dashboard.route else Screen.BeforeLogin.route
+                navController.navigate(target) {
                     popUpTo(Screen.Splash.route) { inclusive = true }
                 }
             })

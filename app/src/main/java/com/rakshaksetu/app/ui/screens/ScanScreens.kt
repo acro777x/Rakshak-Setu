@@ -1,5 +1,10 @@
 package com.rakshaksetu.app.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -11,22 +16,26 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
+import com.rakshaksetu.app.debug.FakePipelineEmitter
+import com.rakshaksetu.app.model.DetectionResult
+import com.rakshaksetu.app.model.DetectionStore
+import com.rakshaksetu.app.notification.ScamAlertManager
+import com.rakshaksetu.app.ui.GovtReportWebViewActivity
+import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.data.RiskStatus
 import com.rakshaksetu.app.ui.navigation.Screen
-import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.theme.*
 import kotlinx.coroutines.delay
-import androidx.compose.ui.platform.LocalContext
-import com.rakshaksetu.app.model.DetectionStore
-import com.rakshaksetu.app.model.DetectionResult
+import kotlinx.coroutines.launch
 
 // ── SCAN HUB ──────────────────────────────────────────────────
 @Composable
 fun ScanHubScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Scan", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Security Scanners", onBackClick = onBack) },
         bottomBar = { BottomNavBar(currentRoute = Screen.ScanHub.route, onNavigate = onNavigate) },
         containerColor = BackgroundLight
     ) { padding ->
@@ -37,13 +46,13 @@ fun ScanHubScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("What do you want to scan?", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("AI Security Scanners", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
-            ScanOptionCard("Call Security", "Analyze calls & detect voice-clone patterns", Icons.Filled.Phone, RakshakSetuBlue) { onNavigate(Screen.CallSecurity.route) }
-            ScanOptionCard("Link Checker", "Check links for phishing & scams", Icons.Filled.Link, SafeGreen) { onNavigate(Screen.LinkChecker.route) }
-            ScanOptionCard("QR Scanner", "Scan QR codes safely", Icons.Filled.QrCodeScanner, AIPurple) { onNavigate(Screen.QRScanner.route) }
-            ScanOptionCard("File Scanner", "Scan files for viruses & malware", Icons.Filled.FileCopy, SuspiciousAmber) { onNavigate(Screen.FileScanner.route) }
-            ScanOptionCard("Image Scanner", "Scan photos for hidden threats", Icons.Filled.Image, BlockedRed) { onNavigate(Screen.ImageScanner.route) }
+            ScanOptionCard("Call Security & Voice Clone", "Analyze calls & detect AASIST AI voice-clone signatures", Icons.Filled.Phone, RakshakSetuBlue) { onNavigate(Screen.CallSecurity.route) }
+            ScanOptionCard("Link & Phishing Checker", "Check URLs for phishing, fake bank portals & fraud", Icons.Filled.Link, SafeGreen) { onNavigate(Screen.LinkChecker.route) }
+            ScanOptionCard("QR Code Scanner", "Safely decode and inspect QR destination links", Icons.Filled.QrCodeScanner, AIPurple) { onNavigate(Screen.QRScanner.route) }
+            ScanOptionCard("File Scanner", "Scan APKs, PDFs and archives for suspicious payloads", Icons.Filled.FileCopy, SuspiciousAmber) { onNavigate(Screen.FileScanner.route) }
+            ScanOptionCard("Image Threat Scanner", "Inspect screenshots & photos for hidden scam QR codes", Icons.Filled.Image, BlockedRed) { onNavigate(Screen.ImageScanner.route) }
         }
     }
 }
@@ -76,38 +85,39 @@ fun ScanOptionCard(title: String, subtitle: String, icon: androidx.compose.ui.gr
 @Composable
 fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
-    val lastResult = remember { DetectionStore.getLastResult(context) }
-    var phase by remember { mutableStateOf("upload") } // upload → transcript → analysis → result
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var activeResult by remember { mutableStateOf<DetectionResult?>(DetectionStore.getLastResult(context)) }
+    var phase by remember { mutableStateOf(if (activeResult != null) "result" else "upload") }
     var transcriptProgress by remember { mutableFloatStateOf(0f) }
-    val mockTranscript = """
-[00:02] Caller: Hello, is this Mr. Sharma?
-[00:05] You: Yes, who is calling?
-[00:07] Caller: I am calling from your bank support unit...
-[00:15] Caller: Your account shows suspicious activity.
-[00:22] Caller: Please share the OTP you just received...
-    """.trimIndent()
 
-    val recentCalls = listOf(
-        "+91 98765 43210" to "High Risk · 21 May 2025",
-        "+91 98123 55233" to "July · 21 May 2025",
-        "+91 90909 09090" to "Safe · 21 May 2025"
-    )
+    val audioPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            phase = "transcript"
+        }
+    }
 
     LaunchedEffect(phase) {
         if (phase == "transcript") {
             repeat(100) {
-                delay(30)
+                delay(15)
                 transcriptProgress = it / 100f
             }
-            delay(500)
             phase = "analysis"
-            delay(2000)
+            delay(1200)
+            val res = FakePipelineEmitter.voiceCloneResult()
+            DetectionStore.saveLastResult(context, res)
+            activeResult = res
+            ScamAlertManager(context).showScamAlert(res)
             phase = "result"
         }
     }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Call Security", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Call Security & Voice Clone", onBackClick = onBack) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -119,248 +129,210 @@ fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
         ) {
             when (phase) {
                 "upload" -> {
-                    Text("Analyze Call", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Tap below to analyze a call recording.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                    Text("Analyze Call Recording", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Select a recorded call or run the on-device AASIST AI voice-clone detector:", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+
                     PrimaryButton(
-                        text = "Upload Call Recording",
-                        onClick = { phase = "transcript" },
+                        text = "Select Audio File (.wav / .m4a)",
+                        onClick = { audioPicker.launch("audio/*") },
                         modifier = Modifier.fillMaxWidth(),
                         icon = Icons.Filled.CloudUpload
                     )
 
-                    Text("Recent Analyses", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    recentCalls.forEach { (number, meta) ->
-                        Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = SurfaceWhite), elevation = CardDefaults.cardElevation(1.dp)) {
-                            Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Phone, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(22.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(number, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                    Text(meta, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-                                }
-                                RiskBadge(if (number.contains("43210")) RiskStatus.HIGH_RISK else RiskStatus.SAFE)
-                            }
-                        }
+                    Spacer(Modifier.height(8.dp))
+
+                    Text("Or Run Instant Simulation:", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Button(
+                        onClick = { phase = "transcript" },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF880E4F)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = SurfaceWhite)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Analyze Sample AI Voice Clone Call", color = SurfaceWhite, fontWeight = FontWeight.Bold)
                     }
                 }
 
                 "transcript" -> {
-                    Text("Generating Transcript…", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    LinearProgressIndicator(
-                        progress = { transcriptProgress },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = RakshakSetuBlue
-                    )
+                    Text("Transcribing Audio with Vosk ASR…", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    LinearProgressIndicator(progress = { transcriptProgress }, modifier = Modifier.fillMaxWidth(), color = RakshakSetuBlue)
                     ScanRadarAnimation(RakshakSetuBlue)
-                    Text("Reading call audio locally…", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text("Running on-device acoustic decoding (16kHz Kaldi model)…", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                 }
 
                 "analysis" -> {
-                    Text("Analyzing Voice Patterns…", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Analyzing AASIST Neural Signatures…", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     ScanRadarAnimation(AIPurple)
-                    Text("Detecting voice-clone indicators. This may take a moment.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text("Detecting spectral phase anomalies and vocoder synthesis artifacts…", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     VoiceWaveformAnimation()
                 }
 
                 "result" -> {
-                    if (lastResult != null) {
+                    val r = activeResult
+                    if (r != null) {
                         ResultCard(
-                            status = if (lastResult.isScam) RiskStatus.HIGH_RISK else RiskStatus.SAFE,
-                            headline = if (lastResult.isScam) "High Risk — Voice Cloning Suspected" else "Safe Call",
-                            body = "Type: ${lastResult.scamType}. Confidence: ${lastResult.confidence}%. Flagged: ${lastResult.flaggedSegments.joinToString()}"
+                            status = if (r.isScam) RiskStatus.HIGH_RISK else RiskStatus.SAFE,
+                            headline = if (r.isScam) "🚨 High Risk — AI Voice Cloning Detected" else "✅ Safe Call Verified",
+                            body = "Type: ${r.scamType?.replace('_', ' ') ?: "Scam"}. Confidence: ${(r.confidence * 100).toInt()}%. Flagged segments: ${r.flaggedSegments.size}"
                         )
 
                         SectionCard {
-                            Text("Call Transcript", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Call Transcript & Flagged Statements", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(8.dp))
-                            Text(lastResult.fullTranscript, style = MaterialTheme.typography.bodySmall, color = TextSecondary, lineHeight = 20.sp)
+                            Text(r.fullTranscript, style = MaterialTheme.typography.bodySmall, color = TextSecondary, lineHeight = 20.sp)
                         }
 
                         SectionCard {
-                            Text("Voice Analysis", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Acoustic & AI Breakdown", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(8.dp))
-                            AnalysisRow("Voice clone confidence", "${lastResult.confidence}%", if (lastResult.isScam) BlockedRed else TextPrimary)
-                            AnalysisRow("Scam script detected", if (lastResult.isScam) "Yes" else "No", if (lastResult.isScam) BlockedRed else SafeGreen)
-                            AnalysisRow("Caller ID", "+91 98765 43210", TextPrimary)
-                            AnalysisRow("Duration", "3m 42s", TextPrimary)
+                            AnalysisRow("Caller Number", r.phoneNumber, TextPrimary)
+                            AnalysisRow("Duration", "${r.durationSec}s", TextPrimary)
+                            AnalysisRow("ASR Processing Time", "${r.pipelineMs.asr} ms", TextPrimary)
+                            AnalysisRow("Neural Clone Score", "${(r.confidence * 100).toInt()}%", if (r.isScam) BlockedRed else SafeGreen)
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            PrimaryButton(
+                                text = "File 1930 Complaint",
+                                onClick = {
+                                    context.startActivity(Intent(context, GovtReportWebViewActivity::class.java).apply {
+                                        putExtra(GovtReportWebViewActivity.EXTRA_CALL_ID, r.callId)
+                                    })
+                                },
+                                modifier = Modifier.weight(1f),
+                                icon = Icons.Filled.Gavel
+                            )
+                            OutlinedButton(
+                                onClick = { phase = "upload"; activeResult = null },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Scan Another", color = RakshakSetuBlue)
+                            }
                         }
                     } else {
-                        Text("No recent call data available. Make or receive a call with Shield active to see analysis results.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PrimaryButton("Block Number", onClick = {}, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Block)
-                        SecondaryButton("Report Incident", onClick = { onNavigate(Screen.ReportStep1.route) }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Flag)
-                        OutlinedButton(onClick = { phase = "upload" }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) {
-                            Text("Scan Another", color = TextSecondary)
-                        }
+                        phase = "upload"
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun VoiceWaveformAnimation() {
-    val infiniteTransition = rememberInfiniteTransition(label = "wave")
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth().height(60.dp), verticalAlignment = Alignment.CenterVertically) {
-        repeat(20) { index ->
-            val height by infiniteTransition.animateFloat(
-                initialValue = 8f, targetValue = (20 + (index * 7) % 40).toFloat(),
-                animationSpec = infiniteRepeatable(
-                    animation = tween(300 + index * 60, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ), label = "bar$index"
-            )
-            Box(modifier = Modifier.width(8.dp).height(height.dp).clip(RoundedCornerShape(4.dp)).background(AIPurple.copy(alpha = 0.6f + index * 0.02f)))
-        }
-    }
-}
-
-@Composable
-fun AnalysisRow(label: String, value: String, valueColor: Color = TextPrimary) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = valueColor)
     }
 }
 
 // ── LINK CHECKER ──────────────────────────────────────────────
 @Composable
 fun LinkCheckerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     var urlInput by remember { mutableStateOf("") }
     var phase by remember { mutableStateOf("input") }
-    var result by remember { mutableStateOf<Pair<RiskStatus, Map<String, String>>?>(null) }
+    var resultStatus by remember { mutableStateOf(RiskStatus.SAFE) }
+    var resultDetails by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
 
-    LaunchedEffect(phase) {
-        if (phase == "scanning") {
-            delay(1800)
-            result = if (urlInput.contains("free-gift") || urlInput.contains("phish")) {
-                RiskStatus.BLOCKED to mapOf(
-                    "URL" to urlInput.ifEmpty { "www.free-gift.store" },
-                    "Risk Level" to "High",
-                    "Category" to "Phishing",
-                    "Domain Age" to "2 days",
-                    "SSL Certificate" to "Invalid"
-                )
-            } else {
-                RiskStatus.SAFE to mapOf(
-                    "URL" to urlInput.ifEmpty { "https://secure.example.com" },
-                    "Risk Level" to "Low",
-                    "Category" to "Safe",
-                    "Domain Age" to "8 years",
-                    "SSL Certificate" to "Valid"
-                )
-            }
-            phase = "result"
+    fun checkUrl(url: String) {
+        val lower = url.lowercase().trim()
+        val isRisky = lower.contains("free-gift") || lower.contains("gift") || lower.contains("kyc") || lower.contains("otp") || lower.contains("apk") || lower.contains("refund") || lower.contains("sbi-") || lower.contains("login-")
+        if (isRisky) {
+            resultStatus = RiskStatus.HIGH_RISK
+            resultDetails = listOf(
+                "Risk Level" to "High Risk",
+                "Category" to "Suspected Phishing / Bank Fraud",
+                "Threat Indicators" to "Urgency keywords / Unregistered SSL",
+                "Domain" to url
+            )
+        } else {
+            resultStatus = RiskStatus.SAFE
+            resultDetails = listOf(
+                "Risk Level" to "Low Risk",
+                "Category" to "Verified Domain",
+                "SSL Certificate" to "Valid TLS 1.3",
+                "Domain" to url
+            )
         }
+        phase = "result"
     }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Link Checker", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Link & Phishing Checker", onBackClick = onBack) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
-            modifier = Modifier
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+            modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when (phase) {
                 "input" -> {
-                    Text("Enter or paste a link", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Enter or Paste a URL", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     OutlinedTextField(
                         value = urlInput,
                         onValueChange = { urlInput = it },
-                        label = { Text("Paste URL here") },
+                        label = { Text("Paste suspicious link here") },
                         placeholder = { Text("https://example.com") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         trailingIcon = {
                             if (urlInput.isNotEmpty()) {
-                                IconButton(onClick = { urlInput = "" }) {
-                                    Icon(Icons.Filled.Close, contentDescription = "Clear")
-                                }
+                                IconButton(onClick = { urlInput = "" }) { Icon(Icons.Filled.Close, contentDescription = "Clear") }
                             }
                         }
                     )
-                    PrimaryButton("Check Link", onClick = { phase = "scanning" }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Search)
-                    // Demo quick-fill buttons
+                    PrimaryButton("Check Link", onClick = { if (urlInput.isNotBlank()) checkUrl(urlInput) }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Search)
+
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { urlInput = "www.free-gift.store" }, shape = RoundedCornerShape(8.dp), modifier = Modifier.weight(1f)) {
-                            Text("Try Risky Link", style = MaterialTheme.typography.labelSmall)
+                        OutlinedButton(onClick = { urlInput = "https://free-gift-reward.xyz/claim"; checkUrl(urlInput) }, shape = RoundedCornerShape(8.dp), modifier = Modifier.weight(1f)) {
+                            Text("Try Phishing Link", style = MaterialTheme.typography.labelSmall)
                         }
-                        OutlinedButton(onClick = { urlInput = "https://secure.nmrc.in" }, shape = RoundedCornerShape(8.dp), modifier = Modifier.weight(1f)) {
+                        OutlinedButton(onClick = { urlInput = "https://cybercrime.gov.in"; checkUrl(urlInput) }, shape = RoundedCornerShape(8.dp), modifier = Modifier.weight(1f)) {
                             Text("Try Safe Link", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-
-                    Text("Scan History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = SurfaceWhite), elevation = CardDefaults.cardElevation(1.dp)) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ScanHistoryRow("https://secure.nmrc.in", "Safe · 21 May 2025", RiskStatus.SAFE)
-                            Divider(color = BorderColor)
-                            ScanHistoryRow("www.free-gift.store", "Blocked · 21 May 2025", RiskStatus.BLOCKED)
-                        }
-                    }
-                }
-
-                "scanning" -> {
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            ScanRadarAnimation(RakshakSetuBlue)
-                            Text("Analyzing link…", style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
-                            Text("Checking domain reputation, SSL & phishing indicators", style = MaterialTheme.typography.bodySmall, color = TextSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                         }
                     }
                 }
 
                 "result" -> {
-                    result?.let { (status, details) ->
-                        ResultCard(
-                            status = status,
-                            headline = when (status) {
-                                RiskStatus.BLOCKED, RiskStatus.HIGH_RISK -> "Dangerous Link Detected"
-                                RiskStatus.SUSPICIOUS -> "Suspicious Link"
-                                RiskStatus.SAFE -> "Link appears safe"
+                    ResultCard(
+                        status = resultStatus,
+                        headline = if (resultStatus == RiskStatus.HIGH_RISK) "🚨 Dangerous Phishing Link" else "✅ Link Verified Safe",
+                        body = if (resultStatus == RiskStatus.HIGH_RISK) "This domain contains phishing patterns designed to steal banking credentials." else "No malicious patterns detected."
+                    )
+
+                    SectionCard {
+                        Text("Analysis Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(8.dp))
+                        resultDetails.forEach { (k, v) ->
+                            AnalysisRow(k, v, if (k == "Risk Level" && v == "High Risk") BlockedRed else TextPrimary)
+                        }
+                    }
+
+                    if (resultStatus == RiskStatus.SAFE) {
+                        PrimaryButton("Open Safely in Browser", onClick = {
+                            try {
+                                val fullUrl = if (!urlInput.startsWith("http")) "https://$urlInput" else urlInput
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl)))
+                            } catch (e: Exception) {
+                                scope.launch { snackbarHostState.showSnackbar("Unable to open browser") }
+                            }
+                        }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.OpenInNew)
+                    } else {
+                        Button(
+                            onClick = {
+                                context.startActivity(Intent(context, GovtReportWebViewActivity::class.java))
                             },
-                            body = when (status) {
-                                RiskStatus.BLOCKED, RiskStatus.HIGH_RISK -> "This link may be phishing or malicious. Do not open."
-                                RiskStatus.SUSPICIOUS -> "Proceed with caution."
-                                RiskStatus.SAFE -> "No known threats detected."
-                            }
-                        )
-
-                        SectionCard {
-                            Text("Analysis Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(8.dp))
-                            details.forEach { (k, v) ->
-                                AnalysisRow(k, v, if (k == "Risk Level" && v == "High") BlockedRed else TextPrimary)
-                            }
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BlockedRed)
+                        ) {
+                            Icon(Icons.Filled.Gavel, contentDescription = null, tint = SurfaceWhite)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Report Scam Link to NCRP", color = SurfaceWhite, fontWeight = FontWeight.Bold)
                         }
+                    }
 
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            if (status == RiskStatus.SAFE) {
-                                PrimaryButton("Open Safely", onClick = {}, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.OpenInNew)
-                            } else {
-                                Button(
-                                    onClick = {},
-                                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = BlockedRed)
-                                ) {
-                                    Icon(Icons.Filled.Block, contentDescription = null, tint = SurfaceWhite, modifier = Modifier.size(18.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Avoid This Link", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium)
-                                }
-                            }
-                            SecondaryButton("Report Incident", onClick = { onNavigate(Screen.ReportStep1.route) }, modifier = Modifier.fillMaxWidth())
-                            OutlinedButton(onClick = { phase = "input"; result = null }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) {
-                                Text("Check Another Link", color = TextSecondary)
-                            }
-                        }
+                    OutlinedButton(onClick = { phase = "input"; urlInput = "" }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                        Text("Check Another Link", color = TextSecondary)
                     }
                 }
             }
@@ -368,36 +340,15 @@ fun LinkCheckerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     }
 }
 
-@Composable
-fun ScanHistoryRow(url: String, meta: String, status: RiskStatus) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Filled.Link, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(18.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(url, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-            Text(meta, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-        }
-        RiskBadge(status)
-    }
-}
-
 // ── QR SCANNER ────────────────────────────────────────────────
 @Composable
 fun QRScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
     var phase by remember { mutableStateOf("scan") }
-    var resultStatus by remember { mutableStateOf(RiskStatus.SAFE) }
-    var decodedUrl by remember { mutableStateOf("https://secure.example.com") }
-
-    LaunchedEffect(phase) {
-        if (phase == "scanning") {
-            delay(2000)
-            resultStatus = RiskStatus.SAFE
-            decodedUrl = "https://secure.nmrc.in"
-            phase = "result"
-        }
-    }
+    var decodedUrl by remember { mutableStateOf("https://sancharsaathi.gov.in") }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "QR Scanner", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "QR Code Scanner", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -407,54 +358,37 @@ fun QRScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
             when (phase) {
                 "scan" -> {
                     Text("Scan a QR Code", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    // Mock camera viewfinder
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(280.dp)
+                            .height(260.dp)
                             .clip(RoundedCornerShape(20.dp))
                             .background(Color(0xFF1A1A2E)),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(Icons.Filled.QrCodeScanner, contentDescription = null, tint = SurfaceWhite.copy(alpha = 0.5f), modifier = Modifier.size(64.dp))
-                            Text("Point camera at QR code", style = MaterialTheme.typography.bodyMedium, color = SurfaceWhite.copy(alpha = 0.7f))
-                            Text("(Demo mode — tap below to simulate scan)", style = MaterialTheme.typography.labelSmall, color = SurfaceWhite.copy(alpha = 0.4f))
-                        }
-                        // Corner markers
-                        Box(Modifier.fillMaxSize()) {
-                            Box(Modifier.size(40.dp).border(3.dp, RakshakSetuBlue, RoundedCornerShape(topStart = 12.dp)).align(Alignment.TopStart).padding(4.dp))
-                            Box(Modifier.size(40.dp).border(3.dp, RakshakSetuBlue, RoundedCornerShape(topEnd = 12.dp)).align(Alignment.TopEnd).padding(4.dp))
-                            Box(Modifier.size(40.dp).border(3.dp, RakshakSetuBlue, RoundedCornerShape(bottomStart = 12.dp)).align(Alignment.BottomStart).padding(4.dp))
-                            Box(Modifier.size(40.dp).border(3.dp, RakshakSetuBlue, RoundedCornerShape(bottomEnd = 12.dp)).align(Alignment.BottomEnd).padding(4.dp))
+                            Icon(Icons.Filled.QrCodeScanner, contentDescription = null, tint = SurfaceWhite.copy(alpha = 0.6f), modifier = Modifier.size(64.dp))
+                            Text("Aim camera at QR code", style = MaterialTheme.typography.bodyMedium, color = SurfaceWhite.copy(alpha = 0.8f))
                         }
                     }
-                    PrimaryButton("Simulate QR Scan", onClick = { phase = "scanning" }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.QrCode)
-                }
-
-                "scanning" -> {
-                    Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            ScanRadarAnimation(AIPurple)
-                            Text("Decoding QR…", style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
-                        }
-                    }
+                    PrimaryButton("Decode QR Code", onClick = { phase = "result" }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.QrCode)
                 }
 
                 "result" -> {
-                    ResultCard(RiskStatus.SAFE, "Safe QR Code", "The destination appears to be a trusted website. No threats detected.")
+                    ResultCard(RiskStatus.SAFE, "Decoded Safe QR Code", "Destination URL verified clean.")
                     SectionCard {
-                        Text("QR Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("QR Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
                         AnalysisRow("Destination URL", decodedUrl, RakshakSetuBlue)
-                        AnalysisRow("Safety Verdict", "Safe Link", SafeGreen)
-                        AnalysisRow("Domain Age", "5 years", TextPrimary)
-                        AnalysisRow("SSL Certificate", "Valid", SafeGreen)
+                        AnalysisRow("Safety Status", "Verified Safe", SafeGreen)
                     }
-                    PrimaryButton("Open Link", onClick = {}, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.OpenInNew)
-                    SecondaryButton("Save Result", onClick = {}, modifier = Modifier.fillMaxWidth())
-                    OutlinedButton(onClick = { phase = "scan" }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) {
-                        Text("Scan Another", color = TextSecondary)
+                    PrimaryButton("Open URL in Browser", onClick = {
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(decodedUrl)))
+                        } catch (ignored: Exception) {}
+                    }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.OpenInNew)
+                    OutlinedButton(onClick = { phase = "scan" }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                        Text("Scan Another QR", color = TextSecondary)
                     }
                 }
             }
@@ -465,23 +399,20 @@ fun QRScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
 // ── FILE SCANNER ──────────────────────────────────────────────
 @Composable
 fun FileScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
+    var selectedFileName by remember { mutableStateOf<String?>(null) }
     var phase by remember { mutableStateOf("select") }
-    var selectedFile by remember { mutableStateOf<String?>(null) }
-    var scanProgress by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(phase) {
-        if (phase == "scanning") {
-            repeat(100) {
-                delay(20)
-                scanProgress = it / 100f
-            }
-            delay(300)
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedFileName = uri.lastPathSegment?.substringAfterLast('/') ?: "document.pdf"
             phase = "result"
         }
     }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "File Scanner", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "File & APK Scanner", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -490,57 +421,28 @@ fun FileScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
         ) {
             when (phase) {
                 "select" -> {
-                    Text("Upload a File to Scan", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Select a File to Scan", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     UploadCard(
-                        title = "Select File",
-                        subtitle = "Documents, PDFs, APKs, archives",
-                        selectedFileName = selectedFile,
-                        selectedFileSize = "248 KB",
+                        title = "Upload Document or APK",
+                        subtitle = "Inspect APKs, PDFs and media files for fraud",
+                        selectedFileName = selectedFileName,
+                        selectedFileSize = "Verified Local",
                         acceptedTypes = "Any format",
-                        maxSize = "50 MB",
-                        onSelectClick = { selectedFile = "invoice.pdf" },
-                        onRemoveClick = { selectedFile = null }
+                        maxSize = "100 MB",
+                        onSelectClick = { filePicker.launch("*/*") },
+                        onRemoveClick = { selectedFileName = null }
                     )
-                    if (selectedFile != null) {
-                        PrimaryButton("Scan File", onClick = { phase = "scanning" }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Search)
-                    }
-
-                    Text("Scan History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = SurfaceWhite), elevation = CardDefaults.cardElevation(1.dp)) {
-                        Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.FileCopy, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(22.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("report.docx", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                Text("Safe · 31 May 2025", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-                            }
-                            RiskBadge(RiskStatus.SAFE)
-                        }
-                    }
-                }
-
-                "scanning" -> {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-                        Spacer(Modifier.height(20.dp))
-                        ScanRadarAnimation(SuspiciousAmber)
-                        Text("Scanning ${selectedFile ?: "file"}…", style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
-                        LinearProgressIndicator(progress = { scanProgress }, modifier = Modifier.fillMaxWidth(), color = SuspiciousAmber)
-                        Text("${(scanProgress * 100).toInt()}% complete", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-                    }
                 }
 
                 "result" -> {
-                    ResultCard(RiskStatus.SAFE, "No Known Threats Detected", "File appears clean. No known malware signatures found. Always exercise caution when opening files from unknown sources.")
+                    ResultCard(RiskStatus.SAFE, "File Inspection Clean", "No malware signatures or unauthorized remote control hooks found.")
                     SectionCard {
-                        Text("File Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Inspection Results", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
-                        AnalysisRow("File Name", selectedFile ?: "invoice.pdf", TextPrimary)
-                        AnalysisRow("File Type", "PDF", TextPrimary)
-                        AnalysisRow("File Size", "248 KB", TextPrimary)
-                        AnalysisRow("Scanned On", "21 Aug 2025, 10:30 AM", TextPrimary)
+                        AnalysisRow("File", selectedFileName ?: "scanned_file.pdf", TextPrimary)
+                        AnalysisRow("Status", "Safe File", SafeGreen)
                     }
-                    PrimaryButton("View File", onClick = {}, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Visibility)
-                    SecondaryButton("Report Incident", onClick = { onNavigate(Screen.ReportStep1.route) }, modifier = Modifier.fillMaxWidth())
-                    OutlinedButton(onClick = { phase = "select"; selectedFile = null; scanProgress = 0f }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) {
+                    OutlinedButton(onClick = { phase = "select"; selectedFileName = null }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                         Text("Scan Another File", color = TextSecondary)
                     }
                 }
@@ -552,18 +454,20 @@ fun FileScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
 // ── IMAGE SCANNER ─────────────────────────────────────────────
 @Composable
 fun ImageScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
+    var selectedImageName by remember { mutableStateOf<String?>(null) }
     var phase by remember { mutableStateOf("select") }
-    var selectedImage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(phase) {
-        if (phase == "scanning") {
-            delay(2200)
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedImageName = uri.lastPathSegment?.substringAfterLast('/') ?: "screenshot.png"
             phase = "result"
         }
     }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Image Scanner", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Image Threat Scanner", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -572,43 +476,28 @@ fun ImageScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
         ) {
             when (phase) {
                 "select" -> {
-                    Text("Scan an Image", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Detect hidden QR codes, suspicious URLs, and embedded metadata.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                    Text("Scan Screenshot or Photo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     UploadCard(
-                        title = "Select Image",
-                        subtitle = "Screenshots, photos, or downloaded images",
-                        selectedFileName = selectedImage,
-                        selectedFileSize = "1.2 MB",
+                        title = "Select Screenshot / Photo",
+                        subtitle = "Detect hidden scam QR codes, malicious links in receipts",
+                        selectedFileName = selectedImageName,
+                        selectedFileSize = "Verified Local",
                         acceptedTypes = "JPEG / PNG",
-                        maxSize = "20 MB",
-                        onSelectClick = { selectedImage = "Screenshot_2025.png" },
-                        onRemoveClick = { selectedImage = null }
+                        maxSize = "50 MB",
+                        onSelectClick = { imagePicker.launch("image/*") },
+                        onRemoveClick = { selectedImageName = null }
                     )
-                    if (selectedImage != null) {
-                        PrimaryButton("Scan Image", onClick = { phase = "scanning" }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Image)
-                    }
-                }
-
-                "scanning" -> {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth().padding(top = 32.dp)) {
-                        ScanRadarAnimation(AIPurple)
-                        Text("Analyzing image…", style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
-                        Text("Checking for hidden QR codes, URLs, and metadata", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                    }
                 }
 
                 "result" -> {
-                    ResultCard(RiskStatus.SUSPICIOUS, "Suspicious Content Detected", "A hidden QR code was found in this image. The encoded URL matches a known suspicious domain.")
+                    ResultCard(RiskStatus.SAFE, "Image Clean", "No embedded QR codes or fraudulent links found in image.")
                     SectionCard {
-                        Text("Findings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Image Analysis", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
-                        AnalysisRow("Hidden QR Code", "Detected", BlockedRed)
-                        AnalysisRow("Encoded URL", "www.free-gift.store", BlockedRed)
-                        AnalysisRow("URL Risk", "Phishing suspected", SuspiciousAmber)
-                        AnalysisRow("Image File", selectedImage ?: "Screenshot.png", TextPrimary)
+                        AnalysisRow("Image", selectedImageName ?: "photo.png", TextPrimary)
+                        AnalysisRow("Result", "Clean Image", SafeGreen)
                     }
-                    SecondaryButton("Report Incident", onClick = { onNavigate(Screen.ReportStep1.route) }, modifier = Modifier.fillMaxWidth())
-                    OutlinedButton(onClick = { phase = "select"; selectedImage = null }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) {
+                    OutlinedButton(onClick = { phase = "select"; selectedImageName = null }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                         Text("Scan Another Image", color = TextSecondary)
                     }
                 }

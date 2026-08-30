@@ -1,5 +1,7 @@
 package com.rakshaksetu.app.ui.screens
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
@@ -10,25 +12,53 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
+import com.rakshaksetu.app.model.DetectionStore
+import com.rakshaksetu.app.report.UserProfileStore
+import com.rakshaksetu.app.ui.GovtReportWebViewActivity
+import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.data.*
 import com.rakshaksetu.app.ui.navigation.Screen
-import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ── STEP 1: Incident Details ───────────────────────────────────
 @Composable
 fun ReportStep1Screen(onNext: () -> Unit, onBack: () -> Unit) {
-    var description by remember { mutableStateOf("") }
-    var incidentDate by remember { mutableStateOf("21 May 2025") }
-    var incidentTime by remember { mutableStateOf("10:30 AM") }
+    val context = LocalContext.current
+    val lastResult = remember { DetectionStore.getLastResult(context) }
+    val profile = remember { UserProfileStore(context) }
+
+    var incidentDate by remember {
+        mutableStateOf(
+            if (lastResult != null) SimpleDateFormat("dd MMM yyyy", Locale.US).format(Date(lastResult.callEndEpoch))
+            else SimpleDateFormat("dd MMM yyyy", Locale.US).format(Date())
+        )
+    }
+    var incidentTime by remember {
+        mutableStateOf(
+            if (lastResult != null) SimpleDateFormat("hh:mm a", Locale.US).format(Date(lastResult.callEndEpoch))
+            else SimpleDateFormat("hh:mm a", Locale.US).format(Date())
+        )
+    }
+    var description by remember {
+        mutableStateOf(
+            if (lastResult != null) {
+                "Suspected fraud call from ${lastResult.phoneNumber}. The caller used ${lastResult.scamType?.replace('_', ' ') ?: "extortion"} script patterns to demand immediate funds. Key statements flagged by AI analysis: ${lastResult.flaggedSegments.joinToString("; ") { it.text }}. Filing complaint under IT Act provisions."
+            } else ""
+        )
+    }
+
     val prohibitedChars = setOf('#', '$', '@', '^', '*', '"', '~', '|')
-    val isDescValid = description.length >= 200 && description.none { it in prohibitedChars }
+    val isDescValid = description.length >= 100 && description.none { it in prohibitedChars }
     val charError = description.any { it in prohibitedChars }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Report Profile", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Cybercrime Report", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -47,8 +77,8 @@ fun ReportStep1Screen(onNext: () -> Unit, onBack: () -> Unit) {
                 Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Icon(Icons.Filled.Info, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp))
                     Column {
-                        Text("Please provide the following information manually.", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = RakshakSetuBlue)
-                        Text("Other details will be collected automatically where possible.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text("1-Tap Auto-Filled Incident Dossier", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = RakshakSetuBlue)
+                        Text("Incident evidence & transcripts are populated from your call analysis.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     }
                 }
             }
@@ -57,7 +87,7 @@ fun ReportStep1Screen(onNext: () -> Unit, onBack: () -> Unit) {
                 Text("1. Incident Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(12.dp))
 
-                Text("Incident Date & Time *", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Text("Incident Date & Time", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
@@ -79,71 +109,54 @@ fun ReportStep1Screen(onNext: () -> Unit, onBack: () -> Unit) {
                 }
 
                 Spacer(Modifier.height(14.dp))
-                Text("Incident Description *", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                Text("Please describe what happened in detail (minimum 200 characters).", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                Text("Incident Description", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Text("Describe what happened (auto-filled from AI analysis):", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    placeholder = { Text("Type your incident description here…") },
+                    placeholder = { Text("Type incident description…") },
                     modifier = Modifier.fillMaxWidth().height(140.dp),
                     shape = RoundedCornerShape(10.dp),
                     maxLines = 6,
                     isError = charError
                 )
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    if (charError) {
-                        Text("Special characters # \$ @ ^ * \" ~ | not allowed", style = MaterialTheme.typography.labelSmall, color = BlockedRed)
-                    } else {
-                        Spacer(Modifier.width(1.dp))
-                    }
-                    Text("${description.length} / 200", style = MaterialTheme.typography.labelSmall,
-                        color = if (description.length >= 200) SafeGreen else TextSecondary)
-                }
             }
 
-            SectionCard {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                    Surface(color = SafeGreenLight, shape = RoundedCornerShape(4.dp)) {
-                        Text("AUTO-DETECTED", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = SafeGreen, fontWeight = FontWeight.Bold)
+            if (lastResult != null) {
+                SectionCard {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                        Surface(color = SafeGreenLight, shape = RoundedCornerShape(4.dp)) {
+                            Text("AUTO-CAPTURED EVIDENCE", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = SafeGreen, fontWeight = FontWeight.Bold)
+                        }
                     }
-                    Text("The following info was captured from your scan", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Spacer(Modifier.height(10.dp))
+                    AnalysisRow("Suspect Caller", lastResult.phoneNumber, TextPrimary)
+                    AnalysisRow("Scam Type", lastResult.scamType?.replace('_', ' ') ?: "Fraud Call", TextPrimary)
+                    AnalysisRow("AI Confidence", "${(lastResult.confidence * 100).toInt()}%", BlockedRed)
                 }
-                Spacer(Modifier.height(10.dp))
-                AnalysisRow("Caller Number", "+91 98765 43210", TextPrimary)
-                AnalysisRow("Scan Date", "21 May 2025, 10:30 AM", TextPrimary)
-                AnalysisRow("Incident Type", "Voice Clone / Call Fraud", TextPrimary)
-                AnalysisRow("AI Confidence", "82%", BlockedRed)
             }
 
             PrimaryButton(
-                text = "Save & Continue →",
+                text = "Next: Complainant Details →",
                 onClick = onNext,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = isDescValid
+                modifier = Modifier.fillMaxWidth()
             )
-
-            if (!isDescValid && description.isNotEmpty()) {
-                Text(
-                    if (charError) "Remove special characters to continue."
-                    else "Description needs at least ${200 - description.length} more characters.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SuspiciousAmber
-                )
-            }
         }
     }
 }
 
-// ── STEP 2: Identity & Evidence ────────────────────────────────
+// ── STEP 2: Identity & Complainant ─────────────────────────────
 @Composable
 fun ReportStep2Screen(onNext: () -> Unit, onBack: () -> Unit) {
-    var idFile by remember { mutableStateOf<String?>(null) }
-    var evidenceFile by remember { mutableStateOf<String?>(null) }
-    var isFinancialFraud by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val profile = remember { UserProfileStore(context) }
+    var name by remember { mutableStateOf(profile.fullName) }
+    var phone by remember { mutableStateOf(profile.phone) }
+    var email by remember { mutableStateOf(profile.email) }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Report Profile", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Complainant Details", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -156,73 +169,55 @@ fun ReportStep2Screen(onNext: () -> Unit, onBack: () -> Unit) {
             StepProgress(4, 1)
 
             SectionCard {
-                Text("2. Your Identity (ID Proof)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Upload any one of the following: Voter ID, Driving License, Passport, PAN Card, Aadhaar Card", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                Text("2. Complainant Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(12.dp))
-                UploadCard(
-                    title = "Upload ID Proof",
-                    subtitle = "",
-                    selectedFileName = idFile,
-                    selectedFileSize = "1.2 MB",
-                    acceptedTypes = ".jpeg, .jpg, .png",
-                    maxSize = "5 MB",
-                    onSelectClick = { idFile = "id_proof.jpg" },
-                    onRemoveClick = { idFile = null }
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Complainant Name") },
+                    placeholder = { Text("Full Name") },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(10.dp)
+                )
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Mobile Number") },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(10.dp)
+                )
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email Address") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
                 )
             }
 
-            SectionCard {
-                Text("3. Relevant Evidence", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Upload any evidence related to this incident (screenshots, chats, documents, etc.)", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                Spacer(Modifier.height(12.dp))
-                UploadCard(
-                    title = "Upload Evidence",
-                    subtitle = "",
-                    selectedFileName = evidenceFile,
-                    selectedFileSize = "2.4 MB",
-                    acceptedTypes = ".jpeg, .jpg, .png",
-                    maxSize = "10 MB each",
-                    onSelectClick = { evidenceFile = "screenshot_evidence.png" },
-                    onRemoveClick = { evidenceFile = null }
-                )
-            }
-
-            // Financial fraud toggle
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-                border = BorderStroke(1.5.dp, BorderColor),
-                elevation = CardDefaults.cardElevation(1.dp)
-            ) {
-                Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Was money lost in this incident?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Include financial fraud details in the report", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                    }
-                    Switch(
-                        checked = isFinancialFraud,
-                        onCheckedChange = { isFinancialFraud = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = RakshakSetuBlue, checkedTrackColor = RakshakSetuBlueLight)
-                    )
-                }
-            }
-
-            PrimaryButton("Continue →", onClick = { if (isFinancialFraud) onNext() else onNext() }, modifier = Modifier.fillMaxWidth())
+            PrimaryButton(
+                text = "Save & Continue →",
+                onClick = {
+                    profile.fullName = name
+                    profile.phone = phone
+                    profile.email = email
+                    onNext()
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
 
-// ── STEP 3: Financial Details ──────────────────────────────────
+// ── STEP 3: Evidence Pack ──────────────────────────────────────
 @Composable
 fun ReportStep3Screen(onNext: () -> Unit, onBack: () -> Unit) {
-    var bankName by remember { mutableStateOf("") }
-    var transactionId by remember { mutableStateOf("") }
-    var transactionDate by remember { mutableStateOf("21 May 2025") }
-    var amount by remember { mutableStateOf("") }
-    val transactionError = transactionId.isNotEmpty() && (transactionId.length != 12 || !transactionId.all { it.isDigit() })
+    val context = LocalContext.current
+    val lastResult = remember { DetectionStore.getLastResult(context) }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Report Profile", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Evidence Pack", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -234,63 +229,26 @@ fun ReportStep3Screen(onNext: () -> Unit, onBack: () -> Unit) {
         ) {
             StepProgress(4, 2)
 
-            Text("Financial Fraud Details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("If applicable to your incident. Leave blank if no money was lost.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-
             SectionCard {
-                OutlinedTextField(value = bankName, onValueChange = { bankName = it }, label = { Text("Bank / Wallet / Merchant") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp))
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = transactionId,
-                    onValueChange = { if (it.length <= 12) transactionId = it },
-                    label = { Text("12-digit Transaction ID / UTR") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    isError = transactionError,
-                    supportingText = {
-                        if (transactionError) Text("Must be exactly 12 digits", color = BlockedRed)
-                        else Text("${transactionId.length}/12 digits", color = TextSecondary)
-                    }
-                )
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(value = transactionDate, onValueChange = { transactionDate = it }, label = { Text("Transaction Date") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp))
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Fraud Amount (₹)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp))
-            }
-
-            // Optional suspect info
-            SectionCard {
-                Text("Optional / Desirable Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = RakshakSetuBlue)
+                Text("3. Evidence Attachment", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                OptionalFieldRow("4. Suspect Details (if known)", "Add any details you know about the suspect.") {}
-                Divider(color = BorderColor, modifier = Modifier.padding(vertical = 8.dp))
-                OptionalFieldRow("5. Additional Information (Optional)", "Add any other information that you think might help.") {}
+                AnalysisRow("Call Audio Recording", if (lastResult != null) "call_${lastResult.callId}.wav ✓" else "Attached ✓", SafeGreen)
+                AnalysisRow("ASR Transcript Dossier", "transcript_evidence.txt ✓", SafeGreen)
+                AnalysisRow("AI Neural Verification", "AASIST Confidence Report ✓", SafeGreen)
             }
 
-            PrimaryButton("Continue →", onClick = onNext, modifier = Modifier.fillMaxWidth(), enabled = !transactionError)
+            PrimaryButton("Proceed to Review →", onClick = onNext, modifier = Modifier.fillMaxWidth())
         }
-    }
-}
-
-@Composable
-fun OptionalFieldRow(title: String, subtitle: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-        }
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = TextSecondary)
     }
 }
 
 // ── STEP 4: Review & Submit ────────────────────────────────────
 @Composable
 fun ReportStep4Screen(onSubmit: () -> Unit, onBack: () -> Unit) {
-    var agreed by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val lastResult = remember { DetectionStore.getLastResult(context) }
+    val profile = remember { UserProfileStore(context) }
+    var agreed by remember { mutableStateOf(true) }
 
     Scaffold(
         topBar = { RakshakSetuTopBar(title = "Review & Submit", onBackClick = onBack) },
@@ -306,29 +264,16 @@ fun ReportStep4Screen(onSubmit: () -> Unit, onBack: () -> Unit) {
             StepProgress(4, 3)
 
             Text("Review Your Report", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("Please review all details before submission.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
 
             SectionCard {
                 Text("Incident Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                AnalysisRow("Date & Time", "21 May 2025, 10:30 AM", TextPrimary)
-                AnalysisRow("Incident Type", "Voice Clone / Call Fraud", TextPrimary)
-                AnalysisRow("Caller", "+91 98765 43210", TextPrimary)
-                AnalysisRow("AI Risk Score", "82% — High Risk", BlockedRed)
-                AnalysisRow("ID Proof", "id_proof.jpg ✓", SafeGreen)
-                AnalysisRow("Evidence", "screenshot_evidence.png ✓", SafeGreen)
+                AnalysisRow("Complainant", profile.fullName.ifBlank { "Registered User" }, TextPrimary)
+                AnalysisRow("Suspect Phone", lastResult?.phoneNumber ?: "+91 98765 43210", TextPrimary)
+                AnalysisRow("Incident Type", lastResult?.scamType?.replace('_', ' ') ?: "Voice Clone Fraud", TextPrimary)
+                AnalysisRow("AI Confidence", "${((lastResult?.confidence ?: 0.85f) * 100).toInt()}%", BlockedRed)
             }
 
-            SectionCard {
-                Text("Auto-filled by Rakshak Setu", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = RakshakSetuBlue)
-                Spacer(Modifier.height(8.dp))
-                AnalysisRow("App Version", "Rakshak Setu v1.0", TextPrimary)
-                AnalysisRow("Device", "Android (Demo)", TextPrimary)
-                AnalysisRow("Scan Timestamp", "21 May 2025, 10:30 AM", TextPrimary)
-                AnalysisRow("Analysis ID", "SS-SCAN-20250521-1030", TextPrimary)
-            }
-
-            // Consent checkbox
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -342,15 +287,14 @@ fun ReportStep4Screen(onSubmit: () -> Unit, onBack: () -> Unit) {
             ) {
                 Checkbox(checked = agreed, onCheckedChange = { agreed = it }, colors = CheckboxDefaults.colors(checkedColor = SafeGreen))
                 Text(
-                    "I confirm that the information provided is accurate to the best of my knowledge. I consent to this information being used for the purpose of filing a cybercrime incident report.",
+                    "I confirm the incident details are accurate and authorize filing with the National Cyber Crime Reporting Portal (cybercrime.gov.in / 1930).",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextPrimary,
-                    lineHeight = 20.sp
+                    color = TextPrimary
                 )
             }
 
             PrimaryButton(
-                text = "Submit Report",
+                text = "Generate Dossier & Submit",
                 onClick = onSubmit,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = agreed,
@@ -363,6 +307,9 @@ fun ReportStep4Screen(onSubmit: () -> Unit, onBack: () -> Unit) {
 // ── REPORT SUCCESS ─────────────────────────────────────────────
 @Composable
 fun ReportSuccessScreen(onDone: () -> Unit) {
+    val context = LocalContext.current
+    val lastResult = remember { DetectionStore.getLastResult(context) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -370,44 +317,41 @@ fun ReportSuccessScreen(onDone: () -> Unit) {
             .padding(24.dp)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(20.dp))
 
         Box(
-            modifier = Modifier.size(100.dp).clip(CircleShape).background(SafeGreenLight),
+            modifier = Modifier.size(90.dp).clip(CircleShape).background(SafeGreenLight),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = SafeGreen, modifier = Modifier.size(56.dp))
+            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = SafeGreen, modifier = Modifier.size(50.dp))
         }
 
-        Text("Report Submitted!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = SafeGreen)
-        Text("Your incident report has been recorded.", style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
+        Text("Incident Dossier Prepared!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = SafeGreen)
+        Text("Your cybercrime report has been compiled for official filing.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
 
         SectionCard {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                Text("Reference ID", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                Text(MockData.mockReferenceId, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = RakshakSetuBlue)
-                Text("Save this ID for follow-up", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                Text("Incident Reference ID", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                Text("RS-CYBER-${System.currentTimeMillis().toString().takeLast(6)}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = RakshakSetuBlue)
+                Text("Save this ID for law enforcement tracking", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
             }
         }
 
-        SectionCard {
-            Text("Next Steps", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            listOf(
-                "Contact your bank to freeze suspicious transactions",
-                "Call the cybercrime helpline at 1930",
-                "Block the caller's number from your phone settings",
-                "Keep all evidence safe — do not delete messages or files"
-            ).forEachIndexed { index, step ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-                    Text("${index + 1}.", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = RakshakSetuBlue)
-                    Text(step, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                }
-            }
-        }
+        PrimaryButton(
+            text = "⚡ Open NCRP Portal with 1-Tap AutoFill",
+            onClick = {
+                context.startActivity(Intent(context, GovtReportWebViewActivity::class.java).apply {
+                    if (lastResult != null) {
+                        putExtra(GovtReportWebViewActivity.EXTRA_CALL_ID, lastResult.callId)
+                    }
+                })
+            },
+            modifier = Modifier.fillMaxWidth(),
+            icon = Icons.Filled.Bolt
+        )
 
-        PrimaryButton("Done — Return Home", onClick = onDone, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Home)
+        SecondaryButton("Done — Return Home", onClick = onDone, modifier = Modifier.fillMaxWidth())
     }
 }

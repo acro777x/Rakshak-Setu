@@ -1,5 +1,8 @@
 package com.rakshaksetu.app.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
@@ -11,24 +14,29 @@ import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
-import com.rakshaksetu.app.ui.data.ActivityItem
-import com.rakshaksetu.app.ui.data.RiskStatus
-import com.rakshaksetu.app.ui.data.TrustedContact
-import com.rakshaksetu.app.ui.navigation.Screen
-import com.rakshaksetu.app.ui.components.*
-import com.rakshaksetu.app.ui.theme.*
-import androidx.compose.ui.platform.LocalContext
-import com.rakshaksetu.app.model.DetectionStore
+import com.rakshaksetu.app.service.BatteryOptimizationHelper
 import com.rakshaksetu.app.consent.ConsentStore
 import com.rakshaksetu.app.elder.ElderModeStore
+import com.rakshaksetu.app.model.DetectionStore
+import com.rakshaksetu.app.report.UserProfileStore
+import com.rakshaksetu.app.ui.components.*
+import com.rakshaksetu.app.ui.data.*
+import com.rakshaksetu.app.ui.navigation.Screen
+import com.rakshaksetu.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 // ── PROFILE HOME ──────────────────────────────────────────────
 @Composable
 fun ProfileScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val profileStore = remember { UserProfileStore(context) }
+    val elderStore = remember { ElderModeStore(context) }
+
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Profile", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Profile & Settings", onBackClick = onBack) },
         bottomBar = { BottomNavBar(currentRoute = Screen.Profile.route, onNavigate = onNavigate) },
         containerColor = BackgroundLight
     ) { padding ->
@@ -59,8 +67,16 @@ fun ProfileScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                     ) {
                         Icon(Icons.Filled.Person, contentDescription = null, tint = SurfaceWhite, modifier = Modifier.size(40.dp))
                     }
-                    Text("Harsh Sharma", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("harsh@email.com  ·  +91 98765 00000", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text(
+                        text = profileStore.fullName.ifBlank { "Rakshak User" },
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${profileStore.email.ifBlank { "user@rakshaksetu.in" }}  ·  ${profileStore.phone.ifBlank { "+91 Registered" }}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
                     Spacer(Modifier.height(4.dp))
                     OutlinedButton(
                         onClick = { onNavigate(Screen.PersonalInfo.route) },
@@ -69,13 +85,12 @@ fun ProfileScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                     ) {
                         Icon(Icons.Filled.Edit, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Edit Profile", color = RakshakSetuBlue, style = MaterialTheme.typography.labelMedium)
+                        Text("Edit Complainant Profile", color = RakshakSetuBlue, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
 
             // Stats row
-            val context = LocalContext.current
             val lastResult = remember { DetectionStore.getLastResult(context) }
             val safeCount = if (lastResult != null && !lastResult.isScam) 1 else 0
             val blockedCount = if (lastResult != null && lastResult.isScam) 1 else 0
@@ -83,49 +98,33 @@ fun ProfileScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 StatCard(safeCount, "Protected", SafeGreen, Modifier.weight(1f))
-                StatCard(blockedCount, "Blocked", BlockedRed, Modifier.weight(1f))
-                StatCard(totalScanned, "Scanned", RakshakSetuBlue, Modifier.weight(1f))
+                StatCard(blockedCount, "Threats", BlockedRed, Modifier.weight(1f))
+                StatCard(totalScanned, "Analyses", RakshakSetuBlue, Modifier.weight(1f))
             }
 
             // Menu sections
             SectionCard {
-                Text("Account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextSecondary)
+                Text("Account & Emergency", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextSecondary)
                 Spacer(Modifier.height(8.dp))
-                ProfileMenuItem(Icons.Filled.Person, "Personal Information", Color(0xFF1565C0)) { onNavigate(Screen.PersonalInfo.route) }
-                ProfileMenuItem(Icons.Filled.Shield, "Security & Privacy", Color(0xFF2E7D32)) { onNavigate(Screen.SecurityPrivacy.route) }
-                ProfileMenuItem(Icons.Filled.People, "Trusted Contacts", Color(0xFF6A1B9A)) { onNavigate(Screen.TrustedContacts.route) }
-                ProfileMenuItem(Icons.Filled.Bookmark, "Saved Items", Color(0xFFE65100)) { onNavigate(Screen.SavedItems.route) }
+                ProfileMenuItem(Icons.Filled.Person, "Complainant Details (NCRP/Chakshu)", Color(0xFF1565C0)) { onNavigate(Screen.PersonalInfo.route) }
+                ProfileMenuItem(Icons.Filled.Shield, "Security, Shield & Privacy", Color(0xFF2E7D32)) { onNavigate(Screen.SecurityPrivacy.route) }
+                ProfileMenuItem(Icons.Filled.People, "Elder Mode & Family Guardians", Color(0xFF6A1B9A)) { onNavigate(Screen.TrustedContacts.route) }
             }
 
             SectionCard {
-                Text("Preferences", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextSecondary)
+                Text("Preferences & System", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextSecondary)
                 Spacer(Modifier.height(8.dp))
-                ProfileMenuItem(Icons.Filled.Notifications, "Notification Settings", Color(0xFF0288D1)) { onNavigate(Screen.NotificationSettings.route) }
-                ProfileMenuItem(Icons.Filled.Settings, "App Settings", Color(0xFF607D8B)) { onNavigate(Screen.Settings.route) }
-            }
-
-            SectionCard {
-                Text("Support", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextSecondary)
-                Spacer(Modifier.height(8.dp))
-                ProfileMenuItem(Icons.Filled.Help, "Help & Support", Color(0xFF00838F)) { onNavigate(Screen.HelpSupport.route) }
-                ProfileMenuItem(Icons.Filled.Info, "About Rakshak Setu", Color(0xFF558B2F)) { onNavigate(Screen.AboutRakshakSetu.route) }
-            }
-
-            // Sign out
-            Card(
-                modifier = Modifier.fillMaxWidth().clickable {},
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = BlockedRedLight),
-                elevation = CardDefaults.cardElevation(0.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Filled.ExitToApp, contentDescription = null, tint = BlockedRed, modifier = Modifier.size(22.dp))
-                    Text("Sign Out", style = MaterialTheme.typography.titleMedium, color = BlockedRed, fontWeight = FontWeight.SemiBold)
+                ProfileMenuItem(Icons.Filled.Notifications, "Notification Alerts", Color(0xFF0288D1)) { onNavigate(Screen.NotificationSettings.route) }
+                ProfileMenuItem(Icons.Filled.BatteryChargingFull, "Battery Whitelist & Autostart", Color(0xFFE65100)) {
+                    BatteryOptimizationHelper.requestBatteryOptimizationExemption(context)
                 }
+            }
+
+            SectionCard {
+                Text("Support & About", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextSecondary)
+                Spacer(Modifier.height(8.dp))
+                ProfileMenuItem(Icons.Filled.Help, "Help & Government Helplines", Color(0xFF00838F)) { onNavigate(Screen.HelpSupport.route) }
+                ProfileMenuItem(Icons.Filled.Info, "About Rakshak Setu (SIH 2026)", Color(0xFF558B2F)) { onNavigate(Screen.AboutRakshakSetu.route) }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -157,112 +156,195 @@ fun ProfileMenuItem(icon: ImageVector, label: String, iconColor: Color, onClick:
 // ── PERSONAL INFO ─────────────────────────────────────────────
 @Composable
 fun PersonalInfoScreen(onBack: () -> Unit) {
-    var name by remember { mutableStateOf("Harsh Sharma") }
-    var email by remember { mutableStateOf("harsh@email.com") }
-    var phone by remember { mutableStateOf("+91 98765 00000") }
-    var city by remember { mutableStateOf("New Delhi") }
+    val context = LocalContext.current
+    val store = remember { UserProfileStore(context) }
+
+    var name by remember { mutableStateOf(store.fullName) }
+    var email by remember { mutableStateOf(store.email) }
+    var phone by remember { mutableStateOf(store.phone) }
+    var altPhone by remember { mutableStateOf(store.alternatePhone) }
+    var state by remember { mutableStateOf(store.state) }
+    var city by remember { mutableStateOf(store.city) }
+    var address by remember { mutableStateOf(store.address) }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Personal Information", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Complainant Details", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
             modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            Text("These details pre-fill official cybercrime complaints automatically on NCRP 1930 & Chakshu.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
             SectionCard {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Full Name") },
+                    label = { Text("Full Name *") },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                     shape = RoundedCornerShape(12.dp),
                     leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp)) }
                 )
                 OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email Address") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    leadingIcon = { Icon(Icons.Filled.Email, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp)) }
-                )
-                OutlinedTextField(
                     value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("Phone Number") },
+                    onValueChange = { phone = it.filter { c -> c.isDigit() || c == '+' } },
+                    label = { Text("Mobile Number *") },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                     shape = RoundedCornerShape(12.dp),
                     leadingIcon = { Icon(Icons.Filled.Phone, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp)) }
                 )
                 OutlinedTextField(
+                    value = altPhone,
+                    onValueChange = { altPhone = it.filter { c -> c.isDigit() || c == '+' } },
+                    label = { Text("Alternate Mobile Number") },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    leadingIcon = { Icon(Icons.Filled.PhoneAndroid, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp)) }
+                )
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email Address *") },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    leadingIcon = { Icon(Icons.Filled.Email, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp)) }
+                )
+                OutlinedTextField(
+                    value = state,
+                    onValueChange = { state = it },
+                    label = { Text("State / UT") },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    leadingIcon = { Icon(Icons.Filled.Map, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp)) }
+                )
+                OutlinedTextField(
                     value = city,
                     onValueChange = { city = it },
-                    label = { Text("City") },
+                    label = { Text("City / District") },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                     shape = RoundedCornerShape(12.dp),
                     leadingIcon = { Icon(Icons.Filled.LocationCity, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp)) }
                 )
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    label = { Text("Postal Address") },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    leadingIcon = { Icon(Icons.Filled.Home, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp)) }
+                )
             }
-            PrimaryButton("Save Changes", onClick = onBack, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Save)
+            PrimaryButton(
+                text = "Save Complainant Profile",
+                onClick = {
+                    store.fullName = name
+                    store.phone = phone
+                    store.alternatePhone = altPhone
+                    store.email = email
+                    store.state = state
+                    store.city = city
+                    store.address = address
+                    onBack()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                icon = Icons.Filled.Save
+            )
         }
     }
 }
 
-// ── TRUSTED CONTACTS ──────────────────────────────────────────
+// ── TRUSTED CONTACTS (ELDER MODE) ─────────────────────────────
 @Composable
 fun TrustedContactsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val elderStore = remember { ElderModeStore(context) }
-    val guardians = remember { elderStore.getGuardians() }
-    var contacts by remember { mutableStateOf(
-        guardians.map { g -> 
-            com.rakshaksetu.app.ui.data.TrustedContact(
-                id = g.number,
-                name = g.name,
-                relation = "Guardian",
-                phone = g.number
-            )
-        }
-    ) }
+    val store = remember { ElderModeStore(context) }
+    var isElderEnabled by remember { mutableStateOf(store.isEnabled) }
+    var autoSendSms by remember { mutableStateOf(store.autoSendSmsEnabled) }
+    var guardians by remember { mutableStateOf(store.getGuardians()) }
+    var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Trusted Contacts", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Elder Mode & Family Guardians", onBackClick = onBack) },
         containerColor = BackgroundLight,
         floatingActionButton = {
-            FloatingActionButton(containerColor = RakshakSetuBlue, shape = RoundedCornerShape(14.dp), onClick = {}) {
-                Icon(Icons.Filled.PersonAdd, contentDescription = "Add Contact", tint = SurfaceWhite)
+            if (guardians.size < ElderModeStore.MAX_GUARDIANS) {
+                FloatingActionButton(
+                    containerColor = RakshakSetuBlue,
+                    shape = RoundedCornerShape(14.dp),
+                    onClick = { showAddDialog = true }
+                ) {
+                    Icon(Icons.Filled.PersonAdd, contentDescription = "Add Guardian", tint = SurfaceWhite)
+                }
             }
         }
     ) { padding ->
         Column(
             modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text("People Rakshak Setu can alert if you're in danger.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            SectionCard {
+                ToggleRow(
+                    title = "Enable Elder Mode",
+                    subtitle = "Automated emergency alerts to family members on detected scam calls",
+                    checked = isElderEnabled,
+                    onToggle = {
+                        isElderEnabled = it
+                        store.isEnabled = it
+                    }
+                )
+                if (isElderEnabled) {
+                    Divider(color = BorderColor, modifier = Modifier.padding(vertical = 6.dp))
+                    ToggleRow(
+                        title = "Auto-send Emergency SMS",
+                        subtitle = "Send SMS with call details when confidence ≥ 85%",
+                        checked = autoSendSms,
+                        onToggle = {
+                            autoSendSms = it
+                            store.autoSendSmsEnabled = it
+                        }
+                    )
+                }
+            }
 
-            contacts.forEach { contact ->
-                Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-                    elevation = CardDefaults.cardElevation(2.dp)
-                ) {
-                    Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier.size(44.dp).clip(CircleShape).background(RakshakSetuBlue.copy(alpha = 0.12f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(contact.name.first().uppercase(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = RakshakSetuBlue)
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(contact.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                            Text(contact.relation, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-                            Text(contact.phone, style = MaterialTheme.typography.bodySmall, color = TextPrimary)
-                        }
-                        Row {
-                            IconButton(onClick = {}) { Icon(Icons.Filled.Call, contentDescription = "Call", tint = SafeGreen) }
-                            IconButton(onClick = { contacts = contacts.filter { it.id != contact.id } }) {
-                                Icon(Icons.Filled.Delete, contentDescription = "Remove", tint = BlockedRed.copy(alpha = 0.7f))
+            Text("Guardians (${guardians.size}/${ElderModeStore.MAX_GUARDIANS})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+            if (guardians.isEmpty()) {
+                Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = SurfaceWhite)) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        Text("No family guardians added yet. Tap (+) to add trusted family contacts.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            } else {
+                guardians.forEach { guardian ->
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier.size(44.dp).clip(CircleShape).background(RakshakSetuBlue.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(guardian.name.firstOrNull()?.uppercase() ?: "G", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = RakshakSetuBlue)
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(guardian.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                Text("Emergency Guardian", style = MaterialTheme.typography.labelSmall, color = SafeGreen)
+                                Text(guardian.number, style = MaterialTheme.typography.bodySmall, color = TextPrimary)
+                            }
+                            Row {
+                                IconButton(onClick = {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${guardian.number}"))
+                                    context.startActivity(intent)
+                                }) { Icon(Icons.Filled.Call, contentDescription = "Call", tint = SafeGreen) }
+                                IconButton(onClick = {
+                                    store.removeGuardian(guardian.number)
+                                    guardians = store.getGuardians()
+                                }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Remove", tint = BlockedRed.copy(alpha = 0.7f))
+                                }
                             }
                         }
                     }
@@ -270,18 +352,62 @@ fun TrustedContactsScreen(onBack: () -> Unit) {
             }
         }
     }
+
+    if (showAddDialog) {
+        var gName by remember { mutableStateOf("") }
+        var gNumber by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("Add Family Guardian") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = gName,
+                        onValueChange = { gName = it },
+                        label = { Text("Guardian Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = gNumber,
+                        onValueChange = { gNumber = it.filter { c -> c.isDigit() || c == '+' } },
+                        label = { Text("Mobile Number") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (gName.isNotBlank() && gNumber.length >= 10) {
+                            store.addGuardian(ElderModeStore.Guardian(gName.trim(), gNumber.trim()))
+                            guardians = store.getGuardians()
+                            showAddDialog = false
+                        }
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showAddDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 // ── SECURITY & PRIVACY ────────────────────────────────────────
 @Composable
 fun SecurityPrivacyScreen(onBack: () -> Unit) {
-    var biometric by remember { mutableStateOf(true) }
-    var autoScan by remember { mutableStateOf(true) }
-    var shareAnon by remember { mutableStateOf(false) }
-    var locationData by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val consentStore = remember { ConsentStore(context) }
+    var isShieldActive by remember { mutableStateOf(consentStore.isShieldActive) }
 
     Scaffold(
         topBar = { RakshakSetuTopBar(title = "Security & Privacy", onBackClick = onBack) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -289,25 +415,40 @@ fun SecurityPrivacyScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             SectionCard {
-                Text("Security", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Real-Time Defense", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                ToggleRow("Biometric / PIN Lock", "Require authentication to open Rakshak Setu", biometric) { biometric = it }
-                Divider(color = BorderColor, modifier = Modifier.padding(vertical = 4.dp))
-                ToggleRow("Auto Scan Calls", "Automatically analyze incoming calls", autoScan) { autoScan = it }
+                ToggleRow("Call Shield Monitoring", "Actively analyze post-call audio locally", isShieldActive) { active ->
+                    isShieldActive = active
+                    consentStore.isShieldActive = active
+                    if (active) {
+                        com.rakshaksetu.app.service.RakshakShieldService.start(context)
+                    } else {
+                        com.rakshaksetu.app.service.RakshakShieldService.stop(context)
+                    }
+                }
             }
+
             SectionCard {
-                Text("Privacy", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Device Optimizations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                ToggleRow("Share Anonymous Data", "Help improve Rakshak Setu's detection models", shareAnon) { shareAnon = it }
-                Divider(color = BorderColor, modifier = Modifier.padding(vertical = 4.dp))
-                ToggleRow("Include Location in Reports", "Add your location to cybercrime reports", locationData) { locationData = it }
-            }
-            SectionCard {
-                Text("Data Management", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                ProfileMenuItem(Icons.Filled.Download, "Export My Data", RakshakSetuBlue) {}
+                ProfileMenuItem(Icons.Filled.BatteryChargingFull, "Request Battery Whitelist", RakshakSetuBlue) {
+                    BatteryOptimizationHelper.requestBatteryOptimizationExemption(context)
+                }
                 Divider(color = BorderColor)
-                ProfileMenuItem(Icons.Filled.DeleteForever, "Delete All Data", BlockedRed) {}
+                ProfileMenuItem(Icons.Filled.Settings, "OEM Autostart Settings", Color(0xFF607D8B)) {
+                    BatteryOptimizationHelper.openManufacturerBatterySettings(context)
+                }
+            }
+
+            SectionCard {
+                Text("DPDP Act Compliance & Data Purge", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                ProfileMenuItem(Icons.Filled.DeleteForever, "Purge All Evidence & Logs", BlockedRed) {
+                    consentStore.purgeEvidence(context)
+                    scope.launch {
+                        snackbarHostState.showSnackbar("All local evidence & audio logs completely purged.")
+                    }
+                }
             }
         }
     }
@@ -337,16 +478,15 @@ fun ToggleRow(title: String, subtitle: String, checked: Boolean, onToggle: (Bool
 fun NotificationSettingsScreen(onBack: () -> Unit) {
     val settings = remember {
         mutableStateListOf(
-            Triple("Red Alert Notifications", "Critical threat detected", true),
-            Triple("Yellow Alert Notifications", "Suspicious activity detected", true),
-            Triple("Scan Results", "When a scan finishes", true),
-            Triple("Daily Safety Tips", "Educational notifications", false),
-            Triple("Rakshak Setu Updates", "App and database updates", true)
+            Triple("Red Alert High-Risk Notifications", "Critical threat detected", true),
+            Triple("Yellow Alert Warning Notifications", "Suspicious activity detected", true),
+            Triple("Call Analysis Completed Notice", "When a call scan finishes", true),
+            Triple("Elder Mode Emergency SMS Alerts", "Auto-alert family guardians", true)
         )
     }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Notifications", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Notification Preferences", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -363,35 +503,51 @@ fun NotificationSettingsScreen(onBack: () -> Unit) {
 // ── HELP & SUPPORT ────────────────────────────────────────────
 @Composable
 fun HelpSupportScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
     val faqs = listOf(
-        "How does call analysis work?" to "Rakshak Setu uses local AI models to detect synthetic voice patterns and scam scripts.",
-        "Is my data stored on a server?" to "No. All analysis in this demo runs entirely on-device. No data is transmitted.",
-        "What is a Red Alert?" to "A Red Alert means a confirmed high-risk threat was detected. Take immediate action.",
-        "How do I report a cybercrime?" to "Use the Reports tab → New Report to file a 4-step cybercrime incident report.",
-        "Can I trust the scan results?" to "Results are probabilistic indicators. Always verify with official channels for critical decisions."
+        "How does AI voice clone detection work?" to "Rakshak Setu uses the AASIST graph neural network model to evaluate spectral phase anomalies in synthetic audio and detect neural vocoder artifacts in real-time.",
+        "Is my call audio uploaded to the cloud?" to "No. In accordance with the DPDP Act 2023, all audio transcription, intent matching, and deepfake verification happen 100% locally on your phone.",
+        "What happens during a Red Alert?" to "When a high-confidence voice clone or digital arrest scam is detected, Rakshak Setu fires an urgent system alert, notifies family guardians if Elder Mode is enabled, and generates a legal complaint dossier for 1930.",
+        "How do I file a Cybercrime report?" to "Use the Reports tab or tap 'NCRP Portal' to open the guided automated reporting tool pre-filled with the scammer's phone number and incident transcript.",
+        "What is Golden Hour in cyber fraud?" to "Calling the 1930 helpline within 1 to 2 hours of a fraudulent transaction allows banks and law enforcement to freeze the stolen funds before the fraudster withdraws them."
     )
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Help & Support", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Help & Helplines", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Quick contact
             Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = SurfaceWhite), elevation = CardDefaults.cardElevation(2.dp)) {
                 Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    listOf(Icons.Filled.Call to "1930", Icons.Filled.Email to "Email Us", Icons.Filled.Chat to "Live Chat").forEach { (icon, label) ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f).clickable {}) {
-                            Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(RakshakSetuBlue.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                                Icon(icon, contentDescription = label, tint = RakshakSetuBlue, modifier = Modifier.size(22.dp))
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            Text(label, style = MaterialTheme.typography.labelSmall, color = RakshakSetuBlue, fontWeight = FontWeight.SemiBold)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f).clickable {
+                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:1930"))
+                        context.startActivity(intent)
+                    }) {
+                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(RakshakSetuBlue.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Call, contentDescription = "1930", tint = RakshakSetuBlue, modifier = Modifier.size(22.dp))
                         }
+                        Spacer(Modifier.height(6.dp))
+                        Text("Call 1930", style = MaterialTheme.typography.labelSmall, color = RakshakSetuBlue, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f).clickable {
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:report.phishing@cybercrime.gov.in")
+                            putExtra(Intent.EXTRA_SUBJECT, "Assistance Request - Rakshak Setu")
+                        }
+                        context.startActivity(intent)
+                    }) {
+                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(RakshakSetuBlue.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Email, contentDescription = "Email", tint = RakshakSetuBlue, modifier = Modifier.size(22.dp))
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text("Email Cybercell", style = MaterialTheme.typography.labelSmall, color = RakshakSetuBlue, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
 
-            Text("FAQs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Frequently Asked Questions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             faqs.forEach { (q, a) ->
                 var expanded by remember { mutableStateOf(false) }
                 Card(
@@ -430,87 +586,40 @@ fun AboutRakshakSetuScreen(onBack: () -> Unit) {
         ) {
             Icon(Icons.Filled.Shield, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(64.dp))
             Text("Rakshak Setu", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = RakshakSetuBlue)
-            Text("v1.0.0 — Frontend Demo", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-            Text("Your Digital Safety Companion", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Text("AI Voice Cloning & Telecom Fraud Defense System", style = MaterialTheme.typography.bodyMedium, color = TextSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
 
             SectionCard {
-                listOf("Build" to "1.0.0-demo", "Platform" to "Android (Jetpack Compose)", "Design System" to "Material 3", "License" to "Demo / Prototype").forEach { (k, v) ->
+                listOf(
+                    "Challenge" to "Smart India Hackathon 2026",
+                    "Problem ID" to "SIH26104",
+                    "Core AI" to "AASIST Deepfake Audio Detector",
+                    "Speech Engine" to "Vosk Kaldi Offline ASR",
+                    "Semantic Engine" to "MiniLM Intent Embeddings",
+                    "Architecture" to "100% On-Device AI (DPDP Compliant)"
+                ).forEach { (k, v) ->
                     AnalysisRow(k, v)
                 }
             }
 
             Text(
-                "Rakshak Setu is an AI-powered real-time voice clone detection and scam prevention system, built for Smart India Hackathon 2026 (SIH26104).\n\nIt uses AASIST neural network deepfake detection, Vosk ASR speech recognition, and multi-signal scam analysis to protect you from voice cloning impersonation attacks in real-time.",
+                "Rakshak Setu empowers citizens against sophisticated AI impersonation attacks by analyzing voice patterns, acoustic synthetic signatures, and pressure tactics in real-time, providing immediate intervention and legal complaint generation for the 1930 National Cyber Crime Reporting Portal.",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary,
-                lineHeight = 20.sp
+                lineHeight = 20.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
     }
 }
 
-// ── SETTINGS ─────────────────────────────────────────────────
+// ── SETTINGS ──────────────────────────────────────────────────
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
-    var darkMode by remember { mutableStateOf(false) }
-    var language by remember { mutableStateOf("English") }
-    var fontSize by remember { mutableStateOf("Medium") }
-
-    Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Settings", onBackClick = onBack) },
-        containerColor = BackgroundLight
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            SectionCard {
-                Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                ToggleRow("Dark Mode", "Use dark theme", darkMode) { darkMode = it }
-                Divider(color = BorderColor, modifier = Modifier.padding(vertical = 4.dp))
-                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text("Language", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        Text(language, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                    }
-                    OutlinedButton(onClick = { language = if (language == "English") "Hindi" else "English" }, shape = RoundedCornerShape(8.dp)) {
-                        Text("Change", style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
-            SectionCard {
-                Text("Cache & Storage", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                AnalysisRow("App Cache", "24 MB")
-                Spacer(Modifier.height(8.dp))
-                SecondaryButton("Clear Cache", onClick = {}, modifier = Modifier.fillMaxWidth())
-            }
-        }
-    }
+    PersonalInfoScreen(onBack = onBack)
 }
 
 // ── SAVED ITEMS ───────────────────────────────────────────────
 @Composable
 fun SavedItemsScreen(onBack: () -> Unit) {
-    val items = listOf("Call: +91 98765 43210" to "High Risk", "Link: https://secure.nmrc.in" to "Safe", "File: invoice.pdf" to "Safe")
-    Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Saved Items", onBackClick = onBack) },
-        containerColor = BackgroundLight
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (items.isEmpty()) {
-                EmptyState("No saved items yet", Icons.Filled.BookmarkBorder)
-            } else {
-                items.forEach { (title, status) ->
-                    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = SurfaceWhite), elevation = CardDefaults.cardElevation(1.dp)) {
-                        Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                Text(status, style = MaterialTheme.typography.labelSmall, color = if (status == "Safe") SafeGreen else BlockedRed)
-                            }
-                            Icon(Icons.Filled.Bookmark, contentDescription = null, tint = RakshakSetuBlue)
-                        }
-                    }
-                }
-            }
-        }
-    }
+    ReportsScreen(onNavigate = {}, onBack = onBack)
 }

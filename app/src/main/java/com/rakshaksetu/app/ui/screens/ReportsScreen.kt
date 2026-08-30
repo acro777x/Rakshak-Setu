@@ -1,5 +1,7 @@
 package com.rakshaksetu.app.ui.screens
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
@@ -10,16 +12,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
+import com.rakshaksetu.app.model.DetectionResult
+import com.rakshaksetu.app.model.DetectionStore
+import com.rakshaksetu.app.ui.GovtReportWebViewActivity
+import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.data.*
 import com.rakshaksetu.app.ui.navigation.Screen
-import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.theme.*
-
-import androidx.compose.ui.platform.LocalContext
-import com.rakshaksetu.app.model.DetectionStore
-import com.rakshaksetu.app.model.DetectionResult
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ── REPORTS LIST ──────────────────────────────────────────────
 @Composable
@@ -29,16 +34,16 @@ fun ReportsScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
 
     val context = LocalContext.current
     val lastResult = remember { DetectionStore.getLastResult(context) }
-    
+
     val realReports = if (lastResult != null) {
         listOf(
-            com.rakshaksetu.app.ui.data.ReportItem(
+            ReportItem(
                 id = lastResult.callId,
                 title = "Call from ${lastResult.phoneNumber}",
                 type = "Calls",
-                status = if (lastResult.isScam) com.rakshaksetu.app.ui.data.RiskStatus.HIGH_RISK else com.rakshaksetu.app.ui.data.RiskStatus.SAFE,
-                date = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(lastResult.callEndEpoch)),
-                description = if (lastResult.isScam) "${lastResult.scamType ?: "Scam"} detected with ${(lastResult.confidence * 100).toInt()}% confidence. ${lastResult.flaggedSegments.size} flagged segments." else "Call verified safe. No threats detected."
+                status = if (lastResult.isScam) RiskStatus.HIGH_RISK else RiskStatus.SAFE,
+                date = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(lastResult.callEndEpoch)),
+                description = if (lastResult.isScam) "${lastResult.scamType?.replace('_', ' ') ?: "Scam"} detected with ${(lastResult.confidence * 100).toInt()}% confidence. Flagged: ${lastResult.flaggedSegments.joinToString("; ") { it.text }}" else "Call verified safe. No threats detected."
             )
         )
     } else emptyList()
@@ -47,7 +52,7 @@ fun ReportsScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     else realReports.filter { it.type.equals(selectedFilter, ignoreCase = true) || it.type.contains(selectedFilter.dropLast(1), ignoreCase = true) }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Reports", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Threat Dossiers & Reports", onBackClick = onBack) },
         bottomBar = { BottomNavBar(currentRoute = Screen.Reports.route, onNavigate = onNavigate) },
         containerColor = BackgroundLight,
         floatingActionButton = {
@@ -58,7 +63,7 @@ fun ReportsScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
             ) {
                 Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Icons.Filled.Add, contentDescription = null, tint = SurfaceWhite)
-                    Text("New Report", color = SurfaceWhite, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text("New Incident", color = SurfaceWhite, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -88,7 +93,15 @@ fun ReportsScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
             }
 
             if (filtered.isEmpty()) {
-                EmptyState("No reports found for '$selectedFilter'")
+                Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = SurfaceWhite)) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = SafeGreen, modifier = Modifier.size(48.dp))
+                            Text("No threats logged yet.", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Analyzed calls and scans will appear here automatically.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        }
+                    }
+                }
             } else {
                 filtered.forEach { report ->
                     ReportRow(report = report, onClick = { onNavigate(Screen.ReportDetails.createRoute(report.id)) })
@@ -133,26 +146,22 @@ fun ReportRow(report: ReportItem, onClick: () -> Unit) {
 fun ReportDetailsScreen(reportId: String, onNavigate: (String) -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     val lastResult = remember { DetectionStore.getLastResult(context) }
-    
-    val realReports = if (lastResult != null) {
-        listOf(
-            com.rakshaksetu.app.ui.data.ReportItem(
-                id = lastResult.callId,
-                title = "Call from ${lastResult.phoneNumber}",
-                type = "Calls",
-                status = if (lastResult.isScam) com.rakshaksetu.app.ui.data.RiskStatus.HIGH_RISK else com.rakshaksetu.app.ui.data.RiskStatus.SAFE,
-                date = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(lastResult.callEndEpoch)),
-                description = if (lastResult.isScam) "${lastResult.scamType ?: "Scam"} detected with ${(lastResult.confidence * 100).toInt()}% confidence. ${lastResult.flaggedSegments.size} flagged segments." else "Call verified safe. No threats detected."
-            )
-        )
-    } else emptyList()
 
-    val report = realReports.find { it.id == reportId } ?: realReports.firstOrNull() ?: com.rakshaksetu.app.ui.data.ReportItem(
-        id = "dummy", title = "No Data", type = "Calls", status = RiskStatus.SAFE, date = "", description = "No data available."
-    )
+    val report = if (lastResult != null && (reportId.isBlank() || reportId == lastResult.callId)) {
+        ReportItem(
+            id = lastResult.callId,
+            title = "Call from ${lastResult.phoneNumber}",
+            type = "Calls",
+            status = if (lastResult.isScam) RiskStatus.HIGH_RISK else RiskStatus.SAFE,
+            date = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(lastResult.callEndEpoch)),
+            description = if (lastResult.isScam) "${lastResult.scamType?.replace('_', ' ') ?: "Scam"} detected with ${(lastResult.confidence * 100).toInt()}% confidence. ${lastResult.flaggedSegments.size} flagged segments." else "Call verified safe. No threats detected."
+        )
+    } else {
+        ReportItem(id = "none", title = "Incident Dossier", type = "Calls", status = RiskStatus.SAFE, date = "Today", description = "No active threat dossier.")
+    }
 
     Scaffold(
-        topBar = { RakshakSetuTopBar(title = "Report Details", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Incident Dossier", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -169,25 +178,39 @@ fun ReportDetailsScreen(reportId: String, onNavigate: (String) -> Unit, onBack: 
             )
 
             SectionCard {
-                Text("Report Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("Analysis Metrics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                AnalysisRow("Type", report.type, TextPrimary)
-                AnalysisRow("Date", report.date, TextPrimary)
-                AnalysisRow("Status", report.status.name, when (report.status) {
+                AnalysisRow("Category", report.type, TextPrimary)
+                AnalysisRow("Timestamp", report.date, TextPrimary)
+                AnalysisRow("Verdict", report.status.name, when (report.status) {
                     RiskStatus.SAFE -> SafeGreen
                     RiskStatus.SUSPICIOUS -> SuspiciousAmber
                     else -> BlockedRed
                 })
             }
 
-            SectionCard {
-                Text("Description", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(8.dp))
-                Text(report.description, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, lineHeight = 22.sp)
+            if (lastResult != null && lastResult.fullTranscript.isNotBlank()) {
+                SectionCard {
+                    Text("Captured Transcript", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text(lastResult.fullTranscript, style = MaterialTheme.typography.bodySmall, color = TextSecondary, lineHeight = 20.sp)
+                }
             }
 
-            PrimaryButton("Start Cybercrime Report", onClick = { onNavigate(Screen.ReportStep1.route) }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Flag)
-            SecondaryButton("Share Report", onClick = {}, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Share)
+            PrimaryButton(
+                text = "⚡ File on NCRP Portal (cybercrime.gov.in)",
+                onClick = {
+                    context.startActivity(Intent(context, GovtReportWebViewActivity::class.java).apply {
+                        if (lastResult != null) {
+                            putExtra(GovtReportWebViewActivity.EXTRA_CALL_ID, lastResult.callId)
+                        }
+                    })
+                },
+                modifier = Modifier.fillMaxWidth(),
+                icon = Icons.Filled.Bolt
+            )
+
+            SecondaryButton("Guided 4-Step Report Wizard", onClick = { onNavigate(Screen.ReportStep1.route) }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Flag)
         }
     }
 }
