@@ -9,7 +9,7 @@ import androidx.navigation.navArgument
 import com.rakshaksetu.app.ui.screens.*
 
 @Composable
-fun RakshakSetuNavGraph() {
+fun RakshakSetuNavGraph(startDestination: String = Screen.Splash.route) {
     val navController = rememberNavController()
 
     fun navigateTo(route: String) {
@@ -22,7 +22,7 @@ fun RakshakSetuNavGraph() {
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Splash.route
+        startDestination = startDestination
     ) {
         // ── ONBOARDING ────────────────────────────────────
         composable(Screen.Splash.route) {

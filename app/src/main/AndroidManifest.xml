@@ -70,13 +70,13 @@
         <!-- Evidence Dossier Activity -->
         <activity
             android:name=".ui.EvidenceActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@style/Theme.Material3.DayNight" />
 
         <!-- Government Reporting Assistant (NCRP / Chakshu guided WebView) -->
         <activity
             android:name=".ui.GovtReportWebViewActivity"
-            android:exported="false"
+            android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:usesCleartextTraffic="false"
             android:theme="@style/Theme.Material3.DayNight" />

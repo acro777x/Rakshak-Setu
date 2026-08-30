@@ -33,17 +33,15 @@ fun ReportStep1Screen(onNext: () -> Unit, onBack: () -> Unit) {
     val lastResult = remember { DetectionStore.getLastResult(context) }
     val profile = remember { UserProfileStore(context) }
 
+    val epochMs = (lastResult?.callEndEpoch ?: System.currentTimeMillis()).let {
+        if (it > 100_000_000_000L) it else it * 1000L
+    }
+
     var incidentDate by remember {
-        mutableStateOf(
-            if (lastResult != null) SimpleDateFormat("dd MMM yyyy", Locale.US).format(Date(lastResult.callEndEpoch))
-            else SimpleDateFormat("dd MMM yyyy", Locale.US).format(Date())
-        )
+        mutableStateOf(SimpleDateFormat("dd MMM yyyy", Locale.US).format(Date(epochMs)))
     }
     var incidentTime by remember {
-        mutableStateOf(
-            if (lastResult != null) SimpleDateFormat("hh:mm a", Locale.US).format(Date(lastResult.callEndEpoch))
-            else SimpleDateFormat("hh:mm a", Locale.US).format(Date())
-        )
+        mutableStateOf(SimpleDateFormat("hh:mm a", Locale.US).format(Date(epochMs)))
     }
     var description by remember {
         mutableStateOf(
@@ -54,7 +52,7 @@ fun ReportStep1Screen(onNext: () -> Unit, onBack: () -> Unit) {
     }
 
     val prohibitedChars = setOf('#', '$', '@', '^', '*', '"', '~', '|')
-    val isDescValid = description.length >= 100 && description.none { it in prohibitedChars }
+    val isDescValid = description.length >= 50 && description.none { it in prohibitedChars }
     val charError = description.any { it in prohibitedChars }
 
     Scaffold(

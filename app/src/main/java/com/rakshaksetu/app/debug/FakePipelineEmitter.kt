@@ -14,7 +14,7 @@ object FakePipelineEmitter {
     fun voiceCloneResult(): DetectionResult = DetectionResult(
         callId = UUID.randomUUID().toString(),
         phoneNumber = "+919811002233",
-        callEndEpoch = System.currentTimeMillis() / 1000,
+        callEndEpoch = System.currentTimeMillis(),
         durationSec = 45,
         audioUri = "content://fake/audio/voice_clone",
         isScam = true,
@@ -31,7 +31,7 @@ object FakePipelineEmitter {
     fun digitalArrestResult(): DetectionResult = DetectionResult(
         callId = UUID.randomUUID().toString(),
         phoneNumber = "+919876543210",
-        callEndEpoch = System.currentTimeMillis() / 1000,
+        callEndEpoch = System.currentTimeMillis(),
         durationSec = 142,
         audioUri = "content://fake/audio/digital_arrest",
         isScam = true,
@@ -49,7 +49,7 @@ object FakePipelineEmitter {
     fun screenShareResult(): DetectionResult = DetectionResult(
         callId = UUID.randomUUID().toString(),
         phoneNumber = "+919123456789",
-        callEndEpoch = System.currentTimeMillis() / 1000,
+        callEndEpoch = System.currentTimeMillis(),
         durationSec = 98,
         audioUri = "content://fake/audio/screen_share",
         isScam = true,
@@ -66,7 +66,7 @@ object FakePipelineEmitter {
     fun kycFraudResult(): DetectionResult = DetectionResult(
         callId = UUID.randomUUID().toString(),
         phoneNumber = "+919999888877",
-        callEndEpoch = System.currentTimeMillis() / 1000,
+        callEndEpoch = System.currentTimeMillis(),
         durationSec = 110,
         audioUri = "content://fake/audio/kyc_fraud",
         isScam = true,
@@ -83,7 +83,7 @@ object FakePipelineEmitter {
     fun loanExtortionResult(): DetectionResult = DetectionResult(
         callId = UUID.randomUUID().toString(),
         phoneNumber = "+918877665544",
-        callEndEpoch = System.currentTimeMillis() / 1000,
+        callEndEpoch = System.currentTimeMillis(),
         durationSec = 60,
         audioUri = "content://fake/audio/loan_extortion",
         isScam = true,
@@ -99,33 +99,20 @@ object FakePipelineEmitter {
 
     fun benignResult(): DetectionResult = DetectionResult(
         callId = UUID.randomUUID().toString(),
-        phoneNumber = "+919456781234",
-        callEndEpoch = System.currentTimeMillis() / 1000,
-        durationSec = 75,
-        audioUri = "content://fake/audio/benign",
+        phoneNumber = "+919876000000",
+        callEndEpoch = System.currentTimeMillis(),
+        durationSec = 52,
+        audioUri = "content://fake/audio/safe_call",
         isScam = false,
         confidence = 0.08f,
         scamType = null,
         flaggedSegments = emptyList(),
-        fullTranscript = "Namaste sir, aapka Amazon courier dispatch ho gaya hai aur delivery partner 4 baje tak pahunchega. Thank you for ordering.",
-        pipelineMs = PipelineMs(fetch = 400, decode = 300, asr = 1100, embed = 150, vote = 4)
+        fullTranscript = "Haan bhai kaisa hai? Shaam ko badminton khelne chalna hai kya? Main 6 baje court par milta hoon.",
+        pipelineMs = PipelineMs(fetch = 300, decode = 250, asr = 900, embed = 150, vote = 2)
     )
 
-    fun lowConfidenceResult(): DetectionResult = DetectionResult(
-        callId = UUID.randomUUID().toString(),
-        phoneNumber = "+919777665544",
-        callEndEpoch = System.currentTimeMillis() / 1000,
-        durationSec = 50,
-        audioUri = "content://fake/audio/low_conf",
-        isScam = true,
-        confidence = 0.72f,
-        scamType = "lottery_fraud",
-        flaggedSegments = listOf(
-            FlaggedSegment(1, 10, "Aap 25 lakh ki lottery jeet gaye hain", 0.72f, "lottery_fraud")
-        ),
-        fullTranscript = "Badhai ho aap 25 lakh ki lottery jeet gaye hain claim karne ke liye processing fees dijiye.",
-        pipelineMs = PipelineMs(fetch = 400, decode = 300, asr = 1100, embed = 150, vote = 4)
-    )
+    fun scamResult(): DetectionResult = digitalArrestResult().copy(callEndEpoch = 1772370000L)
 
-    fun scamResult(): DetectionResult = digitalArrestResult()
+    fun lowConfidenceResult(): DetectionResult = digitalArrestResult().copy(confidence = 0.68f, callEndEpoch = 1772370000L)
+
 }

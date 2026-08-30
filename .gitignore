@@ -60,3 +60,11 @@ build_*.txt
 test_*.txt
 push_*.txt
 rakshak_live.log
+
+# Test screenshots and scrcpy scripts in root
+/*.png
+/*.xml
+/run_scrcpy.bat
+/scrcpy.bat
+/scrcpy.ps1
+/Start_Phone_Screen.bat

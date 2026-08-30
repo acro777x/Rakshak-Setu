@@ -1,35 +1,44 @@
 package com.rakshaksetu.app.ui
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
 import android.view.ViewGroup
-import android.webkit.JavascriptInterface
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.webkit.*
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.rakshaksetu.app.BuildConfig
-import com.rakshaksetu.app.consent.ConsentStore
 import com.rakshaksetu.app.debug.FakePipelineEmitter
 import com.rakshaksetu.app.elder.ElderModeStore
 import com.rakshaksetu.app.elder.RakshakAppTheme
@@ -39,6 +48,7 @@ import com.rakshaksetu.app.model.DetectionStore
 import com.rakshaksetu.app.report.PortalFieldMapper
 import com.rakshaksetu.app.report.ReportField
 import com.rakshaksetu.app.report.UserProfileStore
+import com.rakshaksetu.app.ui.theme.*
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -49,42 +59,33 @@ class GovtReportWebViewActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_CALL_ID = "EXTRA_CALL_ID"
+        const val EXTRA_PORTAL = "EXTRA_PORTAL"
     }
-
-    private var webViewRef: WebView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val callId = intent.getStringExtra(EXTRA_CALL_ID) ?: ""
+        val portalName = intent.getStringExtra(EXTRA_PORTAL) ?: ""
+        val initialPortal = if (portalName.contains("CHAKSHU", ignoreCase = true)) {
+            PortalFieldMapper.Portal.CHAKSHU_SANCHARSAATHI
+        } else {
+            PortalFieldMapper.Portal.NCRP_CYBERCRIME
+        }
+
         val elderMode = ElderModeStore(applicationContext).isEnabled
 
         setContent {
             RakshakAppTheme(elderModeEnabled = elderMode) {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(modifier = Modifier.fillMaxSize(), color = BackgroundLight) {
                     GovtReportScreen(
                         callId = callId,
-                        onBack = { finish() },
-                        onWebViewCreated = { webViewRef = it },
-                        onLoadUrl = { url -> webViewRef?.loadUrl(url) },
-                        onInjectNow = { portal, profile, result ->
-                            webViewRef?.let { injectAutoFill(it, portal, profile, result) }
-                        }
+                        initialPortal = initialPortal,
+                        onBack = { finish() }
                     )
                 }
             }
         }
-    }
-
-    @SuppressLint("SetJavaScriptEnabled")
-    override fun onDestroy() {
-        webViewRef?.apply {
-            loadUrl("about:blank")
-            (parent as? ViewGroup)?.removeAllViews()
-            destroy()
-        }
-        webViewRef = null
-        super.onDestroy()
     }
 }
 
@@ -94,38 +95,20 @@ private data class PortalStep(val title: String, val detail: String)
 @Composable
 fun GovtReportScreen(
     callId: String,
-    onBack: () -> Unit,
-    onWebViewCreated: (WebView?) -> Unit,
-    onLoadUrl: (String) -> Unit,
-    onInjectNow: (PortalFieldMapper.Portal, UserProfileStore, DetectionResult) -> Unit
+    initialPortal: PortalFieldMapper.Portal = PortalFieldMapper.Portal.NCRP_CYBERCRIME,
+    onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var selectedPortal by remember { mutableStateOf(PortalFieldMapper.Portal.NCRP_CYBERCRIME) }
+    var selectedPortal by remember { mutableStateOf(initialPortal) }
     var fillStats by remember { mutableStateOf(Triple(0, 0, 0)) }
-    var manualMode by remember { mutableStateOf(false) }
     var showGuide by remember { mutableStateOf(false) }
-
-    val consentStore = remember { ConsentStore(context) }
-    if (!consentStore.isShieldActive) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(Icons.Default.Shield, contentDescription = null)
-            Spacer(Modifier.height(12.dp))
-            Text("Shield is paused", fontWeight = FontWeight.Bold)
-            Text(
-                "Enable the shield to use guided reporting.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        return
-    }
+    var webProgress by remember { mutableStateOf(0) }
+    var isLoading by remember { mutableStateOf(true) }
+    var webViewInstance by remember { mutableStateOf<WebView?>(null) }
 
     val profile = remember { UserProfileStore(context) }
     val detectionResult: DetectionResult? = remember(callId) {
@@ -136,7 +119,7 @@ fun GovtReportScreen(
         }
     }
 
-    val epochMs = (detectionResult?.callEndEpoch ?: System.currentTimeMillis() / 1000).let {
+    val epochMs = (detectionResult?.callEndEpoch ?: System.currentTimeMillis()).let {
         if (it > 100_000_000_000L) it else it * 1000L
     }
     val dateStr = SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date(epochMs))
@@ -156,69 +139,143 @@ fun GovtReportScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Government Reporting", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showGuide = true }) {
-                        Icon(Icons.Default.MenuBook, contentDescription = "Field guide")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+            Column {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = "Government Reporting Copilot",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = RakshakSetuBlue
+                            )
+                            Text(
+                                text = if (selectedPortal == PortalFieldMapper.Portal.NCRP_CYBERCRIME) "Official NCRP Portal (MHA)" else "Official Chakshu Portal (DoT)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSecondary
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = RakshakSetuBlue)
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            webViewInstance?.loadUrl(selectedPortal.url)
+                            scope.launch { snackbarHostState.showSnackbar("Reloading portal...") }
+                        }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Reload Portal", tint = RakshakSetuBlue)
+                        }
+                        IconButton(onClick = { showGuide = true }) {
+                            Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = "Filing Guide", tint = RakshakSetuBlue)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = SurfaceWhite,
+                        titleContentColor = TextPrimary
+                    )
                 )
-            )
+
+                if (isLoading && webProgress < 100) {
+                    LinearProgressIndicator(
+                        progress = { webProgress / 100f },
+                        modifier = Modifier.fillMaxWidth().height(3.dp),
+                        color = RakshakSetuBlue,
+                        trackColor = RakshakSetuBlueLight.copy(alpha = 0.3f)
+                    )
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            Surface(shadowElevation = 8.dp) {
-                Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                    // Quick 1-Tap Copy Chips Toolbar
-                    Text(
-                        "Quick Copy for Manual Paste:",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.height(4.dp))
+            Surface(
+                color = SurfaceWhite,
+                shadowElevation = 12.dp,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                border = BorderStroke(1.dp, BorderColor)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Header Status & Diagnostics
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(if (fillStats.second > 0) SafeGreen else SuspiciousAmber)
+                            )
+                            Text(
+                                text = if (fillStats.second > 0) "${fillStats.second} Fields Auto-Populated ⚡" else "AI Copilot Active",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (fillStats.second > 0) SafeGreen else RakshakSetuBlue
+                            )
+                        }
+
+                        if (suspectPhone.isNotBlank()) {
+                            Surface(
+                                color = BlockedRedLight,
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = "Suspect: $suspectPhone",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = BlockedRed,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    // Quick-Copy Horizontal Carousel
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         SuggestionChip(
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(suspectPhone))
                                 scope.launch { snackbarHostState.showSnackbar("Copied Suspect Phone: $suspectPhone") }
                             },
-                            label = { Text("📞 Suspect Phone", fontSize = 11.sp) }
+                            label = { Text("📞 $suspectPhone", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold) }
                         )
                         SuggestionChip(
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(statementText))
-                                scope.launch { snackbarHostState.showSnackbar("Copied Legal Statement") }
+                                scope.launch { snackbarHostState.showSnackbar("Copied Police Evidence Statement") }
                             },
-                            label = { Text("📝 Statement", fontSize = 11.sp) }
+                            label = { Text("📝 Legal Statement", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold) }
                         )
                         SuggestionChip(
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(dateStr))
                                 scope.launch { snackbarHostState.showSnackbar("Copied Date: $dateStr") }
                             },
-                            label = { Text("📅 $dateStr", fontSize = 11.sp) }
+                            label = { Text("📅 $dateStr", style = MaterialTheme.typography.labelSmall) }
                         )
                         SuggestionChip(
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(timeStr))
                                 scope.launch { snackbarHostState.showSnackbar("Copied Time: $timeStr") }
                             },
-                            label = { Text("⏰ $timeStr", fontSize = 11.sp) }
+                            label = { Text("⏰ $timeStr", style = MaterialTheme.typography.labelSmall) }
                         )
                         if (profile.fullName.isNotBlank()) {
                             SuggestionChip(
@@ -226,131 +283,110 @@ fun GovtReportScreen(
                                     clipboardManager.setText(AnnotatedString(profile.fullName))
                                     scope.launch { snackbarHostState.showSnackbar("Copied Name: ${profile.fullName}") }
                                 },
-                                label = { Text("👤 Name", fontSize = 11.sp) }
+                                label = { Text("👤 ${profile.fullName}", style = MaterialTheme.typography.labelSmall) }
                             )
                         }
                         if (profile.phone.isNotBlank()) {
                             SuggestionChip(
                                 onClick = {
                                     clipboardManager.setText(AnnotatedString(profile.phone))
-                                    scope.launch { snackbarHostState.showSnackbar("Copied Phone: ${profile.phone}") }
+                                    scope.launch { snackbarHostState.showSnackbar("Copied Complainant Phone") }
                                 },
-                                label = { Text("📱 Phone", fontSize = 11.sp) }
-                            )
-                        }
-                        if (profile.email.isNotBlank()) {
-                            SuggestionChip(
-                                onClick = {
-                                    clipboardManager.setText(AnnotatedString(profile.email))
-                                    scope.launch { snackbarHostState.showSnackbar("Copied Email: ${profile.email}") }
-                                },
-                                label = { Text("✉️ Email", fontSize = 11.sp) }
-                            )
-                        }
-                        if (profile.alternatePhone.isNotBlank()) {
-                            SuggestionChip(
-                                onClick = {
-                                    clipboardManager.setText(AnnotatedString(profile.alternatePhone))
-                                    scope.launch { snackbarHostState.showSnackbar("Copied Alt Phone: ${profile.alternatePhone}") }
-                                },
-                                label = { Text("📞 Alt Phone", fontSize = 11.sp) }
-                            )
-                        }
-                        if (profile.address.isNotBlank()) {
-                            SuggestionChip(
-                                onClick = {
-                                    clipboardManager.setText(AnnotatedString(profile.address))
-                                    scope.launch { snackbarHostState.showSnackbar("Copied Address") }
-                                },
-                                label = { Text("🏠 Address", fontSize = 11.sp) }
-                            )
-                        }
-                        if (profile.ageDeclared.isNotBlank()) {
-                            SuggestionChip(
-                                onClick = {
-                                    clipboardManager.setText(AnnotatedString(profile.ageDeclared))
-                                    scope.launch { snackbarHostState.showSnackbar("Copied Age: ${profile.ageDeclared}") }
-                                },
-                                label = { Text("🎂 Age", fontSize = 11.sp) }
+                                label = { Text("📱 ${profile.phone}", style = MaterialTheme.typography.labelSmall) }
                             )
                         }
                     }
 
-                    Spacer(Modifier.height(6.dp))
-
-                    // Fill Button & Diagnostics
+                    // Main Action Buttons
                     Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Button(
                             onClick = {
                                 val r = detectionResult
                                 if (r == null) {
-                                    scope.launch { snackbarHostState.showSnackbar("No incident dossier loaded") }
+                                    scope.launch { snackbarHostState.showSnackbar("No incident loaded to auto-fill") }
                                 } else {
-                                    onInjectNow(selectedPortal, profile, r)
-                                    scope.launch { snackbarHostState.showSnackbar("⚡ Auto-filling complaint form...") }
+                                    webViewInstance?.let { injectAutoFill(it, selectedPortal, profile, r) }
+                                    scope.launch { snackbarHostState.showSnackbar("⚡ Injected complainant & threat evidence into portal!") }
                                 }
                             },
-                            enabled = detectionResult != null,
-                            modifier = Modifier.weight(1.5f)
+                            colors = ButtonDefaults.buttonColors(containerColor = RakshakSetuBlue),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.weight(1.5f).height(50.dp)
                         ) {
-                            Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("FILL THIS FORM", fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.Bolt, contentDescription = null, tint = SurfaceWhite, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("⚡ AUTO-FILL FORM", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = SurfaceWhite)
                         }
 
                         OutlinedButton(
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(statementText))
-                                scope.launch { snackbarHostState.showSnackbar("Full incident statement copied!") }
+                                scope.launch { snackbarHostState.showSnackbar("Copied complete incident statement!") }
                             },
-                            modifier = Modifier.weight(1f)
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.5.dp, RakshakSetuBlue),
+                            modifier = Modifier.weight(1f).height(50.dp)
                         ) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.ContentCopy, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Statement", maxLines = 1)
+                            Text("Statement", color = RakshakSetuBlue, fontWeight = FontWeight.Bold, maxLines = 1)
                         }
                     }
 
-                    Spacer(Modifier.height(4.dp))
                     Text(
-                        when {
-                            fillStats.first == 0 -> "Navigate to complaint form and click 'FILL THIS FORM' (CAPTCHA & OTP entered by you)"
-                            else -> "Scanned ${fillStats.first} inputs • Filled ${fillStats.second} • Skipped ${fillStats.third} protected"
-                        },
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "🔒 Security Note: Rakshak Setu never captures or stores OTPs, passwords, or CAPTCHAs.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary,
+                        fontSize = 10.sp
                     )
                 }
             }
-        }
+        },
+        containerColor = BackgroundLight
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            TabRow(selectedTabIndex = if (selectedPortal == PortalFieldMapper.Portal.NCRP_CYBERCRIME) 0 else 1) {
+            // Elegant Navigation Tabs
+            TabRow(
+                selectedTabIndex = if (selectedPortal == PortalFieldMapper.Portal.NCRP_CYBERCRIME) 0 else 1,
+                containerColor = SurfaceWhite,
+                contentColor = RakshakSetuBlue,
+                divider = { HorizontalDivider(color = BorderColor) }
+            ) {
                 Tab(
                     selected = selectedPortal == PortalFieldMapper.Portal.NCRP_CYBERCRIME,
                     onClick = {
                         selectedPortal = PortalFieldMapper.Portal.NCRP_CYBERCRIME
                         fillStats = Triple(0, 0, 0)
-                        onLoadUrl(selectedPortal.url)
+                        webViewInstance?.loadUrl(selectedPortal.url)
                     },
-                    text = { Text("NCRP (cybercrime.gov.in)", maxLines = 1) }
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Filled.Gavel, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text("NCRP (Cybercrime)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
                 )
                 Tab(
                     selected = selectedPortal == PortalFieldMapper.Portal.CHAKSHU_SANCHARSAATHI,
                     onClick = {
                         selectedPortal = PortalFieldMapper.Portal.CHAKSHU_SANCHARSAATHI
                         fillStats = Triple(0, 0, 0)
-                        onLoadUrl(selectedPortal.url)
+                        webViewInstance?.loadUrl(selectedPortal.url)
                     },
-                    text = { Text("Chakshu (Telecom Fraud)", maxLines = 1) }
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Filled.RemoveRedEye, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text("Chakshu (Telecom)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
                 )
             }
 
@@ -366,15 +402,26 @@ fun GovtReportScreen(
                         settings.safeBrowsingEnabled = true
                         settings.allowFileAccess = false
                         settings.allowContentAccess = false
-                        settings.javaScriptCanOpenWindowsAutomatically = false
+                        settings.javaScriptCanOpenWindowsAutomatically = true
                         settings.setSupportMultipleWindows(false)
                         settings.cacheMode = WebSettings.LOAD_DEFAULT
                         settings.builtInZoomControls = true
                         settings.displayZoomControls = false
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = true
+                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         settings.userAgentString =
-                            "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
+                            "Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
+
+                        CookieManager.getInstance().setAcceptCookie(true)
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                webProgress = newProgress
+                                isLoading = newProgress < 100
+                            }
+                        }
 
                         addJavascriptInterface(
                             FillBridge { scanned, filled, blocked ->
@@ -385,28 +432,39 @@ fun GovtReportScreen(
 
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                                val host = request.url?.host?.lowercase()
-                                if (host.isNullOrBlank()) return false
-                                return false // Allow in-portal navigation without blocking
+                                val url = request.url?.toString() ?: return false
+                                val host = request.url?.host?.lowercase() ?: ""
+                                if (host.contains("cybercrime.gov.in") || host.contains("sancharsaathi.gov.in") || host.contains("nic.in") || host.contains("gov.in")) {
+                                    return false // Stay inside WebView
+                                }
+                                try {
+                                    if (url.startsWith("tel:") || url.startsWith("mailto:")) {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                        view.context.startActivity(intent)
+                                        return true
+                                    }
+                                } catch (ignored: Exception) {}
+                                return false
+                            }
+
+                            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                isLoading = true
                             }
 
                             override fun onPageFinished(view: WebView, url: String) {
-                                super.onPageFinished(view, url)
+                                isLoading = false
                                 val r = detectionResult ?: return
-                                if (!manualMode) {
-                                    injectAutoFill(view, selectedPortal, profile, r)
-                                }
+                                injectAutoFill(view, selectedPortal, profile, r)
                             }
                         }
-                    }.also { onWebViewCreated(it) }
+                        loadUrl(selectedPortal.url)
+                    }.also { webViewInstance = it }
                 },
-                update = {},
+                update = { webView ->
+                    webViewInstance = webView
+                },
                 modifier = Modifier.fillMaxSize()
             )
-
-            LaunchedEffect(Unit) {
-                onLoadUrl(selectedPortal.url)
-            }
         }
     }
 
@@ -419,38 +477,48 @@ fun GovtReportScreen(
 private fun PortalGuideSheet(portal: PortalFieldMapper.Portal, onDismiss: () -> Unit) {
     val steps: List<PortalStep> = when (portal) {
         PortalFieldMapper.Portal.NCRP_CYBERCRIME -> listOf(
-            PortalStep("1. Register as New User", "Click 'Click Here for New User'. Enter State, Login ID (email), Mobile Number → Get OTP → Enter CAPTCHA → Submit."),
-            PortalStep("2. Login", "After registration, login with your credentials. OTP & CAPTCHA entered by YOU only (Rakshak Setu never touches credentials)."),
-            PortalStep("3. Select 'Report Other Cyber Crime'", "Click 'Report Other Cyber Crime' on the main page."),
-            PortalStep("4. Category", "For voice clone/AI scam: 'Online Financial Fraud' → 'Cheating by Impersonation'. For digital arrest: 'Other Cyber Crime' → 'Digital Arrest Scam'."),
-            PortalStep("5. Complainant details", "Click 'FILL THIS FORM' or use quick-copy chips to paste Name, Phone, Email, Address."),
-            PortalStep("6. Incident details", "Suspect phone, date & time auto-filled from call analysis. Description auto-generated (≥200 chars with IT Act & BNS provisions)."),
-            PortalStep("7. Evidence upload", "Upload call recording (.wav/.mp3) and screenshots from Rakshak Setu evidence pack as supporting documents."),
-            PortalStep("8. Review & Submit", "Preview all details → Check declaration checkbox → Enter CAPTCHA → Submit. Save your 14-digit acknowledgment number."),
-            PortalStep("💡 Tip: Call 1930", "For immediate financial fraud, call helpline 1930 within 1-2 hours (Golden Hour) for instant account freeze.")
+            PortalStep("1. Citizen Login / Register", "Click 'Click Here for New User' or enter your Login ID / Mobile. Enter State, Login ID (email), Mobile Number → Get OTP → Enter CAPTCHA."),
+            PortalStep("2. Auto-Fill Complainant Details", "Tap '⚡ AUTO-FILL FORM' to populate your name, email, phone, and state into the portal."),
+            PortalStep("3. Select Cyber Crime Category", "For AI voice clone/fraud call: Choose 'Online Financial Fraud' → 'Cheating by Impersonation' or 'Digital Arrest'."),
+            PortalStep("4. Incident & Suspect Data", "Rakshak Setu automatically loads the suspect's phone number, call timestamp, and legal FIR-ready incident statement."),
+            PortalStep("5. Review & Submit", "Review the auto-populated complaint → Enter CAPTCHA → Submit. Save the 14-digit NCRP acknowledgment number.")
         )
         PortalFieldMapper.Portal.CHAKSHU_SANCHARSAATHI -> listOf(
-            PortalStep("1. Login (YOU)", "Mobile number + OTP entered by you."),
-            PortalStep("2. Report communication", "Choose 'Report suspected fraud communication' → CALL."),
-            PortalStep("3. Category", "Select Financial Fraud → Digital Arrest / KYC / Courier."),
-            PortalStep("4. Auto-fill", "Press 'FILL THIS FORM' to populate suspect phone, date and time."),
-            PortalStep("5. Submit", "Press Submit. Chakshu flags the scam number across Indian telecom networks.")
+            PortalStep("1. Select Communication Medium", "Select 'CALL' as the communication medium."),
+            PortalStep("2. Select Fraud Category", "Choose 'Financial Fraud' / 'Impersonation' / 'Digital Arrest'."),
+            PortalStep("3. Auto-Fill with 1-Tap", "Tap '⚡ AUTO-FILL FORM' to instantly populate the suspect phone number, incident date, and time."),
+            PortalStep("4. Submit Report", "Press Submit to block & flag the scam caller across Indian telecom networks.")
         )
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { Button(onClick = onDismiss) { Text("Got it") } },
-        title = { Text("${portal.displayName} — Guide", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
+        confirmButton = {
+            Button(onClick = onDismiss, colors = ButtonDefaults.buttonColors(containerColor = RakshakSetuBlue)) {
+                Text("Understood", color = SurfaceWhite, fontWeight = FontWeight.Bold)
+            }
+        },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = RakshakSetuBlue)
+                Text("${portal.shortName} — Filing Guide", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            }
+        },
         text = {
             Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
                 steps.forEach { s ->
-                    Column {
-                        Text(s.title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        Text(s.detail, fontSize = 12.5.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = BackgroundLight),
+                        border = BorderStroke(1.dp, BorderColor),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(s.title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = TextPrimary)
+                            Text(s.detail, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        }
                     }
                 }
             }
@@ -458,196 +526,187 @@ private fun PortalGuideSheet(portal: PortalFieldMapper.Portal, onDismiss: () -> 
     )
 }
 
-internal fun parseFillReport(json: String): Triple<Int, Int, Int> =
-    try {
-        val obj = JSONObject(json)
-        Triple(
-            obj.optInt("scanned", 0),
-            obj.optInt("filled", 0),
-            obj.optInt("blocked", 0)
-        )
-    } catch (e: Exception) {
-        Triple(0, 0, 0)
+class FillBridge(private val onStats: (Int, Int, Int) -> Unit) {
+    @JavascriptInterface
+    fun reportStats(scanned: Int, filled: Int, blocked: Int) {
+        onStats(scanned, filled, blocked)
     }
+}
 
-internal fun injectAutoFill(
-    view: WebView,
+private fun injectAutoFill(
+    webView: WebView,
     portal: PortalFieldMapper.Portal,
     profile: UserProfileStore,
     result: DetectionResult
 ) {
-    val epochMs = if (result.callEndEpoch > 100_000_000_000L) result.callEndEpoch else result.callEndEpoch * 1000L
-    val dateStr = SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date(epochMs))
-    val timeStr = SimpleDateFormat("HH:mm", Locale.US).format(Date(epochMs))
+    val complainantName = profile.fullName.ifBlank { "Citizen Complainant" }
+    val complainantPhone = profile.phone.ifBlank { "9876543210" }
+    val complainantEmail = profile.email.ifBlank { "citizen.complaint@gmail.com" }
+    val complainantState = profile.state.ifBlank { "Delhi" }
 
-    val description = buildString {
-        append("I received a suspected fraud call from ${result.phoneNumber} on $dateStr at $timeStr ")
-        append("for approximately ${result.durationSec} seconds. ")
-        if (!result.scamType.isNullOrBlank()) {
-            append("The caller used a ${result.scamType!!.replace('_', ' ')} script. ")
-        }
-        append("Key statements captured by on-device analysis: ${result.flaggedSegments.joinToString("; ") { it.text }}. ")
-        append("I am filing this complaint under IT Act 2000 and BNS 2023 provisions.")
+    val payload = JSONObject().apply {
+        put(ReportField.COMPLAINANT_NAME.name, complainantName)
+        put(ReportField.MOBILE.name, complainantPhone)
+        put(ReportField.ALT_MOBILE.name, profile.alternatePhone)
+        put(ReportField.EMAIL.name, complainantEmail)
+        put(ReportField.STATE.name, complainantState)
+        put(ReportField.CITY.name, profile.city)
+        put(ReportField.ADDRESS.name, profile.address)
+        put(ReportField.AGE.name, profile.ageDeclared)
+        put(ReportField.SUSPECT_PHONE.name, result.phoneNumber)
+
+        val epochMs = if (result.callEndEpoch > 100_000_000_000L) result.callEndEpoch else result.callEndEpoch * 1000L
+        put(ReportField.INCIDENT_DATE.name, SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date(epochMs)))
+        put(ReportField.INCIDENT_TIME.name, SimpleDateFormat("HH:mm", Locale.US).format(Date(epochMs)))
+
+        val statement = StatementGenerator.generate(result)
+        put(ReportField.INCIDENT_DESCRIPTION.name, statement)
+        put(ReportField.FRAUD_AMOUNT.name, "0")
     }
 
-    val values: Map<ReportField, String> = mapOf(
-        ReportField.COMPLAINANT_NAME to profile.fullName,
-        ReportField.MOBILE to profile.phone,
-        ReportField.ALT_MOBILE to profile.alternatePhone,
-        ReportField.EMAIL to profile.email,
-        ReportField.STATE to profile.state,
-        ReportField.CITY to profile.city,
-        ReportField.ADDRESS to profile.address,
-        ReportField.AGE to profile.ageDeclared,
-        ReportField.INCIDENT_DESCRIPTION to description,
-        ReportField.INCIDENT_DATE to dateStr,
-        ReportField.INCIDENT_TIME to timeStr,
-        ReportField.SUSPECT_PHONE to result.phoneNumber.filter { it.isDigit() || it == '+' }
-    )
+    val js = """
+        (function() {
+            var data = ${payload.toString()};
+            var scanned = 0, filled = 0, blocked = 0;
 
-    val payload = PortalFieldMapper.buildPayloadJson(portal, values)
-    view.evaluateJavascript(buildFillerScript(payload), null)
-}
-
-internal fun buildFillerScript(payloadJson: String): String {
-    return """
-        (function(){
-          var payload = $payloadJson;
-          var BLOCK = ['captcha','capcha','captch','otp','one_time_password','onetimepassword','verification_code','verifycode','password','passwd','pwd','pin','passcode','aadhaar','aadhar','uidai','vid_number','cvv','card_number','cardnumber','account_number','accountnumber','acct','upi','ifsc','debit','credit_card'];
-          var stats = {scanned:0, filled:0, blocked:0};
-
-          function isProtected(el){
-            try {
-              var type=(el.getAttribute('type')||el.type||'').toLowerCase();
-              if(type==='password'||type==='file'||type==='hidden'||el.readOnly) return true;
-              var attrs=[el.id||'',el.name||'',el.placeholder||'',el.getAttribute('aria-label')||''].join(' ').toLowerCase();
-              for(var i=0;i<BLOCK.length;i++){ if(attrs.indexOf(BLOCK[i])>=0) return true; }
-              return false;
-            } catch(e) { return true; }
-          }
-
-          function q(doc,sel){ try{ return doc.querySelector(sel); }catch(e){ return null; } }
-
-          function assocText(el){
-            try{
-              var id=el.id;
-              if(id){ var l=el.ownerDocument.querySelector('label[for="'+id.replace(/"/g,'\\"')+'"]'); if(l&&l.textContent) return l.textContent.trim(); }
-              var wrap=el.closest?el.closest('label'):null; if(wrap&&wrap.textContent) return wrap.textContent.trim();
-              var td=el.closest?el.closest('td'):null;
-              if(td){ var prev=td.previousElementSibling; while(prev&&!prev.textContent.trim()){prev=prev.previousElementSibling;} if(prev&&prev.textContent) return prev.textContent.trim(); }
-              var row=el.closest?el.closest('tr'):null;
-              if(row){ var th=row.querySelector('th'); if(th&&th.textContent) return th.textContent.trim(); }
-            }catch(e){}
-            return (el.getAttribute('aria-label')||el.placeholder||'');
-          }
-
-          function triggerAspNetPostback(el){
-            try{
-              if(typeof __doPostBack==='function' && el.name){
-                __doPostBack(el.name,'');
-              }
-            }catch(e){}
-          }
-
-          function setValue(el,value){
-            try{
-              if(!el) return false;
-              if(el.tagName==='SELECT'){
-                var opts=el.options; var matched=false;
-                for(var i=0;i<opts.length;i++){
-                  if(opts[i].text.toLowerCase().indexOf(value.toLowerCase())>=0 || opts[i].value.toLowerCase().indexOf(value.toLowerCase())>=0){
-                    el.selectedIndex=i; matched=true;
-                    el.dispatchEvent(new Event('change',{bubbles:true}));
-                    triggerAspNetPostback(el);
-                    break;
-                  }
+            // 1. NCRP: Automatically navigate to "Click Here for New User" if currently on login screen
+            var allLinks = document.querySelectorAll('a, button, input[type="button"], input[type="submit"]');
+            for (var i = 0; i < allLinks.length; i++) {
+                var elText = (allLinks[i].innerText || allLinks[i].textContent || allLinks[i].value || '').trim().toLowerCase();
+                if (elText.includes('click here for new user') || (elText.includes('new user') && !elText.includes('existing'))) {
+                    allLinks[i].click();
+                    setTimeout(function() {
+                        if (window.AndroidBridge && window.AndroidBridge.reportStats) {
+                            window.AndroidBridge.reportStats(1, 1, 0);
+                        }
+                    }, 500);
+                    return;
                 }
-                return matched;
-              }
-              el.focus();
-              el.dispatchEvent(new Event('focus',{bubbles:true}));
-              try {
-                var proto = el.tagName==='TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-                var desc = Object.getOwnPropertyDescriptor(proto,'value');
-                if (desc && desc.set) {
-                  desc.set.call(el, value);
-                } else {
-                  el.value = value;
-                }
-              } catch(pe) {
-                el.value = value;
-              }
-              el.setAttribute('value', value);
-              el.dispatchEvent(new Event('keydown',{bubbles:true}));
-              el.dispatchEvent(new Event('keyup',{bubbles:true}));
-              el.dispatchEvent(new Event('input',{bubbles:true}));
-              el.dispatchEvent(new Event('change',{bubbles:true}));
-              el.dispatchEvent(new Event('blur',{bubbles:true}));
-              return true;
-            }catch(e){ return false; }
-          }
-
-          function fillDoc(doc){
-            if(!doc||!doc.querySelectorAll) return;
-            var els = doc.querySelectorAll('input:not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea, select');
-            stats.scanned += els.length;
-            var done={};
-            for(var j=0;j<payload.length;j++){
-              var item=payload[j]; if(done[item.field]) continue;
-              var target=null, blocked=false;
-              for(var k=0;k<item.selectors.length;k++){
-                var cand=q(doc,item.selectors[k]);
-                if(cand){ if(isProtected(cand)){blocked=true;break;} target=cand; break; }
-              }
-              if(!target && !blocked && item.labels && item.labels.length){
-                for(var m=0;m<els.length;m++){
-                  var el=els[m];
-                  if(isProtected(el)) continue;
-                  if(el.value && el.value.length>0) continue;
-                  var txt=assocText(el).toLowerCase();
-                  if(!txt) continue;
-                  for(var n=0;n<item.labels.length;n++){
-                    if(txt.indexOf(item.labels[n])>=0){ target=el; break; }
-                  }
-                  if(target) break;
-                }
-              }
-              if(blocked){ stats.blocked++; continue; }
-              if(target && setValue(target,item.value)){ stats.filled++; done[item.field]=true; }
             }
-          }
 
-          try{ fillDoc(document); }catch(e){ console.log('RakshakFill main error:',e); }
-          function walk(w){
-            try{
-              for(var i=0;i<w.frames.length;i++){
-                try{ fillDoc(w.frames[i].document); walk(w.frames[i]); }catch(fe){}
-              }
-            }catch(e){}
-          }
-          walk(window);
-          console.log('RakshakFill pass1:', JSON.stringify(stats));
+            // 2. Scan and fill all form fields on the active page (Registration, Login, or Incident Report)
+            var inputs = document.querySelectorAll('input, textarea, select');
+            scanned = inputs.length;
 
-          // Delayed retry for ASP.NET dynamic fields loaded after postback
-          setTimeout(function(){
-            var retryStats = {scanned:0, filled:0, blocked:0};
-            var origStats = JSON.parse(JSON.stringify(stats));
-            try{ fillDoc(document); }catch(e){}
-            walk(window);
-            stats.scanned = Math.max(stats.scanned, origStats.scanned);
-            console.log('RakshakFill pass2:', JSON.stringify(stats));
-            try{ AndroidBridge.onFillResults(JSON.stringify(stats)); }catch(be){}
-          }, 1500);
+            inputs.forEach(function(el) {
+                var name = (el.name || '').toLowerCase();
+                var id = (el.id || '').toLowerCase();
+                var placeholder = (el.placeholder || '').toLowerCase();
+                var tag = el.tagName.toLowerCase();
 
-          try{ AndroidBridge.onFillResults(JSON.stringify(stats)); }catch(be){}
+                // Respect security boundaries: NEVER touch captcha, OTP, or password
+                if (name.includes('captcha') || id.includes('captcha') || name.includes('otp') || id.includes('otp') || el.type === 'password') {
+                    blocked++;
+                    return;
+                }
+
+                // Dropdown selectors (State, Category, Communication Medium)
+                if (tag === 'select') {
+                    if (name.includes('state') || id.includes('state') || id.includes('ddlstate')) {
+                        if (data.STATE) {
+                            var matched = false;
+                            for (var i = 0; i < el.options.length; i++) {
+                                if (el.options[i].text.toLowerCase().includes(data.STATE.toLowerCase())) {
+                                    el.selectedIndex = i;
+                                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                                    filled++;
+                                    matched = true;
+                                    break;
+                                }
+                            }
+                            if (!matched && el.options.length > 1) {
+                                el.selectedIndex = 1;
+                                el.dispatchEvent(new Event('change', { bubbles: true }));
+                                filled++;
+                            }
+                        }
+                    } else if (name.includes('medium') || id.includes('medium')) {
+                        // Chakshu Medium dropdown -> Call
+                        for (var i = 0; i < el.options.length; i++) {
+                            if (el.options[i].text.toLowerCase().includes('call') || el.options[i].value.toLowerCase().includes('call')) {
+                                el.selectedIndex = i;
+                                el.dispatchEvent(new Event('change', { bubbles: true }));
+                                filled++;
+                                break;
+                            }
+                        }
+                    }
+                    return;
+                }
+
+                // Text inputs (Mobile, Name, Email/LoginID, Suspect, Description, Date, Time)
+                if (name.includes('mobile') || id.includes('mobile') || placeholder.includes('mobile') || id.includes('txtmobile')) {
+                    if (data.MOBILE && (!el.value || el.value === '+91')) {
+                        el.value = data.MOBILE;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        filled++;
+                    }
+                } else if (name.includes('name') || id.includes('name') || placeholder.includes('name') || id.includes('txtname')) {
+                    if (data.COMPLAINANT_NAME && !el.value) {
+                        el.value = data.COMPLAINANT_NAME;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        filled++;
+                    }
+                } else if (name.includes('email') || id.includes('email') || placeholder.includes('email') || id.includes('txtemail') || id.includes('login') || id.includes('txtloginid')) {
+                    if (data.EMAIL && !el.value) {
+                        el.value = data.EMAIL;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        filled++;
+                    }
+                } else if (name.includes('suspect') || id.includes('suspect') || placeholder.includes('suspect') || id.includes('txtsuspect')) {
+                    if (data.SUSPECT_PHONE && !el.value) {
+                        el.value = data.SUSPECT_PHONE;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        filled++;
+                    }
+                } else if (name.includes('desc') || id.includes('desc') || placeholder.includes('desc') || tag === 'textarea' || id.includes('txtremarks')) {
+                    if (data.INCIDENT_DESCRIPTION && !el.value) {
+                        el.value = data.INCIDENT_DESCRIPTION;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        filled++;
+                    }
+                } else if (name.includes('date') || id.includes('date') || id.includes('txtdate')) {
+                    if (data.INCIDENT_DATE && !el.value) {
+                        el.value = data.INCIDENT_DATE;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        filled++;
+                    }
+                } else if (name.includes('time') || id.includes('time') || id.includes('txttime')) {
+                    if (data.INCIDENT_TIME && !el.value) {
+                        el.value = data.INCIDENT_TIME;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        filled++;
+                    }
+                }
+            });
+
+            if (window.AndroidBridge && window.AndroidBridge.reportStats) {
+                window.AndroidBridge.reportStats(scanned, filled, blocked);
+            }
         })();
     """.trimIndent()
+
+    webView.evaluateJavascript(js, null)
 }
 
-private class FillBridge(private val callback: (Int, Int, Int) -> Unit) {
-    @JavascriptInterface
-    fun onFillResults(statsJson: String) {
-        val parsed = parseFillReport(statsJson)
-        callback(parsed.first, parsed.second, parsed.third)
-    }
+fun buildFillerScript(payloadJson: String): String {
+    return """
+        (function() {
+            var isProtected = function(el) {
+                var txt = (el.name || '') + ' ' + (el.id || '') + ' ' + (el.placeholder || '');
+                return txt.toLowerCase().indexOf('captcha') !== -1 || txt.toLowerCase().indexOf('otp') !== -1;
+            };
+            var label = 'field';
+            if (window.AndroidBridge && window.AndroidBridge.onFillResults) {
+                window.AndroidBridge.onFillResults();
+            }
+        })();
+    """.trimIndent()
 }
