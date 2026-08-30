@@ -18,16 +18,47 @@ import com.rakshaksetu.app.ui.navigation.Screen
 import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.theme.*
 
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+import com.rakshaksetu.app.model.DetectionStore
+import com.rakshaksetu.app.model.DetectionResult
+import com.rakshaksetu.app.consent.ConsentStore
+
 @Composable
 fun DashboardScreen(
     onNavigate: (String) -> Unit
 ) {
     val scrollState = rememberScrollState()
 
+    val context = LocalContext.current
+    val consentStore = remember { ConsentStore(context) }
+    val isShieldActive = consentStore.isShieldActive
+    val lastResult = remember { DetectionStore.getLastResult(context) }
+    
+    // Compute live stats from DetectionStore
+    val safeCount = if (lastResult != null && !lastResult.isScam) 1 else 0
+    val suspiciousCount = if (lastResult != null && lastResult.isScam && lastResult.confidence < 0.7f) 1 else 0
+    val blockedCount = if (lastResult != null && lastResult.isScam && lastResult.confidence >= 0.7f) 1 else 0
+    val totalScanned = if (lastResult != null) 1 else 0
+    
+    // Convert real DetectionResult to ActivityItem for the UI
+    val recentActivity = if (lastResult != null) {
+        listOf(
+            com.rakshaksetu.app.ui.data.ActivityItem(
+                id = lastResult.callId,
+                title = "Call from ${lastResult.phoneNumber}",
+                subtitle = if (lastResult.isScam) "${lastResult.scamType ?: "Scam"} detected (${(lastResult.confidence * 100).toInt()}%)" else "Call verified safe",
+                type = "call",
+                status = if (lastResult.isScam) com.rakshaksetu.app.ui.data.RiskStatus.HIGH_RISK else com.rakshaksetu.app.ui.data.RiskStatus.SAFE,
+                timestamp = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(lastResult.callEndEpoch))
+            )
+        )
+    } else emptyList()
+
     Scaffold(
         topBar = {
-            SafeShieldTopBar(
-                title = "SafeShield",
+            RakshakSetuTopBar(
+                title = "Rakshak Setu",
                 onMenuClick = {},
                 onNotificationClick = { onNavigate(Screen.AlertCenter.route) },
                 onProfileClick = { onNavigate(Screen.Profile.route) }
@@ -81,9 +112,9 @@ fun DashboardScreen(
                                 shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = SurfaceWhite)
                             ) {
-                                Icon(Icons.Filled.Search, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Filled.Search, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Run Smart Scan", color = SafeShieldBlue, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                Text("Run Smart Scan", color = RakshakSetuBlue, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                             }
                         }
                         Icon(
@@ -101,7 +132,7 @@ fun DashboardScreen(
                 StatCard(MockData.protectedCount, "Safe", SafeGreen, Modifier.weight(1f))
                 StatCard(MockData.suspiciousCount, "Suspicious", SuspiciousAmber, Modifier.weight(1f))
                 StatCard(MockData.blockedCount, "Blocked", BlockedRed, Modifier.weight(1f))
-                StatCard(MockData.filesScannedCount, "Files", SafeShieldBlue, Modifier.weight(1f))
+                StatCard(MockData.filesScannedCount, "Files", RakshakSetuBlue, Modifier.weight(1f))
             }
 
             // ── QUICK ACTIONS ──────────────────────────────
@@ -112,12 +143,12 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Quick Actions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("See All", style = MaterialTheme.typography.labelMedium, color = SafeShieldBlue,
+                    Text("See All", style = MaterialTheme.typography.labelMedium, color = RakshakSetuBlue,
                         modifier = Modifier.clickable { onNavigate(Screen.ScanHub.route) })
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                    QuickActionCard("Call\nSecurity", Icons.Filled.Phone, Color(0xFFE3F2FD), SafeShieldBlue) { onNavigate(Screen.CallSecurity.route) }
+                    QuickActionCard("Call\nSecurity", Icons.Filled.Phone, Color(0xFFE3F2FD), RakshakSetuBlue) { onNavigate(Screen.CallSecurity.route) }
                     QuickActionCard("Link\nChecker", Icons.Filled.Link, Color(0xFFE8F5E9), SafeGreen) { onNavigate(Screen.LinkChecker.route) }
                     QuickActionCard("QR\nScanner", Icons.Filled.QrCodeScanner, Color(0xFFF3E5F5), AIPurple) { onNavigate(Screen.QRScanner.route) }
                     QuickActionCard("File\nScanner", Icons.Filled.FileCopy, Color(0xFFFFF3E0), SuspiciousAmber) { onNavigate(Screen.FileScanner.route) }
@@ -132,7 +163,7 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Trusted Government & Safety Services", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("View All", style = MaterialTheme.typography.labelMedium, color = SafeShieldBlue)
+                    Text("View All", style = MaterialTheme.typography.labelMedium, color = RakshakSetuBlue)
                 }
                 Spacer(Modifier.height(14.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -150,17 +181,33 @@ fun DashboardScreen(
             // ── PROTECTION STATUS BANNER ────────────────────
             Card(
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = SafeGreenLight)
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isShieldActive) SafeGreenLight else Color(0xFFFFF3E0)
+                )
             ) {
                 Row(
                     modifier = Modifier.padding(14.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.VerifiedUser, contentDescription = null, tint = SafeGreen, modifier = Modifier.size(24.dp))
+                    Icon(
+                        if (isShieldActive) Icons.Filled.VerifiedUser else Icons.Filled.Warning, 
+                        contentDescription = null, 
+                        tint = if (isShieldActive) SafeGreen else SuspiciousAmber, 
+                        modifier = Modifier.size(24.dp)
+                    )
                     Column {
-                        Text("You are protected", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SafeGreen)
-                        Text("Keep scanning, keep safe!", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(
+                            if (isShieldActive) "Shield Active — You are protected" else "Shield Paused — Protection disabled", 
+                            style = MaterialTheme.typography.titleMedium, 
+                            fontWeight = FontWeight.Bold, 
+                            color = if (isShieldActive) SafeGreen else SuspiciousAmber
+                        )
+                        Text(
+                            if (isShieldActive) "Keep scanning, keep safe!" else "Enable shield to stay protected", 
+                            style = MaterialTheme.typography.bodySmall, 
+                            color = TextSecondary
+                        )
                     }
                 }
             }
@@ -173,13 +220,17 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Recent Activity", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("View All", style = MaterialTheme.typography.labelMedium, color = SafeShieldBlue,
+                    Text("View All", style = MaterialTheme.typography.labelMedium, color = RakshakSetuBlue,
                         modifier = Modifier.clickable { onNavigate(Screen.Reports.route) })
                 }
                 Spacer(Modifier.height(12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MockData.recentActivity.forEach { item ->
-                        ActivityRow(item = item, onClick = { onNavigate(Screen.Reports.route) })
+                    if (recentActivity.isEmpty()) {
+                        Text("No calls analyzed yet. Your call analysis results will appear here.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                    } else {
+                        recentActivity.forEach { item ->
+                            ActivityRow(item = item, onClick = { onNavigate(Screen.Reports.route) })
+                        }
                     }
                 }
             }
@@ -205,9 +256,9 @@ fun TrustedServiceChip(
         elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(icon, contentDescription = name, tint = SafeShieldBlue, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = name, tint = RakshakSetuBlue, modifier = Modifier.size(22.dp))
             Text(name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-            Text(action, style = MaterialTheme.typography.labelSmall, color = SafeShieldBlue)
+            Text(action, style = MaterialTheme.typography.labelSmall, color = RakshakSetuBlue)
         }
     }
 }
@@ -234,10 +285,10 @@ fun ActivityRow(item: ActivityItem, onClick: () -> Unit) {
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(SafeShieldBlue.copy(alpha = 0.1f)),
+                .background(RakshakSetuBlue.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp))
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(item.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1)
@@ -275,7 +326,7 @@ fun BottomNavBar(currentRoute: String, onNavigate: (String) -> Unit) {
                             modifier = Modifier
                                 .size(52.dp)
                                 .clip(CircleShape)
-                                .background(SafeShieldBlue),
+                                .background(RakshakSetuBlue),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(icon, contentDescription = label, tint = SurfaceWhite, modifier = Modifier.size(26.dp))
@@ -286,11 +337,11 @@ fun BottomNavBar(currentRoute: String, onNavigate: (String) -> Unit) {
                 },
                 label = { if (index != 2) Text(label, style = MaterialTheme.typography.labelSmall) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = SafeShieldBlue,
-                    selectedTextColor = SafeShieldBlue,
+                    selectedIconColor = RakshakSetuBlue,
+                    selectedTextColor = RakshakSetuBlue,
                     unselectedIconColor = NavUnselected,
                     unselectedTextColor = NavUnselected,
-                    indicatorColor = SafeShieldBlue.copy(alpha = 0.1f)
+                    indicatorColor = RakshakSetuBlue.copy(alpha = 0.1f)
                 )
             )
         }

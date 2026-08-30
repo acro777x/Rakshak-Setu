@@ -17,23 +17,43 @@ import com.rakshaksetu.app.ui.navigation.Screen
 import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.theme.*
 
+import androidx.compose.ui.platform.LocalContext
+import com.rakshaksetu.app.model.DetectionStore
+import com.rakshaksetu.app.model.DetectionResult
+
 // ── REPORTS LIST ──────────────────────────────────────────────
 @Composable
 fun ReportsScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     var selectedFilter by remember { mutableStateOf("All") }
     val filters = listOf("All", "Calls", "Links", "Files", "QR", "Images")
 
-    val filtered = if (selectedFilter == "All") MockData.reports
-    else MockData.reports.filter { it.type.equals(selectedFilter, ignoreCase = true) || it.type.contains(selectedFilter.dropLast(1), ignoreCase = true) }
+    val context = LocalContext.current
+    val lastResult = remember { DetectionStore.getLastResult(context) }
+    
+    val realReports = if (lastResult != null) {
+        listOf(
+            com.rakshaksetu.app.ui.data.ReportItem(
+                id = lastResult.callId,
+                title = "Call from ${lastResult.phoneNumber}",
+                type = "Calls",
+                status = if (lastResult.isScam) com.rakshaksetu.app.ui.data.RiskStatus.HIGH_RISK else com.rakshaksetu.app.ui.data.RiskStatus.SAFE,
+                date = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(lastResult.callEndEpoch)),
+                description = if (lastResult.isScam) "${lastResult.scamType ?: "Scam"} detected with ${(lastResult.confidence * 100).toInt()}% confidence. ${lastResult.flaggedSegments.size} flagged segments." else "Call verified safe. No threats detected."
+            )
+        )
+    } else emptyList()
+
+    val filtered = if (selectedFilter == "All") realReports
+    else realReports.filter { it.type.equals(selectedFilter, ignoreCase = true) || it.type.contains(selectedFilter.dropLast(1), ignoreCase = true) }
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Reports", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Reports", onBackClick = onBack) },
         bottomBar = { BottomNavBar(currentRoute = Screen.Reports.route, onNavigate = onNavigate) },
         containerColor = BackgroundLight,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { onNavigate(Screen.ReportStep1.route) },
-                containerColor = SafeShieldBlue,
+                containerColor = RakshakSetuBlue,
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -59,7 +79,7 @@ fun ReportsScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                         label = { Text(filter, style = MaterialTheme.typography.labelMedium) },
                         shape = RoundedCornerShape(50),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = SafeShieldBlue,
+                            selectedContainerColor = RakshakSetuBlue,
                             selectedLabelColor = SurfaceWhite,
                             containerColor = SurfaceWhite
                         )
@@ -96,8 +116,8 @@ fun ReportRow(report: ReportItem, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(SafeShieldBlue.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(22.dp))
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(RakshakSetuBlue.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(22.dp))
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(report.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
@@ -111,10 +131,28 @@ fun ReportRow(report: ReportItem, onClick: () -> Unit) {
 // ── REPORT DETAILS ─────────────────────────────────────────────
 @Composable
 fun ReportDetailsScreen(reportId: String, onNavigate: (String) -> Unit, onBack: () -> Unit) {
-    val report = MockData.reports.find { it.id == reportId } ?: MockData.reports.first()
+    val context = LocalContext.current
+    val lastResult = remember { DetectionStore.getLastResult(context) }
+    
+    val realReports = if (lastResult != null) {
+        listOf(
+            com.rakshaksetu.app.ui.data.ReportItem(
+                id = lastResult.callId,
+                title = "Call from ${lastResult.phoneNumber}",
+                type = "Calls",
+                status = if (lastResult.isScam) com.rakshaksetu.app.ui.data.RiskStatus.HIGH_RISK else com.rakshaksetu.app.ui.data.RiskStatus.SAFE,
+                date = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(lastResult.callEndEpoch)),
+                description = if (lastResult.isScam) "${lastResult.scamType ?: "Scam"} detected with ${(lastResult.confidence * 100).toInt()}% confidence. ${lastResult.flaggedSegments.size} flagged segments." else "Call verified safe. No threats detected."
+            )
+        )
+    } else emptyList()
+
+    val report = realReports.find { it.id == reportId } ?: realReports.firstOrNull() ?: com.rakshaksetu.app.ui.data.ReportItem(
+        id = "dummy", title = "No Data", type = "Calls", status = RiskStatus.SAFE, date = "", description = "No data available."
+    )
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Report Details", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Report Details", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(

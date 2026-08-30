@@ -9,7 +9,7 @@ import androidx.navigation.navArgument
 import com.rakshaksetu.app.ui.screens.*
 
 @Composable
-fun SafeShieldNavGraph() {
+fun RakshakSetuNavGraph() {
     val navController = rememberNavController()
 
     fun navigateTo(route: String) {
@@ -144,8 +144,8 @@ fun SafeShieldNavGraph() {
         composable(Screen.HelpSupport.route) {
             HelpSupportScreen(onBack = ::goBack)
         }
-        composable(Screen.AboutSafeShield.route) {
-            AboutSafeShieldScreen(onBack = ::goBack)
+        composable(Screen.AboutRakshakSetu.route) {
+            AboutRakshakSetuScreen(onBack = ::goBack)
         }
         composable(Screen.Settings.route) {
             SettingsScreen(onBack = ::goBack)

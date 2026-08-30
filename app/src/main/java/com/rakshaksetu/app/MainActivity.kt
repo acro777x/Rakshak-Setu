@@ -51,8 +51,8 @@ import com.rakshaksetu.app.ui.GovtReportWebViewActivity
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-import com.rakshaksetu.app.ui.navigation.SafeShieldNavGraph
-import com.rakshaksetu.app.ui.theme.SafeShieldTheme
+import com.rakshaksetu.app.ui.navigation.RakshakSetuNavGraph
+import com.rakshaksetu.app.ui.theme.RakshakSetuTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -73,8 +73,8 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            SafeShieldTheme {
-                SafeShieldNavGraph()
+            RakshakSetuTheme {
+                RakshakSetuNavGraph()
             }
         }
     }

@@ -14,7 +14,9 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
-import com.rakshaksetu.app.ui.data.*
+import com.rakshaksetu.app.ui.data.ActivityItem
+import com.rakshaksetu.app.ui.data.RiskStatus
+import com.rakshaksetu.app.ui.data.TrustedContact
 import com.rakshaksetu.app.ui.navigation.Screen
 import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.theme.*
@@ -23,7 +25,7 @@ import com.rakshaksetu.app.ui.theme.*
 @Composable
 fun AlertCenterScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Alert Center", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Alert Center", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -142,7 +144,7 @@ fun RedAlertScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
 
             Spacer(Modifier.height(16.dp))
             Text(
-                "This caller is confirmed in the SafeShield network for suspected voice cloning and impersonation attempts. Take immediate action.",
+                "This caller is confirmed in the Rakshak Setu network for suspected voice cloning and impersonation attempts. Take immediate action.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = SurfaceWhite.copy(alpha = 0.85f),
                 textAlign = TextAlign.Center,

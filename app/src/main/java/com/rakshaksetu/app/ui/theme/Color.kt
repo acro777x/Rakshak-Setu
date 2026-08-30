@@ -2,10 +2,10 @@ package com.rakshaksetu.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary SafeShield Blue
-val SafeShieldBlue = Color(0xFF1565C0)
-val SafeShieldBlueDark = Color(0xFF003c8f)
-val SafeShieldBlueLight = Color(0xFF5e92f3)
+// Primary Rakshak Setu Blue
+val RakshakSetuBlue = Color(0xFF1565C0)
+val RakshakSetuBlueDark = Color(0xFF003c8f)
+val RakshakSetuBlueLight = Color(0xFF5e92f3)
 
 // Status colors
 val SafeGreen = Color(0xFF2E7D32)
@@ -33,5 +33,5 @@ val BorderColor = Color(0xFFE0E7EF)
 val CardShadow = Color(0x14000000)
 
 // Bottom nav
-val NavSelected = SafeShieldBlue
+val NavSelected = RakshakSetuBlue
 val NavUnselected = Color(0xFF90A4AE)

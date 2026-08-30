@@ -21,8 +21,8 @@ import com.rakshaksetu.app.ui.theme.*
 // ── TOP APP BAR ──────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SafeShieldTopBar(
-    title: String = "SafeShield",
+fun RakshakSetuTopBar(
+    title: String = "Rakshak Setu",
     onMenuClick: (() -> Unit)? = null,
     onNotificationClick: (() -> Unit)? = null,
     onProfileClick: (() -> Unit)? = null,
@@ -34,7 +34,7 @@ fun SafeShieldTopBar(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = SafeShieldBlue
+                color = RakshakSetuBlue
             )
         },
         navigationIcon = {
@@ -56,7 +56,7 @@ fun SafeShieldTopBar(
             }
             if (onProfileClick != null) {
                 IconButton(onClick = onProfileClick) {
-                    Icon(Icons.Filled.AccountCircle, contentDescription = "Profile", tint = SafeShieldBlue)
+                    Icon(Icons.Filled.AccountCircle, contentDescription = "Profile", tint = RakshakSetuBlue)
                 }
             }
         },
@@ -104,7 +104,7 @@ fun PrimaryButton(
         modifier = modifier.height(52.dp),
         enabled = enabled,
         shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = SafeShieldBlue)
+        colors = ButtonDefaults.buttonColors(containerColor = RakshakSetuBlue)
     ) {
         if (icon != null) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -126,13 +126,13 @@ fun SecondaryButton(
         onClick = onClick,
         modifier = modifier.height(52.dp),
         shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.5.dp, SafeShieldBlue)
+        border = BorderStroke(1.5.dp, RakshakSetuBlue)
     ) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, color = SafeShieldBlue, style = MaterialTheme.typography.titleMedium)
+        Text(text, color = RakshakSetuBlue, style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -243,8 +243,8 @@ fun StepProgress(totalSteps: Int, currentStep: Int) {
                     .clip(RoundedCornerShape(2.dp))
                     .background(
                         when {
-                            index < currentStep -> SafeShieldBlue
-                            index == currentStep -> SafeShieldBlueLight
+                            index < currentStep -> RakshakSetuBlue
+                            index == currentStep -> RakshakSetuBlueLight
                             else -> BorderColor
                         }
                     )
@@ -255,7 +255,7 @@ fun StepProgress(totalSteps: Int, currentStep: Int) {
 
 // ── SCAN RADAR ANIMATION ─────────────────────────────────────
 @Composable
-fun ScanRadarAnimation(color: Color = SafeShieldBlue) {
+fun ScanRadarAnimation(color: Color = RakshakSetuBlue) {
     val infiniteTransition = rememberInfiniteTransition(label = "radar")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f, targetValue = 360f,
@@ -311,7 +311,7 @@ fun UploadCard(
             .clickable(onClick = onSelectClick),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-        border = BorderStroke(1.5.dp, if (selectedFileName != null) SafeShieldBlue else BorderColor),
+        border = BorderStroke(1.5.dp, if (selectedFileName != null) RakshakSetuBlue else BorderColor),
         elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -349,10 +349,10 @@ fun UploadCard(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.CloudUpload, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Filled.CloudUpload, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text(text = "Tap to upload", style = MaterialTheme.typography.bodyMedium, color = SafeShieldBlue, fontWeight = FontWeight.SemiBold)
+                        Text(text = "Tap to upload", style = MaterialTheme.typography.bodyMedium, color = RakshakSetuBlue, fontWeight = FontWeight.SemiBold)
                         Text(text = "$acceptedTypes  ·  Max $maxSize", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                     }
                 }

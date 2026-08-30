@@ -28,7 +28,7 @@ fun ReportStep1Screen(onNext: () -> Unit, onBack: () -> Unit) {
     val charError = description.any { it in prohibitedChars }
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Report Profile", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Report Profile", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -41,13 +41,13 @@ fun ReportStep1Screen(onNext: () -> Unit, onBack: () -> Unit) {
             StepProgress(4, 0)
 
             Surface(
-                color = SafeShieldBlue.copy(alpha = 0.08f),
+                color = RakshakSetuBlue.copy(alpha = 0.08f),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(Icons.Filled.Info, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Info, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp))
                     Column {
-                        Text("Please provide the following information manually.", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = SafeShieldBlue)
+                        Text("Please provide the following information manually.", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = RakshakSetuBlue)
                         Text("Other details will be collected automatically where possible.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     }
                 }
@@ -66,7 +66,7 @@ fun ReportStep1Screen(onNext: () -> Unit, onBack: () -> Unit) {
                         label = { Text("Date") },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
-                        leadingIcon = { Icon(Icons.Filled.DateRange, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(18.dp)) }
+                        leadingIcon = { Icon(Icons.Filled.DateRange, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(18.dp)) }
                     )
                     OutlinedTextField(
                         value = incidentTime,
@@ -74,7 +74,7 @@ fun ReportStep1Screen(onNext: () -> Unit, onBack: () -> Unit) {
                         label = { Text("Time") },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
-                        leadingIcon = { Icon(Icons.Filled.Schedule, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(18.dp)) }
+                        leadingIcon = { Icon(Icons.Filled.Schedule, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(18.dp)) }
                     )
                 }
 
@@ -143,7 +143,7 @@ fun ReportStep2Screen(onNext: () -> Unit, onBack: () -> Unit) {
     var isFinancialFraud by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Report Profile", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Report Profile", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -202,7 +202,7 @@ fun ReportStep2Screen(onNext: () -> Unit, onBack: () -> Unit) {
                     Switch(
                         checked = isFinancialFraud,
                         onCheckedChange = { isFinancialFraud = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = SafeShieldBlue, checkedTrackColor = SafeShieldBlueLight)
+                        colors = SwitchDefaults.colors(checkedThumbColor = RakshakSetuBlue, checkedTrackColor = RakshakSetuBlueLight)
                     )
                 }
             }
@@ -222,7 +222,7 @@ fun ReportStep3Screen(onNext: () -> Unit, onBack: () -> Unit) {
     val transactionError = transactionId.isNotEmpty() && (transactionId.length != 12 || !transactionId.all { it.isDigit() })
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Report Profile", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Report Profile", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -260,7 +260,7 @@ fun ReportStep3Screen(onNext: () -> Unit, onBack: () -> Unit) {
 
             // Optional suspect info
             SectionCard {
-                Text("Optional / Desirable Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SafeShieldBlue)
+                Text("Optional / Desirable Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = RakshakSetuBlue)
                 Spacer(Modifier.height(8.dp))
                 OptionalFieldRow("4. Suspect Details (if known)", "Add any details you know about the suspect.") {}
                 Divider(color = BorderColor, modifier = Modifier.padding(vertical = 8.dp))
@@ -293,7 +293,7 @@ fun ReportStep4Screen(onSubmit: () -> Unit, onBack: () -> Unit) {
     var agreed by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Review & Submit", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Review & Submit", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -320,9 +320,9 @@ fun ReportStep4Screen(onSubmit: () -> Unit, onBack: () -> Unit) {
             }
 
             SectionCard {
-                Text("Auto-filled by SafeShield", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SafeShieldBlue)
+                Text("Auto-filled by Rakshak Setu", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = RakshakSetuBlue)
                 Spacer(Modifier.height(8.dp))
-                AnalysisRow("App Version", "SafeShield v1.0 (Demo)", TextPrimary)
+                AnalysisRow("App Version", "Rakshak Setu v1.0", TextPrimary)
                 AnalysisRow("Device", "Android (Demo)", TextPrimary)
                 AnalysisRow("Scan Timestamp", "21 May 2025, 10:30 AM", TextPrimary)
                 AnalysisRow("Analysis ID", "SS-SCAN-20250521-1030", TextPrimary)
@@ -387,7 +387,7 @@ fun ReportSuccessScreen(onDone: () -> Unit) {
         SectionCard {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 Text("Reference ID", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                Text(MockData.mockReferenceId, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = SafeShieldBlue)
+                Text(MockData.mockReferenceId, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = RakshakSetuBlue)
                 Text("Save this ID for follow-up", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
             }
         }
@@ -402,7 +402,7 @@ fun ReportSuccessScreen(onDone: () -> Unit) {
                 "Keep all evidence safe — do not delete messages or files"
             ).forEachIndexed { index, step ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-                    Text("${index + 1}.", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = SafeShieldBlue)
+                    Text("${index + 1}.", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = RakshakSetuBlue)
                     Text(step, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                 }
             }

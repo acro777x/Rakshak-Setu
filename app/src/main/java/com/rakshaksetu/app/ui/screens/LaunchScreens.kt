@@ -56,12 +56,12 @@ fun SplashScreen(onFinished: () -> Unit) {
         ) {
             Icon(
                 Icons.Filled.Shield,
-                contentDescription = "SafeShield Logo",
+                contentDescription = "Rakshak Setu Logo",
                 tint = SurfaceWhite,
                 modifier = Modifier.size(80.dp)
             )
             Text(
-                "SafeShield",
+                "Rakshak Setu",
                 style = MaterialTheme.typography.displayLarge,
                 color = SurfaceWhite,
                 fontWeight = FontWeight.ExtraBold
@@ -99,10 +99,10 @@ fun BeforeLoginScreen(onGetStarted: () -> Unit) {
                     modifier = Modifier
                         .size(120.dp)
                         .clip(CircleShape)
-                        .background(Brush.radialGradient(listOf(SafeShieldBlueLight, SafeShieldBlue.copy(alpha = 0.1f)))),
+                        .background(Brush.radialGradient(listOf(RakshakSetuBlueLight, RakshakSetuBlue.copy(alpha = 0.1f)))),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Shield, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(64.dp))
+                    Icon(Icons.Filled.Shield, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(64.dp))
                 }
 
                 Spacer(Modifier.height(32.dp))
@@ -130,7 +130,7 @@ fun BeforeLoginScreen(onGetStarted: () -> Unit) {
                 Text(
                     "Already protected? Sign in",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = SafeShieldBlue,
+                    color = RakshakSetuBlue,
                     modifier = Modifier
                         .clickable(onClick = onGetStarted)
                         .align(Alignment.CenterHorizontally),
@@ -153,8 +153,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Spacer(Modifier.height(40.dp))
-        Icon(Icons.Filled.Shield, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(56.dp))
-        Text("Sign in to SafeShield", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Icon(Icons.Filled.Shield, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(56.dp))
+        Text("Sign in to Rakshak Setu", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         Text("Choose how you want to sign in", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
 
         Spacer(Modifier.height(16.dp))
@@ -189,9 +189,9 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Icon(Icons.Filled.AlternateEmail, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.AlternateEmail, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(12.dp))
-            Text("Continue with Email", style = MaterialTheme.typography.titleMedium, color = SafeShieldBlue)
+            Text("Continue with Email", style = MaterialTheme.typography.titleMedium, color = RakshakSetuBlue)
         }
     }
 }
@@ -204,7 +204,7 @@ fun TermsScreen(onAgree: () -> Unit) {
             .fillMaxSize()
             .background(BackgroundLight)
     ) {
-        SafeShieldTopBar(title = "Terms & Conditions")
+        RakshakSetuTopBar(title = "Terms & Conditions")
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -214,13 +214,13 @@ fun TermsScreen(onAgree: () -> Unit) {
         ) {
             Text("Privacy & Terms", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                "SafeShield is a frontend demo application. All security results are simulated locally. No real personal data is transmitted to any server.\n\n" +
+                "Rakshak Setu is a frontend demo application. All security results are simulated locally. No real personal data is transmitted to any server.\n\n" +
                 "• We do not record your calls.\n" +
                 "• We do not store your ID documents.\n" +
                 "• All scans run locally on your device in this prototype.\n" +
                 "• No actual cybercrime submissions are made.\n\n" +
                 "By agreeing, you acknowledge this is a frontend prototype and all data is mock/demo data for demonstration purposes only.\n\n" +
-                "SafeShield uses probabilistic language for risk assessment. Results should not be relied upon as definitive security guarantees.",
+                "Rakshak Setu uses probabilistic language for risk assessment. Results should not be relied upon as definitive security guarantees.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
                 lineHeight = 22.sp
@@ -245,7 +245,7 @@ fun PermissionEducationScreen(onContinue: () -> Unit) {
     )
 
     Column(modifier = Modifier.fillMaxSize().background(BackgroundLight)) {
-        SafeShieldTopBar(title = "Permissions")
+        RakshakSetuTopBar(title = "Permissions")
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -253,7 +253,7 @@ fun PermissionEducationScreen(onContinue: () -> Unit) {
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("What SafeShield needs", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("What Rakshak Setu needs", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text("These permissions help protect you. All data stays on your device in this demo.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
 
             permissions.forEach { (icon, title, reason) ->
@@ -264,10 +264,10 @@ fun PermissionEducationScreen(onContinue: () -> Unit) {
                 ) {
                     Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
                         Box(
-                            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(SafeShieldBlue.copy(alpha = 0.1f)),
+                            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(RakshakSetuBlue.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(icon, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(22.dp))
+                            Icon(icon, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(22.dp))
                         }
                         Column {
                             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -350,7 +350,7 @@ fun BankSetupScreen(onContinue: () -> Unit) {
     var upiId by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize().background(BackgroundLight)) {
-        SafeShieldTopBar(title = "Bank & Payment Setup")
+        RakshakSetuTopBar(title = "Bank & Payment Setup")
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -362,9 +362,9 @@ fun BankSetupScreen(onContinue: () -> Unit) {
             Text("Add your bank details for faster cybercrime reporting. All stored locally only.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
 
             SectionCard {
-                Surface(color = SafeShieldBlue.copy(alpha = 0.08f), shape = RoundedCornerShape(8.dp)) {
+                Surface(color = RakshakSetuBlue.copy(alpha = 0.08f), shape = RoundedCornerShape(8.dp)) {
                     Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Filled.Info, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Filled.Info, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(18.dp))
                         Text("This info is saved locally and used to pre-fill incident reports.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     }
                 }

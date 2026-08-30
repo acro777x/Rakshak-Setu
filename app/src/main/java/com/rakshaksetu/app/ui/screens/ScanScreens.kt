@@ -18,12 +18,15 @@ import com.rakshaksetu.app.ui.navigation.Screen
 import com.rakshaksetu.app.ui.components.*
 import com.rakshaksetu.app.ui.theme.*
 import kotlinx.coroutines.delay
+import androidx.compose.ui.platform.LocalContext
+import com.rakshaksetu.app.model.DetectionStore
+import com.rakshaksetu.app.model.DetectionResult
 
 // ── SCAN HUB ──────────────────────────────────────────────────
 @Composable
 fun ScanHubScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Scan", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Scan", onBackClick = onBack) },
         bottomBar = { BottomNavBar(currentRoute = Screen.ScanHub.route, onNavigate = onNavigate) },
         containerColor = BackgroundLight
     ) { padding ->
@@ -36,7 +39,7 @@ fun ScanHubScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
         ) {
             Text("What do you want to scan?", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
-            ScanOptionCard("Call Security", "Analyze calls & detect voice-clone patterns", Icons.Filled.Phone, SafeShieldBlue) { onNavigate(Screen.CallSecurity.route) }
+            ScanOptionCard("Call Security", "Analyze calls & detect voice-clone patterns", Icons.Filled.Phone, RakshakSetuBlue) { onNavigate(Screen.CallSecurity.route) }
             ScanOptionCard("Link Checker", "Check links for phishing & scams", Icons.Filled.Link, SafeGreen) { onNavigate(Screen.LinkChecker.route) }
             ScanOptionCard("QR Scanner", "Scan QR codes safely", Icons.Filled.QrCodeScanner, AIPurple) { onNavigate(Screen.QRScanner.route) }
             ScanOptionCard("File Scanner", "Scan files for viruses & malware", Icons.Filled.FileCopy, SuspiciousAmber) { onNavigate(Screen.FileScanner.route) }
@@ -72,6 +75,8 @@ fun ScanOptionCard(title: String, subtitle: String, icon: androidx.compose.ui.gr
 // ── CALL SECURITY ─────────────────────────────────────────────
 @Composable
 fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val lastResult = remember { DetectionStore.getLastResult(context) }
     var phase by remember { mutableStateOf("upload") } // upload → transcript → analysis → result
     var transcriptProgress by remember { mutableFloatStateOf(0f) }
     val mockTranscript = """
@@ -102,7 +107,7 @@ fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Call Security", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Call Security", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -127,7 +132,7 @@ fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                     recentCalls.forEach { (number, meta) ->
                         Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = SurfaceWhite), elevation = CardDefaults.cardElevation(1.dp)) {
                             Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Phone, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(22.dp))
+                                Icon(Icons.Filled.Phone, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(22.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(number, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                                     Text(meta, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
@@ -143,9 +148,9 @@ fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                     LinearProgressIndicator(
                         progress = { transcriptProgress },
                         modifier = Modifier.fillMaxWidth(),
-                        color = SafeShieldBlue
+                        color = RakshakSetuBlue
                     )
-                    ScanRadarAnimation(SafeShieldBlue)
+                    ScanRadarAnimation(RakshakSetuBlue)
                     Text("Reading call audio locally…", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                 }
 
@@ -157,25 +162,29 @@ fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                 }
 
                 "result" -> {
-                    ResultCard(
-                        status = RiskStatus.HIGH_RISK,
-                        headline = "High Risk — Voice Cloning Suspected",
-                        body = "Synthetic voice patterns detected with 82% confidence. Caller may be impersonating a bank agent."
-                    )
+                    if (lastResult != null) {
+                        ResultCard(
+                            status = if (lastResult.isScam) RiskStatus.HIGH_RISK else RiskStatus.SAFE,
+                            headline = if (lastResult.isScam) "High Risk — Voice Cloning Suspected" else "Safe Call",
+                            body = "Type: ${lastResult.scamType}. Confidence: ${lastResult.confidence}%. Flagged: ${lastResult.flaggedSegments.joinToString()}"
+                        )
 
-                    SectionCard {
-                        Text("Call Transcript", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(8.dp))
-                        Text(mockTranscript, style = MaterialTheme.typography.bodySmall, color = TextSecondary, lineHeight = 20.sp)
-                    }
+                        SectionCard {
+                            Text("Call Transcript", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(8.dp))
+                            Text(lastResult.fullTranscript, style = MaterialTheme.typography.bodySmall, color = TextSecondary, lineHeight = 20.sp)
+                        }
 
-                    SectionCard {
-                        Text("Voice Analysis", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(8.dp))
-                        AnalysisRow("Voice clone confidence", "82%", BlockedRed)
-                        AnalysisRow("Scam script detected", "Yes", BlockedRed)
-                        AnalysisRow("Caller ID", "+91 98765 43210", TextPrimary)
-                        AnalysisRow("Duration", "3m 42s", TextPrimary)
+                        SectionCard {
+                            Text("Voice Analysis", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(8.dp))
+                            AnalysisRow("Voice clone confidence", "${lastResult.confidence}%", if (lastResult.isScam) BlockedRed else TextPrimary)
+                            AnalysisRow("Scam script detected", if (lastResult.isScam) "Yes" else "No", if (lastResult.isScam) BlockedRed else SafeGreen)
+                            AnalysisRow("Caller ID", "+91 98765 43210", TextPrimary)
+                            AnalysisRow("Duration", "3m 42s", TextPrimary)
+                        }
+                    } else {
+                        Text("No recent call data available. Make or receive a call with Shield active to see analysis results.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
                     }
 
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -248,7 +257,7 @@ fun LinkCheckerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Link Checker", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Link Checker", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -301,7 +310,7 @@ fun LinkCheckerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                 "scanning" -> {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            ScanRadarAnimation(SafeShieldBlue)
+                            ScanRadarAnimation(RakshakSetuBlue)
                             Text("Analyzing link…", style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
                             Text("Checking domain reputation, SSL & phishing indicators", style = MaterialTheme.typography.bodySmall, color = TextSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                         }
@@ -362,7 +371,7 @@ fun LinkCheckerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
 @Composable
 fun ScanHistoryRow(url: String, meta: String, status: RiskStatus) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Filled.Link, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(18.dp))
+        Icon(Icons.Filled.Link, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(18.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(url, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
             Text(meta, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
@@ -388,7 +397,7 @@ fun QRScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "QR Scanner", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "QR Scanner", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -414,10 +423,10 @@ fun QRScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                         }
                         // Corner markers
                         Box(Modifier.fillMaxSize()) {
-                            Box(Modifier.size(40.dp).border(3.dp, SafeShieldBlue, RoundedCornerShape(topStart = 12.dp)).align(Alignment.TopStart).padding(4.dp))
-                            Box(Modifier.size(40.dp).border(3.dp, SafeShieldBlue, RoundedCornerShape(topEnd = 12.dp)).align(Alignment.TopEnd).padding(4.dp))
-                            Box(Modifier.size(40.dp).border(3.dp, SafeShieldBlue, RoundedCornerShape(bottomStart = 12.dp)).align(Alignment.BottomStart).padding(4.dp))
-                            Box(Modifier.size(40.dp).border(3.dp, SafeShieldBlue, RoundedCornerShape(bottomEnd = 12.dp)).align(Alignment.BottomEnd).padding(4.dp))
+                            Box(Modifier.size(40.dp).border(3.dp, RakshakSetuBlue, RoundedCornerShape(topStart = 12.dp)).align(Alignment.TopStart).padding(4.dp))
+                            Box(Modifier.size(40.dp).border(3.dp, RakshakSetuBlue, RoundedCornerShape(topEnd = 12.dp)).align(Alignment.TopEnd).padding(4.dp))
+                            Box(Modifier.size(40.dp).border(3.dp, RakshakSetuBlue, RoundedCornerShape(bottomStart = 12.dp)).align(Alignment.BottomStart).padding(4.dp))
+                            Box(Modifier.size(40.dp).border(3.dp, RakshakSetuBlue, RoundedCornerShape(bottomEnd = 12.dp)).align(Alignment.BottomEnd).padding(4.dp))
                         }
                     }
                     PrimaryButton("Simulate QR Scan", onClick = { phase = "scanning" }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.QrCode)
@@ -437,7 +446,7 @@ fun QRScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                     SectionCard {
                         Text("QR Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
-                        AnalysisRow("Destination URL", decodedUrl, SafeShieldBlue)
+                        AnalysisRow("Destination URL", decodedUrl, RakshakSetuBlue)
                         AnalysisRow("Safety Verdict", "Safe Link", SafeGreen)
                         AnalysisRow("Domain Age", "5 years", TextPrimary)
                         AnalysisRow("SSL Certificate", "Valid", SafeGreen)
@@ -472,7 +481,7 @@ fun FileScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "File Scanner", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "File Scanner", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -499,7 +508,7 @@ fun FileScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                     Text("Scan History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = SurfaceWhite), elevation = CardDefaults.cardElevation(1.dp)) {
                         Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.FileCopy, contentDescription = null, tint = SafeShieldBlue, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Filled.FileCopy, contentDescription = null, tint = RakshakSetuBlue, modifier = Modifier.size(22.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("report.docx", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                                 Text("Safe · 31 May 2025", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
@@ -554,7 +563,7 @@ fun ImageScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { SafeShieldTopBar(title = "Image Scanner", onBackClick = onBack) },
+        topBar = { RakshakSetuTopBar(title = "Image Scanner", onBackClick = onBack) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(

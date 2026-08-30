@@ -9,10 +9,10 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
-    primary = SafeShieldBlue,
+    primary = RakshakSetuBlue,
     onPrimary = SurfaceWhite,
-    primaryContainer = SafeShieldBlueLight,
-    onPrimaryContainer = SafeShieldBlueDark,
+    primaryContainer = RakshakSetuBlueLight,
+    onPrimaryContainer = RakshakSetuBlueDark,
     secondary = SafeGreenContainer,
     onSecondary = SurfaceWhite,
     background = BackgroundLight,
@@ -26,7 +26,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun SafeShieldTheme(content: @Composable () -> Unit) {
+fun RakshakSetuTheme(content: @Composable () -> Unit) {
     val colorScheme = LightColorScheme
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -38,7 +38,7 @@ fun SafeShieldTheme(content: @Composable () -> Unit) {
     }
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = SafeShieldTypography,
+        typography = RakshakSetuTypography,
         content = content
     )
 }

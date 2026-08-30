@@ -50,6 +50,6 @@ sealed class Screen(val route: String) {
     object SavedItems : Screen("saved_items")
     object NotificationSettings : Screen("notification_settings")
     object HelpSupport : Screen("help_support")
-    object AboutSafeShield : Screen("about_safeshield")
+    object AboutRakshakSetu : Screen("about_rakshaksetu")
     object Settings : Screen("settings")
 }

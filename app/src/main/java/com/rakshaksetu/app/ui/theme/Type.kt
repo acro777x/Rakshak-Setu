@@ -5,7 +5,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Typography
 
-val SafeShieldTypography = Typography(
+val RakshakSetuTypography = Typography(
     displayLarge = TextStyle(
         fontWeight = FontWeight.Bold,
         fontSize = 26.sp,
