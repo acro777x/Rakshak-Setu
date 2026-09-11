@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Rakshak Setu VoIP</string>
+    <string name="channel_call_name">Active VoIP Calls</string>
+    <string name="channel_call_desc">Ongoing encrypted VoIP call notifications</string>
+    <string name="channel_incoming_name">Incoming VoIP Calls</string>
+    <string name="channel_incoming_desc">Incoming encrypted call alerts and ringing</string>
+</resources>
