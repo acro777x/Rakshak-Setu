@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sovereign Android VoIP Phone & Threat Mitigation Platform
+  Rakshak Setu Prototype 2 - AndroidManifest.xml
+  Targeting Android 14 (API 34) and Android 15 (API 35)
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- =================================================================== -->
+    <!-- NETWORKING PERMISSIONS (WebRTC DTLS-SRTP, WebSocket Signaling)     -->
+    <!-- =================================================================== -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- =================================================================== -->
+    <!-- AUDIO & HARDWARE PERMISSIONS (Microphone Capture, Routing)          -->
+    <!-- =================================================================== -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- =================================================================== -->
+    <!-- TELEPHONY & CALL PERMISSIONS (TelecomManager Self-Managed)          -->
+    <!-- =================================================================== -->
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+
+    <!-- =================================================================== -->
+    <!-- FOREGROUND SERVICES & EXECUTION PERMISSIONS (Android 14 API 34+)    -->
+    <!-- =================================================================== -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- =================================================================== -->
+    <!-- NOTIFICATIONS & FULL-SCREEN ALERT PERMISSIONS (CallStyle HUD)      -->
+    <!-- =================================================================== -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- =================================================================== -->
+    <!-- HARDWARE FEATURE DECLARATIONS                                       -->
+    <!-- =================================================================== -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="true" />
+    <uses-feature
+        android:name="android.hardware.audio.output"
+        android:required="true" />
+
+    <!-- =================================================================== -->
+    <!-- APPLICATION CONFIGURATION                                           -->
+    <!-- =================================================================== -->
+    <application
+        android:name=".RakshakApplication"
+        android:allowBackup="false"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:label="@string/app_name"
+        android:roundIcon="@android:drawable/sym_def_app_icon"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.RakshakVoip"
+        tools:targetApi="35">
+
+        <!-- Main Host Activity (Dialer Keypad & Live In-Call Threat HUD) -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.RakshakVoip">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tel" />
+            </intent-filter>
+        </activity>
+
+        <!-- Native Telecom ConnectionService (Self-Managed VoIP Provider) -->
+        <service
+            android:name=".telephony.VoipConnectionService"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
+            android:foregroundServiceType="phoneCall"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
+        </service>
+
+        <!-- Canonical Telecom ConnectionService -->
+        <service
+            android:name=".telecom.RakshakConnectionService"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
+            android:foregroundServiceType="phoneCall"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
+        </service>
+
+        <!-- Active Call Foreground Service (Android 14 phoneCall type) -->
+        <service
+            android:name=".telephony.CallForegroundService"
+            android:foregroundServiceType="phoneCall"
+            android:exported="false" />
+
+        <service
+            android:name=".telecom.CallForegroundService"
+            android:foregroundServiceType="phoneCall"
+            android:exported="false" />
+
+    </application>
+
+</manifest>
