@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "categories": [
     {
       "id": "digital_arrest",
@@ -276,6 +276,78 @@
         "Amazon customer service order return refund pending share OTP",
         "कस्टमर केयर से बोल रहा हूं रिफंड पाने के लिए 1 रुपये का वेरिफिकेशन पेमेंट करो",
         "फ्लिपकार्ट आर्डर कैंसिल रिफंड के लिए लिंक पर क्लिक करके ओटीपी बताओ"
+      ]
+    },
+    {
+      "id": "credit_card_reward_points",
+      "label": "Credit Card Reward Points Expiry Scam",
+      "phrases": [
+        "Good afternoon sir calling from Card Services Department your reward points are expiring midnight",
+        "You have 14850 reward points expiring today worth 7425 rupees cash value",
+        "Please verify the last 4 digits of your credit card and read the 6 digit redemption authorization code",
+        "क्रेडिट कार्ड रिवॉर्ड पॉइंट्स एक्सपायर हो रहे हैं तुरंत कैश में रिडीम करो ओटीपी बताओ",
+        "रिवॉर्ड पॉइंट कैश बैक बैंक खाते में ट्रांसफर होगा ओटीपी कोड शेयर करें"
+      ]
+    },
+    {
+      "id": "stock_market_ipo_allotment",
+      "label": "Fake Institutional IPO & Pre-Allotment Scam",
+      "phrases": [
+        "Calling from Goldman Sachs Institutional Wealth Desk exclusive FII pre-allotment quota for upcoming IPO",
+        "Guaranteed 300 percent listing gains on special institutional sub-account download trading APK",
+        "Deposit funds into dedicated escrow clearing pool for SEBI registered institutional allotment",
+        "आईपीओ अलॉटमेंट 40 परसेंट डिस्काउंट पर मिलेगा स्पेशल ट्रेडिंग ऐप डाउनलोड करो",
+        "गारंटीड 300% लिस्टिंग गेन तुरंत एस्क्रो खाते में फंड ट्रांसफर करो"
+      ]
+    },
+    {
+      "id": "aadhaar_pan_linking_fine",
+      "label": "Income Tax PAN-Aadhaar 10000 Penalty Scam",
+      "phrases": [
+        "PAN card has been declared inoperative under Section 272B of Income Tax Act pay penalty immediately",
+        "Aadhaar PAN linking deadline expired pay 1000 rupees clearance fee now to avoid 10000 fine",
+        "पैन कार्ड आधार से लिंक नहीं है 10000 जुर्माना लगेगा तुरंत दिए गए लिंक पर ₹1000 पेनल्टी भरो",
+        "इनकम टैक्स नोटिस जारी हुआ है पैन कार्ड ब्लॉक से बचाने के लिए अभी पेमेंट करें"
+      ]
+    },
+    {
+      "id": "insurance_bonus_settlement",
+      "label": "Lapsed Insurance Policy Settlement Scam",
+      "phrases": [
+        "Calling from Insurance Regulatory and Development Authority IRDAI lapsed LIC policy accrued 4.5 lakh bonus",
+        "Pay release stamp duty fee of 35000 to clear your unclaimed insurance bonus maturity amount",
+        "पुरानी एलआईसी पालिसी का 4.5 लाख रुपया बोनस पास हुआ है स्टांप ड्यूटी चार्ज जमा करो",
+        "आईआरडीएआई अप्रूव्ड बीमा क्लेम रिलीज के लिए प्रोसेसिंग फीस ट्रांसफर करें"
+      ]
+    },
+    {
+      "id": "hotel_vip_lounge_booking",
+      "label": "Airport VIP Lounge Credit Card Voucher Fraud",
+      "phrases": [
+        "Complimentary international airport VIP lounge access vouchers activated on your credit card",
+        "Verify your card CVV and 6-digit confirmation code to claim unlimited airport lounge pass",
+        "एयरपोर्ट वीआईपी लाउंज एक्सेस फ्री वाउचर एक्टिवेट करने के लिए कार्ड का सीवीवी और ओटीपी बताएं",
+        "क्रेडिट कार्ड लाउंज पास रिडीम करने के लिए ओटीपी शेयर करें"
+      ]
+    },
+    {
+      "id": "income_tax_refund_pending",
+      "label": "ITR Refund Clearance Verification Scam",
+      "phrases": [
+        "Income Tax Department CPC Bengaluru calling excess tax refund of 42850 is ready for deposit",
+        "Verify bank account details and net banking password to credit your pending income tax refund",
+        "इनकम टैक्स रिफंड का 42850 रुपया अटका हुआ है बैंक खाता और ओटीपी वेरीफाई करो",
+        "आईटीआर रिफंड तुरंत प्राप्त करने के लिए नेट बैंकिंग से सत्यापन करें"
+      ]
+    },
+    {
+      "id": "crypto_arbitrage_wallet",
+      "label": "USDT Liquidity Mining Staking Scam",
+      "phrases": [
+        "Exclusive high-yield liquidity pool promising 2.5 percent daily compound interest on USDT",
+        "Sign unlimited ERC20 token approval transaction in trust wallet to start automatic mining",
+        "यूएसडीटी स्टेकिंग पूल में 2.5% दैनिक लाभ ट्रस्ट वॉलेट कनेक्ट करके अप्रूवल साइन करें",
+        "क्रिप्टो लिक्विडिटी माइनिंग गारंटीड रिटर्न अभी वॉलेट में डिपॉजिट करें"
       ]
     }
   ]
