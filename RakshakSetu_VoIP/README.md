@@ -39,17 +39,17 @@ Unlike cellular GSM calls where Android 10+ sandboxing blocks background third-p
 ## Test Verification
 - **Automated Unit & E2E Tests**: 71 / 71 tests passing (100% Green, 0 failures, 0 skipped).
 - **Run Tests**:
-  `ash
+  `ash
   ./gradlew testDebugUnitTest
   `
 
 ## Build & Run
 - **Build APK**:
-  `ash
+  `ash
   ./gradlew assembleDebug
   `
 - **Run Signaling Relay Server**:
-  `ash
+  `ash
   cd server
   node signaling_server.js 8080
   `

@@ -302,13 +302,13 @@ When you speak, your voice creates ripples in the air. A microphone turns those 
 
 #### 2. Deep Technical Mechanics
 In Rakshak Setu, audio is handled strictly as **Linear PCM 16-bit Little-Endian, Mono, sampled at 16,000 Hz (16 kHz)**.
-- **Sampling Rate (16 kHz):** According to the *Nyquist-Shannon Sampling Theorem*, a sampling rate of $f_s = 16,000	ext{ Hz}$ accurately captures all acoustic frequencies up to the Nyquist frequency:
-  $$f_{	ext{Nyquist}} = rac{f_s}{2} = 8,000	ext{ Hz}$$
+- **Sampling Rate (16 kHz):** According to the *Nyquist-Shannon Sampling Theorem*, a sampling rate of $f_s = 16,000\text{ Hz}$ accurately captures all acoustic frequencies up to the Nyquist frequency:
+  $$f_{\text{Nyquist}} = \frac{f_s}{2} = 8,000\text{ Hz}$$
   Human speech formants and vocal cord harmonics reside between 80 Hz and 7,500 Hz. Thus, 16 kHz captures 100% of intelligible speech, vocal timbre, and synthetic vocoder artifacts while consuming only 1/3 the memory of 48 kHz studio audio.
 - **Bit Depth (16-bit Signed Integers):** Each audio sample is represented by a 16-bit two's complement integer ranging from $-32,768$ to $+32,767$. This delivers a dynamic range of:
-  $$	ext{Dynamic Range} = 20 \log_{10}(2^{16}) pprox 96.32	ext{ dB}$$
+  $$\text{Dynamic Range} = 20 \log_{10}(2^{16}) \approx 96.32\text{ dB}$$
   providing extraordinary precision for detecting tiny synthetic micro-imperfections.
-- **Data Throughput:** At 16,000 samples/sec $	imes$ 2 bytes/sample, the uncompressed data rate is precisely **32,000 bytes/sec (32 kB/s)**.
+- **Data Throughput:** At 16,000 samples/sec $\times$ 2 bytes/sample, the uncompressed data rate is precisely **32,000 bytes/sec (32 kB/s)**.
 
 #### 3. Academic & Industry Origin
 PCM was invented by British engineer Alec Reeves in 1937 for telephone transmission. It serves as the international telecommunications standard under ITU-T G.711.
@@ -332,8 +332,8 @@ In `VadGate.kt` and `Segmenter.kt`, VAD evaluates audio energy across short-time
 - **Short-Time Energy (STE) Formulation:**
   $$E_m = \sum_{n=0}^{N-1} x^2(n + m)$$
 - **Adaptive Energy Thresholding:** A static threshold fails in real life because a user might be in a quiet bedroom or on a noisy Delhi street. The VAD maintains an exponential moving average of background floor noise:
-  $$\sigma_{	ext{noise}}^2(t) = \lambda \cdot \sigma_{	ext{noise}}^2(t-1) + (1 - \lambda) \cdot E_t \quad (	ext{when } E_t < 	heta_{	ext{silence}})$$
-  Speech is declared when $E_m > \gamma \cdot \sigma_{	ext{noise}}^2(t)$.
+  $$\sigma_{\text{noise}}^2(t) = \lambda \cdot \sigma_{\text{noise}}^2(t-1) + (1 - \lambda) \cdot E_t \quad (\text{when } E_t < \theta_{\text{silence}})$$
+  Speech is declared when $E_m > \gamma \cdot \sigma_{\text{noise}}^2(t)$.
 - **Hangover Scheme:** To prevent speech chopping during natural stop consonants (like /p/, /t/, /k/) or brief inter-word pauses, VAD enforces a **200ms hangover window**. The audio stream remains marked as "active speech" for 200ms after energy drops below threshold.
 - **Segmentation Boundaries:** Slices continuous speech on silence pauses exceeding 450ms, or when maximum segment length reaches 4.0 seconds, emitting completed speech segments to downstream classifiers.
 
@@ -357,7 +357,7 @@ First standardized in cellular networks under ITU-T G.729 Annex B and 3GPP AMR V
 
 #### 3.2 Deep Technical Mechanics
 - **Acoustic Feature Extraction:** Analyzes time-domain waveform representations $x(t)$ and frequency-domain representations $|X(f)|^2$. It extracts Linear Frequency Cepstral Coefficients (LFCC), raw spectro-temporal graphs, zero-crossing rates, and pitch jitter.
-- **Semantic Feature Extraction:** Operates purely on the symbolic linguistic domain. Converts phoneme transcript sequences into continuous vector spaces $ec{v} \in \mathbb{R}^{384}$ where geometric distance corresponds to semantic similarity.
+- **Semantic Feature Extraction:** Operates purely on the symbolic linguistic domain. Converts phoneme transcript sequences into continuous vector spaces $\vec{v} \in \mathbb{R}^{384}$ where geometric distance corresponds to semantic similarity.
 
 #### 3.3 Codebase Location
 - **Acoustic Engine:** `com/rakshaksetu/voip/ai/AasistCloneDetector.kt` & `VocoderDspAnalyzer.kt`
@@ -373,7 +373,7 @@ Most speech-to-text apps (like Siri or Google Assistant) send your voice over th
 #### 4.2 Deep Technical Mechanics
 - **Core Engine:** Built on the famous **Kaldi** open-source speech recognition toolkit.
 - **Acoustic Model Architecture:** Utilizes a **Factorized Time Delay Neural Network (TDNN-F)**. TDNN-F layers use singular value decomposition (SVD) to compress standard convolutional weight matrices into compact low-rank factorized representations:
-  $$W = U \cdot V \quad (U \in \mathbb{R}^{M 	imes K}, V \in \mathbb{R}^{K 	imes N}, K \ll \min(M, N))$$
+  $$W = U \cdot V \quad (U \in \mathbb{R}^{M \times K}, V \in \mathbb{R}^{K \times N}, K \ll \min(M, N))$$
   This reduces parameters by 65% while preserving phoneme discrimination.
 - **Decoding Graph (HCLG):** Operates on an offline Weighted Finite-State Transducer (WFST) combining the HMM topology ($H$), context-dependent phone model ($C$), pronunciation lexicon ($L$), and 3-gram language model ($G$).
 - **Streaming Chunks:** Consumes audio in 100ms frames (1,600 samples). Emits partial hypotheses every 80ms and final transcripts on acoustic silence boundaries.
@@ -396,10 +396,10 @@ Developed by Alpha Cephei Inc. (Dr. Nikolay Shmyrev) based on Johns Hopkins Univ
 - **INT8 Quantization:** In standard computers, numbers are stored with 32 decimal bits (**FP32** like `3.14159265`). This takes up a ton of memory and battery. **INT8 Quantization** rounds those numbers into simple 8-bit whole numbers (between $-128$ and $+127$). It shrinks the AI file from a heavy 40 MB down to a tiny 1 MB, allowing it to run 4 times faster with virtually zero loss in accuracy.
 
 #### 5.2 Deep Technical Mechanics
-- **Quantization Mapping:** Maps a floating-point value $x \in [lpha, eta]$ to an 8-bit integer $q \in [-128, 127]$:
-  $$q = 	ext{round}\left(rac{x}{S}ight) + Z$$
-  where $S = rac{eta - lpha}{255}$ is the scale factor and $Z$ is the zero-point offset.
-- **Hardware Acceleration via NNAPI:** ONNX Runtime binds to Android's native **NNAPI (Neural Networks API)** and Qualcomm Hexagon DSP / ARM NEON SIMD instruction sets, executing integer matrix multiplications ($	ext{GEMM}$) directly on hardware registers without CPU cache thrashing.
+- **Quantization Mapping:** Maps a floating-point value $x \in [\alpha, \beta]$ to an 8-bit integer $q \in [-128, 127]$:
+  $$q = \text{round}\left(\frac{x}{S}\right) + Z$$
+  where $S = \frac{\beta - \alpha}{255}$ is the scale factor and $Z$ is the zero-point offset.
+- **Hardware Acceleration via NNAPI:** ONNX Runtime binds to Android's native **NNAPI (Neural Networks API)** and Qualcomm Hexagon DSP / ARM NEON SIMD instruction sets, executing integer matrix multiplications ($\text{GEMM}$) directly on hardware registers without CPU cache thrashing.
 
 #### 5.3 Academic Origin
 Created by Microsoft, Facebook (Meta), and Amazon in 2017 to standardize open neural network interchange.
@@ -418,12 +418,12 @@ When fraudsters use AI software to clone someone's voice, they create a syntheti
 #### 6.2 Deep Technical Mechanics
 - **Architecture:** AASIST-L (Lite version) replaces heavy 2D ResNet spectrogram backbones with a unified spectro-temporal graph attention network.
 - **Feature Front-End (SincNet):** Raw PCM audio $x[n]$ is passed through a bank of parameterized sinc filters that learn band-pass filter boundaries directly from raw waveform samples, bypassing lossy STFT / MFCC binning:
-  $$g[n, f_1, f_2] = 2f_2 rac{\sin(2\pi f_2 n)}{2\pi f_2 n} - 2f_1 rac{\sin(2\pi f_1 n)}{2\pi f_1 n}$$
+  $$g[n, f_1, f_2] = 2f_2 \frac{\sin(2\pi f_2 n)}{2\pi f_2 n} - 2f_1 \frac{\sin(2\pi f_1 n)}{2\pi f_1 n}$$
 - **Graph Attention Mechanism:** Builds two parallel graphs:
   1. **Temporal Graph ($\mathcal{G}_T$):** Nodes represent time steps; edges capture prosody and breathing intervals.
   2. **Spectral Graph ($\mathcal{G}_S$):** Nodes represent sub-band frequencies; edges capture harmonic resonances.
 - **Graph Pooling & Readout:** Node attention weights are dynamically computed using multi-head attention. A max-pooling layer consolidates graph nodes into an embedding vector, passed through a softmax classifier to yield spoof probability:
-  $$\mathcal{P}(	ext{Spoof}) \in [0.0, 1.0]$$
+  $$\mathcal{P}(\text{Spoof}) \in [0.0, 1.0]$$
 
 #### 6.3 Academic Origin
 Introduced by Jee-weon Jung et al. (NAVER Corp & University of Seoul) at Interspeech 2021 / IEEE ACM TASLP 2022 (*"AASIST: Audio Anti-Spoofing Using Integrated Spectro-Temporal Graph Attention Networks"*).
@@ -445,8 +445,8 @@ A "Vocoder" is the computer program inside an AI voice generator that turns math
 #### 7.2 Deep Technical Mechanics
 - **Phase Incoherence:** Real acoustic speech conforms to the minimum-phase properties of the human vocal tract. Neural vocoders (HiFi-GAN, MelGAN) predict magnitude and rely on pseudo-random phase estimators, causing phase variance $\Delta \phi(f)$ to spike in the 6 kHz to 8 kHz spectrum.
 - **Cepstral Peak Prominence (CPP):** Computed by taking the Fourier transform of the log spectrum (the Quefrency domain). The prominence of the highest peak normalized against the linear regression trendline of the cepstrum measures voice periodicity:
-  $$	ext{CPP} = 10 \log_{10} \left( rac{\mathcal{C}(q_{	ext{peak}})}{\hat{\mathcal{C}}(q_{	ext{peak}})} ight)$$
-  Natural speech exhibits dynamic, fluctuating CPP values ($12	ext{ dB} - 22	ext{ dB}$). Vocoders generate unnaturally rigid or depressed CPP values.
+  $$\text{CPP} = 10 \log_{10} \left( \frac{\mathcal{C}(q_{\text{peak}})}{\hat{\mathcal{C}}(q_{\text{peak}})} \right)$$
+  Natural speech exhibits dynamic, fluctuating CPP values ($12\text{ dB} - 22\text{ dB}$). Vocoders generate unnaturally rigid or depressed CPP values.
 
 #### 7.3 Codebase Location
 - `com/rakshaksetu/voip/ai/VocoderDspAnalyzer.kt`
@@ -463,9 +463,9 @@ If a scammer says *"Send money right now"* and your rulebook only looks for *"Tr
 - **Model:** `all-MiniLM-L6-v2` compressed to ONNX.
 - **Architecture:** 6-layer MiniLM transformer distilled from large RoBERTa architectures.
 - **Embedding Generation:** Tokenizes transcript text via WordPiece, processes tokens through self-attention heads, and performs mean pooling over token embeddings to yield a normalized unit vector:
-  $$ec{e} \in \mathbb{R}^{384}, \quad \|ec{e}\|_2 = 1.0$$
-- **Semantic Similarity Formulation:** The similarity between spoken transcript vector $ec{u}$ and scam prototype vector $ec{v}$ is given by the inner product (Cosine Similarity):
-  $$	ext{Sim}(ec{u}, ec{v}) = ec{u} \cdot ec{v} = \sum_{i=1}^{384} u_i v_i \in [-1.0, 1.0]$$
+  $$\vec{e} \in \mathbb{R}^{384}, \quad \|\vec{e}\|_2 = 1.0$$
+- **Semantic Similarity Formulation:** The similarity between spoken transcript vector $\vec{u}$ and scam prototype vector $\vec{v}$ is given by the inner product (Cosine Similarity):
+  $$\text{Sim}(\vec{u}, \vec{v}) = \vec{u} \cdot \vec{v} = \sum_{i=1}^{384} u_i v_i \in [-1.0, 1.0]$$
 
 #### 8.3 Academic Origin
 Developed by Microsoft Research (Wang et al., 2020) (*"MiniLM: Deep Self-Attention Distillation for Task-Agnostic Compression of Pre-Trained Transformers"*).
@@ -482,10 +482,10 @@ This is the "Criminal Detective" of the system. We have pre-computed the numeric
 
 #### 9.2 Deep Technical Mechanics
 - **Prototype Representation:** In `assets/intent_prototypes.json`, each crime category $C_k$ is represented by centroid prototype vectors:
-  $$ec{\mu}_k = rac{1}{|S_k|} \sum_{ec{x} \in S_k} ec{x}$$
+  $$\vec{\mu}_k = \frac{1}{|S_k|} \sum_{\vec{x} \in S_k} \vec{x}$$
 - **Softmax Probability Formulation:** The posterior probability of category $k$ is calculated via temperature-scaled cosine distances:
-  $$P(C_k \mid ec{u}) = rac{\exp\left( rac{ec{u} \cdot ec{\mu}_k}{	au} ight)}{\sum_{j} \exp\left( rac{ec{u} \cdot ec{\mu}_j}{	au} ight)}$$
-  where $	au = 0.1$ is a sharpening temperature parameter.
+  $$P(C_k \mid \vec{u}) = \frac{\exp\left( \frac{\vec{u} \cdot \vec{\mu}_k}{\tau} \right)}{\sum_{j} \exp\left( \frac{\vec{u} \cdot \vec{\mu}_j}{\tau} \right)}$$
+  where $\tau = 0.1$ is a sharpening temperature parameter.
 
 #### 9.3 Codebase Location
 - `app/src/main/java/com/rakshaksetu/app/pipeline/IntentPrototypeClassifier.kt`
@@ -557,7 +557,7 @@ Never trust just one person's opinion! The **Voting Engine** is a courtroom jury
 
 #### 13.2 Deep Technical Mechanics
 - **Consensus Mathematical Formulation:**
-  $$S_{	ext{final}} = \sum_{i=1}^{K} w_i \cdot s_i$$
+  $$S_{\text{final}} = \sum_{i=1}^{K} w_i \cdot s_i$$
   where $\sum w_i = 1.0$.
 - **Category Resolution:** If multiple categories are flagged across different engines (e.g., *Digital Arrest* vs *TRAI Deactivation*), the Voting Engine computes categorical cross-entropy to declare the dominant legal crime type.
 
@@ -579,11 +579,11 @@ Imagine a points scale from $-5$ to $+5$.
 
 #### 14.2 Deep Technical Mechanics
 - **Log-Likelihood Ratio Accumulation:**
-  $$\Lambda_t = \Lambda_{t-1} + \ln \left( rac{P(x_t \mid H_1)}{P(x_t \mid H_0)} ight)$$
+  $$\Lambda_t = \Lambda_{t-1} + \ln \left( \frac{P(x_t \mid H_1)}{P(x_t \mid H_0)} \right)$$
 - **Wald Stopping Thresholds:**
-  $$A = \ln\left(rac{1 - eta}{lpha}ight) pprox +5.288 \quad (	ext{Alarm Boundary})$$
-  $$B = \ln\left(rac{eta}{1 - lpha}ight) pprox -4.600 \quad (	ext{Safe Boundary})$$
-  Guarantees False Positive Rate $lpha \le 0.5\%$ and False Negative Rate $eta \le 1.0\%$.
+  $$A = \ln\left(\frac{1 - \beta}{\alpha}\right) \approx +5.288 \quad (\text{Alarm Boundary})$$
+  $$B = \ln\left(\frac{\beta}{1 - \alpha}\right) \approx -4.600 \quad (\text{Safe Boundary})$$
+  Guarantees False Positive Rate $\alpha \le 0.5\%$ and False Negative Rate $\beta \le 1.0\%$.
 
 #### 14.3 Academic Origin
 Developed by Abraham Wald at Columbia University in 1945 (*"Sequential Tests of Statistical Hypotheses"*).

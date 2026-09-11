@@ -331,10 +331,10 @@ class SpscAudioRingBuffer(val capacity: Int = 32768) {
 2. **False Sharing Elimination:** Modern multi-core mobile processors (such as ARM Cortex-X4 and Cortex-A78) maintain 64-byte L1 cache lines. If the `writeIndex` (modified by WebRTC) and `readIndex` (modified by the AI thread) reside on the same cache line, every write causes cache-line invalidation on the reading core, degrading throughput by over 800%. By inserting 56 bytes of volatile dummy padding (`p1` through `p7`) between pointers, `writeIndex` and `readIndex` are guaranteed to occupy distinct cache lines.
 3. **Lock-Free Read/Write Semantics:**
    - **Producer (Push):**
-     $$	ext{availableSpace} = 	ext{capacity} - (w - r)$$
+     $$\text{availableSpace} = \text{capacity} - (w - r)$$
      If available space is less than the incoming chunk length, the producer atomically drops or overwrites the oldest unread frames rather than blocking the audio playback thread.
    - **Consumer (Pop):**
-     $$	ext{availableData} = w - r$$
+     $$\text{availableData} = w - r$$
      Reads up to the requested frame count, copies shorts via `System.arraycopy`, and atomically advances `readIndex` using `AtomicLong.lazySet` (Store-Store memory barrier), ensuring zero CPU lock contention.
 
 ---
@@ -371,7 +371,7 @@ Running raw PyTorch models on mobile devices is computationally unfeasible. We c
 - **Model Size Reduction:** Compressed from 38.6 MB (FP32) to **1.02 MB** (INT8), stored in `app/src/main/assets/deepfake_detector.onnx` and companion `.data` weights.
 - **Hardware Acceleration:** Executed via `com.microsoft.onnxruntime:onnxruntime-android:1.18.0` with the NNAPI (Neural Networks API) execution provider, dispatching inference directly to the device's NPU / DSP.
 - **Tensor Input Formatting:** Consumes a 4-second sliding audio window of 64,600 normalized floating-point samples ($[-1.0, 1.0]$):
-  $$	ext{Input Shape:} \quad [1, 64600] \quad (	ext{Batch Size} = 1, 	ext{Samples} = 64600)$$
+  $$\text{Input Shape:} \quad [1, 64600] \quad (\text{Batch Size} = 1, \text{Samples} = 64600)$$
 - **Inference Latency:** Benchmark measured at **34.2 ms** on the test device's ARM64-v8a processor—well below the 200ms processing threshold.
 
 #### 4.5.3 Complementary DSP Vocoder Anomaly Analysis (`VocoderDspAnalyzer.kt`)
@@ -399,11 +399,11 @@ The taxonomy encompasses five major attack vectors:
    - *Keywords & Phrases:* "Lottery winner", "Kaun Banega Crorepati reward", "Send ₹5 to receive ₹50,000 refund", "Scan this QR code to receive money".
 
 #### 4.6.2 Aho-Corasick Automaton Mathematical Execution
-Evaluating 450+ complex multi-word phrases using traditional regex or iterative string matching in an active streaming conversation would consume $O(M 	imes N)$ time per audio chunk, causing severe UI thread lag.
+Evaluating 450+ complex multi-word phrases using traditional regex or iterative string matching in an active streaming conversation would consume $O(M \times N)$ time per audio chunk, causing severe UI thread lag.
 We implemented the **Aho-Corasick Multi-Pattern Matcher**:
 - **Construction:** Builds a finite-state automaton (Trie) where each node represents a character state. Using Breadth-First Search (BFS), fallback 'failure links' are computed.
 - **Complexity:** String matching runs in strict linear time:
-  $$	ext{Time Complexity} = O(N + K)$$
+  $$\text{Time Complexity} = O(N + K)$$
   where $N$ is the length of the streaming transcript and $K$ is the total count of pattern matches, completely independent of the dictionary size!
 - **Polyglot & Script Agnostic:** Supports native Devanagari script (e.g., "डिजिटल अरेस्ट"), Latin-transliterated Hinglish ("police ne pakad liya"), and formal Indian English simultaneously.
 
@@ -422,20 +422,20 @@ We formulate the security monitoring task as a sequential binary hypothesis test
 - **Alternative Hypothesis ($H_1$):** The call is a malicious scam or deepfake impersonation attack.
 
 At each observation frame $t$, the AI defense plane computes the log-likelihood ratio update:
-$$z_t = \ln \left( rac{P(x_t \mid H_1)}{P(x_t \mid H_0)} ight)$$
+$$z_t = \ln \left( \frac{P(x_t \mid H_1)}{P(x_t \mid H_0)} \right)$$
 
 The cumulative decision statistic $\Lambda_t$ is accumulated recursively:
-$$\Lambda_t = \Lambda_{t-1} + z_t = \sum_{i=1}^t \ln \left( rac{P(x_i \mid H_1)}{P(x_i \mid H_0)} ight)$$
+$$\Lambda_t = \Lambda_{t-1} + z_t = \sum_{i=1}^t \ln \left( \frac{P(x_i \mid H_1)}{P(x_i \mid H_0)} \right)$$
 with initial condition $\Lambda_0 = 0$.
 
 #### 4.7.2 Decision Boundaries and Error Rate Guarantees
 We define target statistical confidence bounds:
-- Desired False Positive Rate (Type I Error): $lpha \le 0.005$ (0.5% maximum allowable false alarm rate).
-- Desired False Negative Rate (Type II Error): $eta \le 0.01$ (1.0% maximum allowable missed scam rate).
+- Desired False Positive Rate (Type I Error): $\alpha \le 0.005$ (0.5% maximum allowable false alarm rate).
+- Desired False Negative Rate (Type II Error): $\beta \le 0.01$ (1.0% maximum allowable missed scam rate).
 
 According to Wald's Theorem, the optimal upper boundary $A$ and lower boundary $B$ are calculated as:
-$$A = \ln \left( rac{1 - eta}{lpha} ight) = \ln \left( rac{1 - 0.01}{0.005} ight) = \ln(198) pprox +5.288$$
-$$B = \ln \left( rac{eta}{1 - lpha} ight) = \ln \left( rac{0.01}{1 - 0.005} ight) = \ln(0.01005) pprox -4.600$$
+$$A = \ln \left( \frac{1 - \beta}{\alpha} \right) = \ln \left( \frac{1 - 0.01}{0.005} \right) = \ln(198) \approx +5.288$$
+$$B = \ln \left( \frac{\beta}{1 - \alpha} \right) = \ln \left( \frac{0.01}{1 - 0.005} \right) = \ln(0.01005) \approx -4.600$$
 
 #### 4.7.3 Tri-State Decision Logic at Time $t$:
 1. **If $\Lambda_t \ge A$:** The accumulator rejects $H_0$ and accepts $H_1$. **ACTION:** The call is conclusively declared a HIGH-CONFIDENCE SCAM/DEEPFAKE. Trigger the Crimson Threat HUD, initiate audible alert buzz, and seal Section 65B forensic evidence.
@@ -444,12 +444,12 @@ $$B = \ln \left( rac{eta}{1 - lpha} ight) = \ln \left( rac{0.01}{1 - 0.005}
 
 #### 4.7.4 Multi-Modal Evidence Fusion Formulation
 The instantaneous log-likelihood ratio $z_t$ is synthesized from three decoupled signals:
-$$z_t = w_{	ext{clone}} \cdot \mathcal{S}_{	ext{clone}} + w_{	ext{dsp}} \cdot \mathcal{S}_{	ext{dsp}} + w_{	ext{trie}} \cdot \mathcal{S}_{	ext{trie}} - \delta_{	ext{decay}}$$
+$$z_t = w_{\text{clone}} \cdot \mathcal{S}_{\text{clone}} + w_{\text{dsp}} \cdot \mathcal{S}_{\text{dsp}} + w_{\text{trie}} \cdot \mathcal{S}_{\text{trie}} - \delta_{\text{decay}}$$
 where:
-- $\mathcal{S}_{	ext{clone}} \in [-1, 1]$ is the centered AASIST-L neural deepfake score.
-- $\mathcal{S}_{	ext{dsp}} \in [-1, 1]$ is the vocoder phase/CPP anomaly metric.
-- $\mathcal{S}_{	ext{trie}} \in [0, 3]$ is the density of high-severity scam keywords detected by the Aho-Corasick matcher.
-- $\delta_{	ext{decay}} = 0.05$ is an exponential decay constant ensuring that transient acoustic glitches in an otherwise normal call are naturally discounted over time.
+- $\mathcal{S}_{\text{clone}} \in [-1, 1]$ is the centered AASIST-L neural deepfake score.
+- $\mathcal{S}_{\text{dsp}} \in [-1, 1]$ is the vocoder phase/CPP anomaly metric.
+- $\mathcal{S}_{\text{trie}} \in [0, 3]$ is the density of high-severity scam keywords detected by the Aho-Corasick matcher.
+- $\delta_{\text{decay}} = 0.05$ is an exponential decay constant ensuring that transient acoustic glitches in an otherwise normal call are naturally discounted over time.
 
 Because Wald's SPRT minimizes the Average Sample Number (ASN), high-intensity digital arrest scams cross the critical threshold $A$ within **2.4 to 3.8 seconds** of fraud speech, terminating attacks before victims can be coerced.
 
