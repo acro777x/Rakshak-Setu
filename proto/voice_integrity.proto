@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package com.rakshaksetu.telecom.v1;
+
+option java_multiple_files = true;
+option java_package = "com.rakshaksetu.proto.v1";
+option go_package = "rakshaksetu/telecom/v1";
+
+// Telecom & Enterprise Voice Integrity Verification Service
+service TelecomVoiceIntegrityService {
+    // High-throughput bi-directional streaming for live PBX, SIP Trunk, and Carrier VoLTE inspection
+    rpc StreamVerifyCall (stream AudioStreamChunk) returns (stream LiveThreatAssessment);
+
+    // Batch verification for post-call forensic audit
+    rpc EvaluateCallSession (CallSessionData) returns (SessionVerdict);
+
+    // Register or update verified executive voice biometric baseline
+    rpc EnrollSpeakerVoiceprint (SpeakerEnrollmentRequest) returns (SpeakerEnrollmentResponse);
+}
+
+enum RiskScenario {
+    STANDARD_CONSUMER = 0;
+    HIGH_VALUE_TRANSACTION = 1;
+    CXO_PRIVILEGED_APPROVAL = 2;
+    CALL_CENTER_FRONTLINE = 3;
+}
+
+enum RecommendedAction {
+    ALLOW_PROCEED = 0;
+    INJECT_CARRIER_WARNING_BEEP = 1;
+    REQUIRE_OUT_OF_BAND_CALLBACK = 2;
+    REQUIRE_BIOMETRIC_STEP_UP = 3;
+    ESCALATE_TO_SUPERVISOR = 4;
+    FREEZE_TRANSACTION_HOLD = 5;
+    TERMINATE_CALL = 6;
+}
+
+message AudioStreamChunk {
+    string call_session_id = 1;
+    int64 sequence_number = 2;
+    bytes pcm_payload_16k_mono = 3; // 16kHz, 16-bit Mono Linear PCM
+    int64 timestamp_ms = 4;
+    RiskScenario scenario = 5;
+    string caller_cli = 6;
+    string destination_cli = 7;
+}
+
+message LiveThreatAssessment {
+    string call_session_id = 1;
+    int64 sequence_number = 2;
+    float composite_risk_score = 3; // 0.0 to 1.0
+    bool is_cloned_voice = 4;
+    float neural_vocoder_confidence = 5;
+    float prosody_anomaly_score = 6;
+    float aasist_deepfake_probability = 7;
+    string dominant_threat_category = 8;
+    RecommendedAction recommended_action = 9;
+    string security_advisory = 10;
+}
+
+message CallSessionData {
+    string call_session_id = 1;
+    string caller_cli = 2;
+    string destination_cli = 3;
+    bytes full_call_audio_wav = 4;
+    int32 duration_seconds = 5;
+    RiskScenario scenario = 6;
+}
+
+message SessionVerdict {
+    string call_session_id = 1;
+    bool conviction = 2;
+    float final_confidence = 3;
+    string dominant_scam_type = 4;
+    repeated string flagged_transcript_quotes = 5;
+    repeated string extracted_upi_iocs = 6;
+    bytes section_65b_legal_dossier_pdf = 7;
+    string cryptographic_sha256_hash = 8;
+}
+
+message SpeakerEnrollmentRequest {
+    string speaker_id = 1;
+    string speaker_role = 2; // e.g. "MANAGING_DIRECTOR", "CHIEF_FINANCIAL_OFFICER"
+    repeated bytes genuine_reference_pcm = 3;
+}
+
+message SpeakerEnrollmentResponse {
+    string speaker_id = 1;
+    bool success = 2;
+    int32 enrolled_vector_dimensions = 3; // 64
+    string status_message = 4;
+}
