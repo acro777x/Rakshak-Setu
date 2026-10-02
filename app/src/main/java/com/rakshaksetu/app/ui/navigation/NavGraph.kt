@@ -2,6 +2,8 @@ package com.rakshaksetu.app.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -9,6 +11,19 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.rakshaksetu.app.ui.screens.*
 import com.rakshaksetu.app.ui.voip.*
+import com.rakshaksetu.app.webrtc.VoipSessionManager
+import kotlinx.coroutines.launch
+
+/**
+ * Default WebSocket signalling relay.
+ *
+ * 10.0.2.2 is the Android emulator's alias for the host machine's loopback, so
+ * `server/signaling_server.js` running on the developer's laptop is reachable
+ * from an emulator with no configuration. A physical device needs the LAN IP
+ * instead, which is why this is a constant that can be overridden at build time
+ * rather than a hard-coded production host.
+ */
+private const val DEFAULT_SIGNALING_URL = "ws://10.0.2.2:8080"
 
 @Composable
 fun RakshakSetuNavGraph(
@@ -16,6 +31,12 @@ fun RakshakSetuNavGraph(
     dynamicRoute: String? = null
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Single shared call session for the whole app. Constructed lazily, so a
+    // user who never opens Secure Line never instantiates WebRTC.
+    val voipSession = remember { VoipSessionManager.get(context) }
 
     androidx.compose.runtime.LaunchedEffect(dynamicRoute) {
         if (!dynamicRoute.isNullOrBlank()) {
@@ -126,9 +147,17 @@ fun RakshakSetuNavGraph(
         }
 
         // ── SECURE LINE / SOVEREIGN VOIP TELEPHONY ─────────
+        // Both routes now drive the REAL WebRTC session (VoipSessionManager)
+        // instead of jumping straight to a HUD with a hard-coded peer name. A call
+        // is only placed once signalling is connected; until then the dialer is
+        // disabled and shows why.
         composable(Screen.SecureLine.route) {
             VoipDialerScreen(
                 onInitiateCall = { destination ->
+                    if (voipSession.uiState.value.state == VoipSessionManager.CallState.IDLE) {
+                        scope.launch { voipSession.connect(DEFAULT_SIGNALING_URL) }
+                    }
+                    voipSession.startOutgoingCall(destination)
                     navigateTo(Screen.VoipActiveHud.createRoute(destination))
                 },
                 onSpeedDial1930 = {
@@ -140,6 +169,10 @@ fun RakshakSetuNavGraph(
         composable(Screen.VoipDialer.route) {
             VoipDialerScreen(
                 onInitiateCall = { destination ->
+                    if (voipSession.uiState.value.state == VoipSessionManager.CallState.IDLE) {
+                        scope.launch { voipSession.connect(DEFAULT_SIGNALING_URL) }
+                    }
+                    voipSession.startOutgoingCall(destination)
                     navigateTo(Screen.VoipActiveHud.createRoute(destination))
                 },
                 onSpeedDial1930 = {
