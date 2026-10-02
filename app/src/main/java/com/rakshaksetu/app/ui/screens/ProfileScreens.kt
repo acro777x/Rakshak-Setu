@@ -443,10 +443,17 @@ fun SecurityPrivacyScreen(onBack: () -> Unit) {
             SectionCard {
                 Text("DPDP Act Compliance & Data Purge", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                ProfileMenuItem(Icons.Filled.DeleteForever, "Purge All Evidence & Logs", BlockedRed) {
-                    consentStore.purgeEvidence(context)
+                ProfileMenuItem(Icons.Filled.DeleteForever, "Erase All Local Data", BlockedRed) {
+                    // Clears detection results (phone numbers + transcripts),
+                    // the community blacklist, speaker voice profiles, UPI
+                    // threat indicators, feedback logs, the federated-learning
+                    // threshold table and cached audio. The old copy claimed
+                    // "completely purged" when only filesDir/evidence was removed.
+                    val cleared = consentStore.purgeEvidence(context)
                     scope.launch {
-                        snackbarHostState.showSnackbar("All local evidence & audio logs completely purged.")
+                        snackbarHostState.showSnackbar(
+                            "Erased all local data ($cleared stores cleared). Downloaded AI models must be re-fetched."
+                        )
                     }
                 }
             }
