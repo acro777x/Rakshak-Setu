@@ -45,15 +45,43 @@ class FederatedLearningTest {
     }
 
     @Test
-    fun `test export deltas clears local cache`() {
+    fun `export is non-destructive until the server acknowledges`() {
+        // FederatedLearningManager is an object singleton with a process-wide
+        // delta queue, so drain it first rather than assume a clean slate.
+        FederatedLearningManager.markDeltasExported()
+
         FederatedLearningManager.logFalsePositive("test_cat")
-        
-        val exportedJson = FederatedLearningManager.exportDeltas("test_hash")
+        assertEquals(1, FederatedLearningManager.pendingDeltaCount())
+
+        val exportedJson = FederatedLearningManager.exportDeltas()
         assertTrue(exportedJson.contains("test_cat"))
-        assertTrue(exportedJson.contains("test_hash"))
-        
-        // A second export immediately after should be empty
-        val secondExportJson = FederatedLearningManager.exportDeltas("test_hash")
-        assertTrue("Second export should contain no deltas", secondExportJson.contains("\"deltas\":[]"))
+        assertEquals(1, FederatedLearningManager.pendingDeltaCount())
+
+        // Repeated exports must not lose the learning history when the upload
+        // keeps failing offline — that was the previous destructive behaviour.
+        val secondExportJson = FederatedLearningManager.exportDeltas()
+        assertTrue(secondExportJson.contains("test_cat"))
+        assertEquals(1, FederatedLearningManager.pendingDeltaCount())
+
+        FederatedLearningManager.markDeltasExported()
+        assertEquals(0, FederatedLearningManager.pendingDeltaCount())
+        assertTrue(
+            "After acknowledgement the queue is drained",
+            FederatedLearningManager.exportDeltas().contains("\"deltas\":[]")
+        )
+    }
+
+    @Test
+    fun `export carries no device identifier`() {
+        FederatedLearningManager.logFalsePositive("privacy_cat")
+        val json = FederatedLearningManager.exportDeltas()
+
+        // A hash is not anonymisation: Indian mobile numbers are only 10^10 and
+        // are publicly enumerable, and the aggregator does not need to know which
+        // client contributed what. No identifier may leave the device.
+        assertFalse("payload must not carry a deviceIdHash", json.contains("deviceIdHash"))
+        assertFalse("payload must not carry any hash field", json.contains("device_id"))
+        assertFalse("payload must not carry a client id", json.contains("clientId"))
+        assertTrue("payload still carries the delta itself", json.contains("privacy_cat"))
     }
 }

@@ -14,8 +14,26 @@ data class WeightDelta(
     val timestampMs: Long = System.currentTimeMillis()
 )
 
+/**
+ * Payload uploaded to the aggregation server.
+ *
+ * PRIVACY: this deliberately carries NO device identifier of any kind.
+ *
+ * An earlier revision carried `deviceIdHash`, described in-code as a
+ * "DPDP compliant anonymized identifier". That was not defensible:
+ *   - A hash is not anonymisation. Indian mobile numbers are only 10^10
+ *     possibilities and are publicly enumerable, so a hash is reversible by
+ *     brute force in minutes; salting does not help against enumeration.
+ *   - Even an unbreakable hash is unnecessary. Aggregating per-category
+ *     threshold deltas is a coordinate-wise median/trimmed-mean over clients.
+ *     The aggregator does not need to know which client contributed what, so
+ *     a stable pseudonymous identifier buys nothing while creating a
+ *     re-identification and singling-out risk.
+ *   - DPDP 2023 has no GDPR-Recital-26-style anonymisation carve-out.
+ *
+ * The server therefore cannot single a device out even in principle.
+ */
 data class FlExportPayload(
-    val deviceIdHash: String, // DPDP compliant anonymized identifier
     val deltas: List<WeightDelta>,
     val version: Int = 1
 )
@@ -121,17 +139,35 @@ object FederatedLearningManager {
 
     /**
      * Export the accumulated local weight deltas as a JSON payload for the Backend
-     * aggregation server. Clears locally staged deltas after export.
+     * aggregation server.
+     *
+     * NON-DESTRUCTIVE: the staged deltas are retained until
+     * [markDeltasExported] is called by the uploader after the server actually
+     * acknowledges receipt. The previous version cleared them eagerly, so any
+     * failed upload silently destroyed the client's learning history.
+     *
+     * Carries no device identifier -- see [FlExportPayload].
      */
     @Synchronized
-    fun exportDeltas(deviceIdHash: String): String {
-        val payload = FlExportPayload(
-            deviceIdHash = deviceIdHash,
-            deltas = localDeltas.toList()
-        )
-        val json = Gson().toJson(payload)
-        localDeltas.clear()
-        return json
+    fun exportDeltas(): String {
+        val payload = FlExportPayload(deltas = localDeltas.toList())
+        return Gson().toJson(payload)
+    }
+
+    /** Number of deltas staged locally and not yet acknowledged by a server. */
+    @Synchronized
+    fun pendingDeltaCount(): Int = localDeltas.size
+
+    /**
+     * Called only after the aggregation server confirms receipt, so a failed or
+     * offline upload does not discard locally-learned corrections.
+     */
+    @Synchronized
+    fun markDeltasExported() {
+        if (localDeltas.isNotEmpty()) {
+            Log.i(TAG, "FL: acknowledged ${localDeltas.size} delta(s) by aggregation server.")
+            localDeltas.clear()
+        }
     }
 
     /**

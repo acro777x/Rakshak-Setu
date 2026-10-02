@@ -24,7 +24,15 @@ object EmbeddingEngine {
     // Cache of embedded scam phrases
     private val phraseEmbeddings = mutableMapOf<String, FloatArray>()
 
-    /** Legacy test/compat entry — delegates to [ensureInitialized]. */
+    /**
+     * Vocab size of the encoder this build expects to download:
+     * paraphrase-multilingual-MiniLM-L12-v2 (config.json -> "vocab_size": 250037).
+     * Used to reject a mismatched tokenizer before any inference runs.
+     */
+    private const val EXPECTED_ENCODER_VOCAB_SIZE = 250_037
+
+    /**
+     * Legacy test/compat entry — delegates to [ensureInitialized]. */
     fun init(context: android.content.Context, modelPath: String) {
         ensureInitialized(context, modelPath)
     }
@@ -32,12 +40,19 @@ object EmbeddingEngine {
     /**
      * Idempotent initialization. Tokenizer always loads from assets; the ONNX session
      * only attaches when a valid encoder file exists at [modelPath] (runtime download).
+     *
+     * SAFETY: the bundled assets/vocab.txt is a 119,547-token BERT WordPiece vocabulary
+     * (distilbert-base-multilingual-cased) while the runtime-downloaded encoder is a
+     * 250,037-token XLM-R SentencePiece model. Attaching the session anyway produces
+     * confident nonsense rather than an error, so the pair is validated here and the
+     * lexical matcher stays in charge on mismatch.
      */
     @Synchronized
     fun ensureInitialized(context: android.content.Context, modelPath: String?) {
         if (tokenizer == null) {
             try {
                 tokenizer = WordPieceTokenizer(context, "vocab.txt")
+                Log.i(TAG, "Tokenizer loaded: ${tokenizer?.vocabSize} tokens")
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to load tokenizer", e)
             }
@@ -45,6 +60,17 @@ object EmbeddingEngine {
         if (!sessionAvailable && modelPath != null) {
             val f = java.io.File(modelPath)
             if (f.exists() && f.length() > 1_000_000) {
+                val vocabMatches = tokenizer?.matchesEncoderVocabSize(EXPECTED_ENCODER_VOCAB_SIZE) == true
+                if (!vocabMatches) {
+                    Log.w(
+                        TAG,
+                        "Encoder at $modelPath expects $EXPECTED_ENCODER_VOCAB_SIZE tokens but the bundled " +
+                            "tokenizer has ${tokenizer?.vocabSize}. Refusing to attach: mismatched token IDs " +
+                            "would yield meaningless embeddings. Staying on the lexical matcher until a " +
+                            "matching vocab.txt (XLM-R, 250037 tokens) is shipped."
+                    )
+                    return
+                }
                 try {
                     ortEnv = OrtEnvironment.getEnvironment()
                     ortSession = ortEnv?.createSession(f.absolutePath, OrtSession.SessionOptions())

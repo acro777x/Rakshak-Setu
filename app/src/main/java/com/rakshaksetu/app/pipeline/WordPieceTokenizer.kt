@@ -1,6 +1,7 @@
 package com.rakshaksetu.app.pipeline
 
 import android.content.Context
+import android.util.Log
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -17,6 +18,17 @@ class WordPieceTokenizer(context: Context, vocabFileName: String = "vocab.txt") 
     private val sepId: Long
     private val padId: Long
 
+    /**
+     * Size of the loaded vocabulary. Exposed so callers can assert that the
+     * tokenizer matches the encoder they actually attached (see
+     * [matchesEncoderVocabSize]).
+     */
+    var vocabSize: Int = 0
+        private set
+
+    /** True when a vocabulary file was successfully parsed. */
+    val isLoaded: Boolean get() = vocabSize > 0
+
     init {
         loadVocab(context, vocabFileName)
         unkId = vocab[unkToken] ?: 100L
@@ -25,22 +37,61 @@ class WordPieceTokenizer(context: Context, vocabFileName: String = "vocab.txt") 
         padId = vocab[padToken] ?: 0L
     }
 
+    /**
+     * True when this tokenizer's vocabulary size is within tolerance of the
+     * encoder's expected embedding-matrix rows.
+     *
+     * WHY THIS MATTERS: the shipped assets/vocab.txt is a 119,547-token BERT
+     * WordPiece vocabulary (distilbert-base-multilingual-cased), but the encoder
+     * downloaded at runtime is paraphrase-multilingual-MiniLM-L12-v2, a
+     * 250,037-token XLM-R SentencePiece model. Feeding wordpiece IDs into an
+     * XLM-R embedding table does not degrade gracefully -- it silently produces
+     * meaningless vectors, so "semantic mode" would report confident nonsense.
+     * A size mismatch is therefore treated as a hard failure: the caller must
+     * fall back to the lexical matcher rather than run with mismatched inputs.
+     */
+    fun matchesEncoderVocabSize(expected: Int, tolerance: Int = 2): Boolean =
+        expected > 0 && kotlin.math.abs(vocabSize - expected) <= tolerance
+
     private fun loadVocab(context: Context, vocabFileName: String) {
         try {
-            val inputStream = context.assets.open(vocabFileName)
-            val reader = BufferedReader(InputStreamReader(inputStream))
-            var index = 0L
-            reader.useLines { lines ->
-                lines.forEach { line ->
-                    val token = line.trim()
-                    if (token.isNotEmpty()) {
-                        vocab[token] = index
+            context.assets.open(vocabFileName).use { inputStream ->
+                val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
+                var index = 0L
+                var lineCount = 0L
+                var skipped = 0L
+                reader.useLines { lines ->
+                    lines.forEach { line ->
+                        lineCount++
+                        val token = line.trim()
+                        if (token.isEmpty()) {
+                            skipped++
+                        } else {
+                            // First occurrence wins, so a duplicated line can never
+                            // silently re-point a token id at a later index.
+                            vocab.getOrPut(token) { index }
+                            index++
+                        }
                     }
-                    index++
+                }
+                vocabSize = vocab.size
+                Log.i(
+                    "WordPieceTokenizer",
+                    "Loaded ${vocabSize} tokens from $vocabFileName " +
+                        "(lines=$lineCount, blankSkipped=$skipped, nextId=$index)."
+                )
+                if (vocabSize.toLong() != lineCount) {
+                    Log.w(
+                        "WordPieceTokenizer",
+                        "vocab.txt read $lineCount lines but produced $vocabSize ids " +
+                            "($skipped blank). A BERT vocabulary must have one id per line; " +
+                            "a mismatch means ids are misaligned with the encoder's embedding table."
+                    )
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("WordPieceTokenizer", "Failed to load vocabulary '$vocabFileName'", e)
+            vocabSize = 0
         }
     }
 

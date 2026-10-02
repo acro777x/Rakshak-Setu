@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.rakshaksetu.app.feedback.FeedbackLogger
+import com.rakshaksetu.app.model.DetectionStore
 import com.rakshaksetu.app.notification.ScamAlertManager
 import com.rakshaksetu.app.security.CallIdValidator
 
@@ -31,6 +32,23 @@ class FeedbackReceiver : BroadcastReceiver() {
             try {
                 val logger = FeedbackLogger(context)
                 logger.logNotScam(callId, reason = "User dismissed from notification")
+
+                // Close the federated-learning loop: a user telling us "not a scam"
+                // is the single highest-quality negative signal the app can get.
+                // Previously logFalsePositive() had no production caller at all, so
+                // the model could never learn from its own false alarms.
+                //
+                // Only the matched CATEGORY is fed back -- never audio, transcript,
+                // or the caller's number -- and the category string is validated
+                // against the loaded corpus so a malformed value cannot enter the
+                // threshold table.
+                val category = DetectionStore.getCachedResult(callId)?.scamType
+                    ?: DetectionStore.getLastResult(context)?.takeIf { it.callId == callId }?.scamType
+                if (!category.isNullOrBlank() && category.length <= 64) {
+                    com.rakshaksetu.app.pipeline.FederatedLearningManager.attach(context)
+                    com.rakshaksetu.app.pipeline.FederatedLearningManager.logFalsePositive(category)
+                    Log.i(TAG, "FL: recorded false positive for category=$category")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to log feedback", e)
             }

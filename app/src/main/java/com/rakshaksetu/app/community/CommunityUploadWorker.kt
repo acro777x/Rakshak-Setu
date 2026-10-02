@@ -49,7 +49,7 @@ class CommunityUploadWorker(
     }
 
     override suspend fun doWork(): Result {
-        Log.d(TAG, "Executing deferred community sync while device is charging on Wi-Fi...")
+        Log.i(TAG, "Executing deferred community sync while device is charging on Wi-Fi...")
         return try {
             withContext(Dispatchers.IO) {
                 val repo = BlacklistRepository(applicationContext)
@@ -77,6 +77,12 @@ class CommunityUploadWorker(
                 } else {
                     Log.d(TAG, "Firebase unavailable — running in Local-Only mode.")
                 }
+
+                // Federated threshold learning: pull the community's aggregated
+                // thresholds, then push this device's own corrections. Default-off
+                // and a no-op when no endpoint or no consent is configured, so the
+                // app behaves exactly as before when FL is not in use.
+                com.rakshaksetu.app.pipeline.FederatedThresholdSync.sync(applicationContext)
             }
             Result.success()
         } catch (e: Exception) {

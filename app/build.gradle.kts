@@ -102,6 +102,12 @@ android {
     testOptions {
         unitTests {
             isReturnDefaultValues = true
+            // Robolectric needs the merged asset directory to service
+            // Context.assets.open(...). Without this every asset read returns
+            // FileNotFoundException, which silently broke WordPieceTokenizer
+            // (it swallows the exception) and made the encoder/tokenizer
+            // vocabulary mismatch undetectable in tests.
+            isIncludeAndroidResources = true
         }
     }
 
