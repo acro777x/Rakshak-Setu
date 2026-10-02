@@ -1,0 +1,104 @@
+[
+  {
+    "id": "scam_digital_arrest_01",
+    "isScam": true,
+    "category": "digital_arrest",
+    "transcript": "Hello main CBI se bol raha hoon. Aapka digital arrest ho gaya hai. Aapko turant 2 lakh paisa bhejne hoga warna jail chali jayegi. Abhi yeh payment kar do turant."
+  },
+  {
+    "id": "scam_digital_arrest_02",
+    "isScam": true,
+    "category": "digital_arrest",
+    "transcript": "Sir main cyber crime branch se ho. Aapke account me narcotics ka case register hua hai. Court ne warrant jari kiya hai. 50000 ka bail lagega, abhi bhejiye warna FIR ho jayegi."
+  },
+  {
+    "id": "scam_kyc_01",
+    "isScam": true,
+    "category": "kyc_fraud",
+    "transcript": "Namaste sir main SBI se bol raha hoon. Aapka KYC expire ho gaya hai. Abhi apna PAN card aur OTP share kijiye warna account band ho jayega. Turant OTP bataiye."
+  },
+  {
+    "id": "scam_screen_share_01",
+    "isScam": true,
+    "category": "screen_share_scam",
+    "transcript": "Aapke phone me virus aa gaya hai. Main Anydesk install kar raha hoon. Screen share on karo aur mujhe dikhao. Abhi remote access le leta hoon."
+  },
+  {
+    "id": "scam_lottery_01",
+    "isScam": true,
+    "category": "loan_lottery",
+    "transcript": "Congratulations! Aapka lottery prize 25 lakh ka hai. Abhi 9999 ka tax fee bhej do aur main aapko prize de dunga. Account number aur IFSC code bataiye."
+  },
+  {
+    "id": "scam_upi_01",
+    "isScam": true,
+    "category": "upi_qr_scam",
+    "transcript": "Sitaram ka bhejna hai 5000 rupay. Main QR code bhej raha hoon, usko scan karke apne UPI pin se payment kar do. Turant karo is minute me."
+  },
+  {
+    "id": "scam_customs_01",
+    "isScam": true,
+    "category": "courier_customs",
+    "transcript": "Your FedEx parcel has a contraband item inside. Customs ne clear fine 48000 laga hai. Abhi payment kar do warna parcel ko hold kar denge aur case chalega."
+  },
+  {
+    "id": "scam_kyc_02",
+    "isScam": true,
+    "category": "kyc_fraud",
+    "transcript": "Aapka debit card expire ho raha hai. Account band na ho iske liye abhi apna OTP share kijiye humko. Sirf OTP batayein, card number mat batayein."
+  },
+  {
+    "id": "benign_family_01",
+    "isScam": false,
+    "category": null,
+    "transcript": "Hello beta main maa bol rahi. Khana kha liya? Ghar aaj der se aa raha hu. Rajesh ka number mila tha tere liye."
+  },
+  {
+    "id": "benign_work_01",
+    "isScam": false,
+    "category": null,
+    "transcript": "Hi Anjali this is Rahul from the design team. Are we still on for tomorrow's project presentation meeting at 10 am? Please bring the updated slides."
+  },
+  {
+    "id": "benign_bank_real_01",
+    "isScam": false,
+    "category": null,
+    "transcript": "Hello, this is HDFC bank calling from the verified number on your records. Your loan EMI of 25000 is due on 5th. There is no requirement for any OTP. Please ignore unsolicited calls."
+  },
+  {
+    "id": "benign_bank_real_02",
+    "isScam": false,
+    "category": null,
+    "transcript": "Hi, ICICI calling. Your credit card bill of 18750 will be generated on the 12th. Please pay via the app or net banking, never over a call."
+  },
+  {
+    "id": "benign_doctor_01",
+    "isScam": false,
+    "category": null,
+    "transcript": "Hello Dr Sharma ji main Sharma clinic se bol raha. Aapka appointment kal subah 11 baje hai. Please bring your previous reports and blood test done one week before."
+  },
+  {
+    "id": "benign_delivery_01",
+    "isScam": false,
+    "category": null,
+    "transcript": "Hi this is Amazon delivery. Your order is out for delivery and will arrive by 7 pm today. No action is needed from you."
+  },
+  {
+    "id": "benign_friend_money_01",
+    "isScam": false,
+    "category": null,
+    "transcript": "Arre bhai kya kar raha hai. Pichle mahine jo 500 rupe udhar diye the wo de de na. Aur Sunday ko cricket dekhte hain kya?"
+  },
+  {
+    "id": "benign_real_estate_01",
+    "isScam": false,
+    "category": null,
+    "transcript": "Hello, I am the broker from PropertyMart. The flat in Whitefield you asked about is available. Rent is 32000 per month with 2 months deposit. Can we visit Saturday?"
+  },
+  {
+    "id": "benign_electricity_02",
+    "isScam": false,
+    "category": null,
+    "transcript": "This is Maharashtra State Electricity. Your bill for the month is 3450 rupees. You can pay through the MSEB app or at any billing centre. No penalty for late payment this time."
+  }
+]

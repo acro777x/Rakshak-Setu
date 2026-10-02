@@ -1,0 +1,148 @@
+{
+  "total": 17,
+  "accuracy": 0.8823529411764706,
+  "fpRate": 0,
+  "fnRate": 0.25,
+  "truePositives": 6,
+  "falsePositives": 0,
+  "trueNegatives": 9,
+  "falseNegatives": 2,
+  "outcomes": [
+    {
+      "id": "scam_digital_arrest_01",
+      "expectedScam": true,
+      "predictedScam": true,
+      "category": "digital_arrest",
+      "confidence": 0.94,
+      "tier": "TIER_3_SAFETY_REGEX"
+    },
+    {
+      "id": "scam_digital_arrest_02",
+      "expectedScam": true,
+      "predictedScam": true,
+      "category": "digital_arrest",
+      "confidence": 0.94,
+      "tier": "TIER_3_SAFETY_REGEX"
+    },
+    {
+      "id": "scam_kyc_01",
+      "expectedScam": true,
+      "predictedScam": true,
+      "category": "kyc_fraud",
+      "confidence": 0.86,
+      "tier": "TIER_3_SAFETY_REGEX"
+    },
+    {
+      "id": "scam_screen_share_01",
+      "expectedScam": true,
+      "predictedScam": true,
+      "category": "screen_share_scam",
+      "confidence": 0.94,
+      "tier": "TIER_3_SAFETY_REGEX"
+    },
+    {
+      "id": "scam_lottery_01",
+      "expectedScam": true,
+      "predictedScam": true,
+      "category": "loan_lottery",
+      "confidence": 0.94,
+      "tier": "TIER_3_SAFETY_REGEX"
+    },
+    {
+      "id": "scam_upi_01",
+      "expectedScam": true,
+      "predictedScam": false,
+      "category": "upi_qr_scam",
+      "confidence": 0,
+      "tier": "BENIGN"
+    },
+    {
+      "id": "scam_customs_01",
+      "expectedScam": true,
+      "predictedScam": true,
+      "category": "courier_customs",
+      "confidence": 0.98,
+      "tier": "TIER_3_SAFETY_REGEX"
+    },
+    {
+      "id": "scam_kyc_02",
+      "expectedScam": true,
+      "predictedScam": false,
+      "category": "kyc_fraud",
+      "confidence": 0,
+      "tier": "BENIGN"
+    },
+    {
+      "id": "benign_family_01",
+      "expectedScam": false,
+      "predictedScam": false,
+      "category": "benign",
+      "confidence": 0,
+      "tier": "BENIGN"
+    },
+    {
+      "id": "benign_work_01",
+      "expectedScam": false,
+      "predictedScam": false,
+      "category": "benign",
+      "confidence": 0,
+      "tier": "BENIGN"
+    },
+    {
+      "id": "benign_bank_real_01",
+      "expectedScam": false,
+      "predictedScam": false,
+      "category": "benign",
+      "confidence": 0,
+      "tier": "BENIGN"
+    },
+    {
+      "id": "benign_bank_real_02",
+      "expectedScam": false,
+      "predictedScam": false,
+      "category": "benign",
+      "confidence": 0,
+      "tier": "BENIGN"
+    },
+    {
+      "id": "benign_doctor_01",
+      "expectedScam": false,
+      "predictedScam": false,
+      "category": "benign",
+      "confidence": 0,
+      "tier": "BENIGN"
+    },
+    {
+      "id": "benign_delivery_01",
+      "expectedScam": false,
+      "predictedScam": false,
+      "category": "benign",
+      "confidence": 0,
+      "tier": "BENIGN"
+    },
+    {
+      "id": "benign_friend_money_01",
+      "expectedScam": false,
+      "predictedScam": false,
+      "category": "benign",
+      "confidence": 0,
+      "tier": "BENIGN"
+    },
+    {
+      "id": "benign_real_estate_01",
+      "expectedScam": false,
+      "predictedScam": false,
+      "category": "benign",
+      "confidence": 0,
+      "tier": "BENIGN"
+    },
+    {
+      "id": "benign_electricity_02",
+      "expectedScam": false,
+      "predictedScam": false,
+      "category": "benign",
+      "confidence": 0,
+      "tier": "BENIGN"
+    }
+  ]
+}

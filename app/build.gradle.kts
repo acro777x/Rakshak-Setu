@@ -74,15 +74,52 @@ android {
         }
     }
 
+    // Native deps (onnxruntime, vosk, webrtc) ship every ABI. Restrict the build to
+    // the two that real devices use -- mips/mips64/armeabi are legacy, and
+    // x86/x86_64 add ~34MB each to a universal APK while only serving emulators.
+    defaultConfig {
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 was disabled, which is why every shipped APK carried ~51MB of
+            // unminified dex and proguard-rules.pro was dead code. The rules file
+            // already contains the required Gson/Room/ONNX/Vosk/WorkManager keeps.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
+        }
+        // Small, installable, R8-shrunk build for hackathon demos and device
+        // testing. Debug-signed on purpose (never distributable), but obfuscated
+        // and resource-shrunk, so it exercises the same shrinker as release and
+        // demonstrates the real size without needing a private keystore.
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            applicationIdSuffix = ".benchmark"
+            versionNameSuffix = "-benchmark"
+        }
+    }
+
+    // The universal APK inlined seven ABIs (arm64-v8a, armeabi-v7a, x86,
+    // x86_64, armeabi, mips, mips64) which roughly quadrupled native payload.
+    // Native deps (onnxruntime, vosk, webrtc) are all available for real
+    // devices, so keep the two that matter and let the rest be pruned.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a")
+            isUniversalApk = true
         }
     }
 
@@ -125,6 +162,14 @@ android {
             excludes += "/META-INF/DEPENDENCIES"
             excludes += "/META-INF/LICENSE*"
             excludes += "/META-INF/NOTICE*"
+            // Duplicate asset trees: attack_patterns.json, scam_phrases.json and
+            // the deepfake ONNX pair each existed at both assets/ and
+            // assets/rules|models/, adding ~1.3MB per build. The canonical copies
+            // at assets/ root are what the code loads.
+            excludes += "/assets/rules/attack_patterns.json"
+            excludes += "/assets/rules/scam_phrases.json"
+            excludes += "/assets/models/deepfake_detector.onnx"
+            excludes += "/assets/models/deepfake_detector.onnx.data"
         }
     }
 }
