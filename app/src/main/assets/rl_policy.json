@@ -1,7 +1,8 @@
 {
-    "w_similarity": 0.5337640450842485,
-    "w_deepfake": 0.0887371566823179,
-    "w_stress": 0.13116172905833703,
-    "w_intent": 0.24633706917509657,
+    "w_similarity": 0.35,
+    "w_deepfake": 0.25,
+    "w_vocoder": 0.15,
+    "w_intent": 0.15,
+    "w_stress": 0.10,
     "threshold": 0.75
 }

@@ -11,10 +11,18 @@ import java.io.InputStreamReader
  * loudness intensity, and speech rate anomalies into an aggregated continuous risk metric.
  */
 class WeightedRiskScorer(private val context: Context) {
-    private var wSimilarity: Float = 0.40f
-    private var wDeepfake: Float = 0.30f
-    private var wIntent: Float = 0.20f
-    private var wLoudness: Float = 0.10f
+
+    enum class RiskScenario {
+        STANDARD,
+        HIGH_VALUE_TRANSACTION,
+        CXO_PRIVILEGED_APPROVAL
+    }
+
+    private var wSimilarity: Float = 0.35f
+    private var wDeepfake: Float = 0.25f
+    private var wVocoder: Float = 0.15f
+    private var wIntent: Float = 0.15f
+    private var wStress: Float = 0.10f
     private var threshold: Float = 0.70f
 
     init {
@@ -27,21 +35,21 @@ class WeightedRiskScorer(private val context: Context) {
             val jsonString = InputStreamReader(inputStream).readText()
             val json = JSONObject(jsonString)
 
-            wSimilarity = json.optDouble("w_similarity", 0.40).toFloat()
-            wDeepfake = json.optDouble("w_deepfake", 0.30).toFloat()
-            wIntent = json.optDouble("w_intent", 0.20).toFloat()
-            wLoudness = json.optDouble("w_stress", 0.10).toFloat()
+            wSimilarity = json.optDouble("w_similarity", 0.35).toFloat()
+            wDeepfake = json.optDouble("w_deepfake", 0.25).toFloat()
+            wVocoder = json.optDouble("w_vocoder", 0.15).toFloat()
+            wIntent = json.optDouble("w_intent", 0.15).toFloat()
+            wStress = json.optDouble("w_stress", 0.10).toFloat()
             threshold = json.optDouble("threshold", 0.70).toFloat()
 
-            // The shipped rl_policy.json declared a w_acoustic weight that nothing read,
-            // and had no w_intent key at all, so the intent channel silently fell back to
-            // its hardcoded default and the four live weights summed to 0.954 rather than
-            // the calibrated 1.000 -- meaning `threshold` was applied to a differently
-            // scaled score than the one the policy was trained against.
-            //
-            // Normalise here so the shipped threshold stays meaningful even if the
-            // policy file is missing a channel or carries stale weights.
-            val sum = wSimilarity + wDeepfake + wIntent + wLoudness
+            // The shipped rl_policy.json historically declared a "w_acoustic" key that
+            // no channel read, and declared no "w_vocoder" or "w_intent" key at all.
+            // optDouble therefore silently substituted defaults for those channels, so
+            // the weights actually in use did not match the calibrated policy and
+            // `threshold` was applied to a differently scaled score. Normalise the live
+            // weights so the threshold stays meaningful even when the policy file is
+            // missing a channel or carries stale values.
+            val sum = wSimilarity + wDeepfake + wVocoder + wIntent + wStress
             if (sum > 0f && kotlin.math.abs(sum - 1.0f) > 0.01f) {
                 Log.w(
                     "WeightedRiskScorer",
@@ -49,14 +57,15 @@ class WeightedRiskScorer(private val context: Context) {
                 )
                 wSimilarity /= sum
                 wDeepfake /= sum
+                wVocoder /= sum
                 wIntent /= sum
-                wLoudness /= sum
+                wStress /= sum
             }
 
             Log.i(
                 "WeightedRiskScorer",
-                "Risk Policy loaded (sim=%.3f, deepfake=%.3f, intent=%.3f, loud=%.3f, thr=%.2f, sum=%.3f)".format(
-                    wSimilarity, wDeepfake, wIntent, wLoudness, threshold, sum
+                "Risk Policy loaded (sim=%.2f, deepfake=%.2f, vocoder=%.2f, intent=%.2f, stress=%.2f, thr=%.2f)".format(
+                    wSimilarity, wDeepfake, wVocoder, wIntent, wStress, threshold
                 )
             )
         } catch (e: Exception) {
@@ -65,18 +74,31 @@ class WeightedRiskScorer(private val context: Context) {
     }
 
     /**
-     * Continuous risk score in [0,1] from all pipeline evidence channels.
+     * Continuous composite risk score in [0,1] from all pipeline evidence channels with scenario adaptation.
      */
     fun score(
         avgSimilarity: Float,
         cloneProb: Float,
         intentThreatScore: Float,
-        maxLoudness: Float
+        maxLoudness: Float,
+        vocoderConfidence: Float = 0f,
+        scenario: RiskScenario = RiskScenario.STANDARD,
+        reputationDelta: Float = 0f
     ): Float {
-        return (avgSimilarity.coerceIn(0f, 1f) * wSimilarity) +
-            (cloneProb.coerceIn(0f, 1f) * wDeepfake) +
-            (intentThreatScore.coerceIn(0f, 1f) * wIntent) +
-            (maxLoudness.coerceIn(0f, 1f) * wLoudness)
+        val (wClone, wVoc, wSim, wInt, wStr) = when (scenario) {
+            RiskScenario.CXO_PRIVILEGED_APPROVAL -> listOf(0.45f, 0.25f, 0.15f, 0.10f, 0.05f)
+            RiskScenario.HIGH_VALUE_TRANSACTION -> listOf(0.35f, 0.20f, 0.25f, 0.15f, 0.05f)
+            RiskScenario.STANDARD -> listOf(wDeepfake, wVocoder, wSimilarity, wIntent, wStress)
+        }
+
+        val rawScore = (cloneProb.coerceIn(0f, 1f) * wClone) +
+            (vocoderConfidence.coerceIn(0f, 1f) * wVoc) +
+            (avgSimilarity.coerceIn(0f, 1f) * wSim) +
+            (intentThreatScore.coerceIn(0f, 1f) * wInt) +
+            (maxLoudness.coerceIn(0f, 1f) * wStr) +
+            reputationDelta
+
+        return rawScore.coerceIn(0f, 1f)
     }
 
     /**
@@ -86,10 +108,18 @@ class WeightedRiskScorer(private val context: Context) {
         avgSimilarity: Float,
         cloneProb: Float,
         intentThreatScore: Float,
-        maxLoudness: Float
+        maxLoudness: Float,
+        vocoderConfidence: Float = 0f,
+        scenario: RiskScenario = RiskScenario.STANDARD,
+        reputationDelta: Float = 0f
     ): Boolean {
-        val riskScore = score(avgSimilarity, cloneProb, intentThreatScore, maxLoudness)
-        Log.d("WeightedRiskScorer", "Risk Score: $riskScore | Threshold: $threshold")
-        return riskScore > threshold
+        val effectiveThreshold = when (scenario) {
+            RiskScenario.CXO_PRIVILEGED_APPROVAL -> 0.45f
+            RiskScenario.HIGH_VALUE_TRANSACTION -> 0.50f
+            RiskScenario.STANDARD -> threshold
+        }
+        val riskScore = score(avgSimilarity, cloneProb, intentThreatScore, maxLoudness, vocoderConfidence, scenario, reputationDelta)
+        Log.d("WeightedRiskScorer", "Risk Score: $riskScore | Effective Threshold: $effectiveThreshold (Scenario: $scenario)")
+        return riskScore >= effectiveThreshold
     }
 }
