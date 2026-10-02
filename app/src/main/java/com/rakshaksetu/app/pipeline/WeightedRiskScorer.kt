@@ -33,10 +33,30 @@ class WeightedRiskScorer(private val context: Context) {
             wLoudness = json.optDouble("w_stress", 0.10).toFloat()
             threshold = json.optDouble("threshold", 0.70).toFloat()
 
+            // The shipped rl_policy.json declared a w_acoustic weight that nothing read,
+            // and had no w_intent key at all, so the intent channel silently fell back to
+            // its hardcoded default and the four live weights summed to 0.954 rather than
+            // the calibrated 1.000 -- meaning `threshold` was applied to a differently
+            // scaled score than the one the policy was trained against.
+            //
+            // Normalise here so the shipped threshold stays meaningful even if the
+            // policy file is missing a channel or carries stale weights.
+            val sum = wSimilarity + wDeepfake + wIntent + wLoudness
+            if (sum > 0f && kotlin.math.abs(sum - 1.0f) > 0.01f) {
+                Log.w(
+                    "WeightedRiskScorer",
+                    "rl_policy.json weights sum to $sum (expected ~1.0); normalising."
+                )
+                wSimilarity /= sum
+                wDeepfake /= sum
+                wIntent /= sum
+                wLoudness /= sum
+            }
+
             Log.i(
                 "WeightedRiskScorer",
-                "Risk Policy loaded (sim=%.2f, deepfake=%.2f, intent=%.2f, loud=%.2f, thr=%.2f)".format(
-                    wSimilarity, wDeepfake, wIntent, wLoudness, threshold
+                "Risk Policy loaded (sim=%.3f, deepfake=%.3f, intent=%.3f, loud=%.3f, thr=%.2f, sum=%.3f)".format(
+                    wSimilarity, wDeepfake, wIntent, wLoudness, threshold, sum
                 )
             )
         } catch (e: Exception) {

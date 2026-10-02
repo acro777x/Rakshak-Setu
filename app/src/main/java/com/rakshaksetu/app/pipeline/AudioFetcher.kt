@@ -45,23 +45,26 @@ object AudioFetcher {
         // Transsion (TECNO / Infinix / Itel / HiOS)
         "phonerecord", "music/phonerecord",
         // Samsung (One UI)
-        "recordings/call", "call",
+        "recordings/call", "call recordings",
         // Xiaomi / Redmi / POCO (MIUI / HyperOS)
         "sound_recorder/call_rec", "sound_recorder/call_recordings",
         "miui/sound_recorder/call_rec", "miui/sound_recorder/call_recordings",
         // Vivo / iQOO (FuntouchOS / OriginOS)
-        "call recordings", "recordings/call recordings", "sounds/call recordings",
+        "recordings/call recordings", "sounds/call recordings",
         // Oppo / Realme / OnePlus (ColorOS / Realme UI / OxygenOS)
-        "call recordings", "music/recordings/call recordings",
-        "recordings/call recordings",
+        "music/recordings/call recordings",
         // OnePlus legacy
         "record/phonerecord",
         // Huawei / Honor (EMUI / MagicOS)
-        "sounds/callrecord", "callrecord", "record",
+        "sounds/callrecord",
         // Google Pixel / Stock Android
         "callrecording",
-        // Generic / fallback
-        "recordings", "callrecording", "call_recording"
+        // Generic call-recording buckets only. NOTE: a bare "call" or "record"
+        // substring is deliberately NOT a hint -- it matches unrelated user media
+        // such as "Recents", "CallLogs" and any personal folder a user created
+        // with "call" in the name, which caused the fetcher to select a
+        // non-recording file over the genuine call recording.
+        "recordings", "call_recording"
     )
 
     private data class Candidate(
@@ -189,12 +192,28 @@ object AudioFetcher {
                     if (candidate.durationMs in 1..999 || candidate.durationMs > 5_400_000) continue
 
                     if (bestAny == null || candidate.dateAdded > bestAny.dateAdded) bestAny = candidate
-                    if (bestBucketMatch == null && isCallBucket(candidate.bucketPath)) {
+
+                    // Keep the NEWEST bucket match, not the first one encountered.
+                    // Previously `bestBucketMatch` was assigned once and never revisited,
+                    // so a recording left over from a PREVIOUS call in the same bucket
+                    // could outrank the current call's recording. Because evidence
+                    // hashing attributes the chosen file to this call's caller, that
+                    // produced forensic artefacts naming an uninvolved person.
+                    if (isCallBucket(candidate.bucketPath) &&
+                        (bestBucketMatch == null || candidate.dateAdded > bestBucketMatch.dateAdded)
+                    ) {
                         bestBucketMatch = candidate
                     }
                 }
 
-                val chosen = bestBucketMatch ?: bestAny
+                // Verify the preferred candidate is actually readable before committing to it;
+                // fall back to the newest generic match when the bucket hit is pending.
+                var chosen = bestBucketMatch
+                if (chosen != null && !isUriOpenable(ctx, chosen.uri)) {
+                    Log.d(TAG, "Bucket match ${chosen.uri} not readable; trying generic match.")
+                    chosen = bestAny
+                }
+
                 chosen?.let {
                     Log.d(TAG, "Recording candidate: $it.uri (size=${it.size}, bucket=${it.bucketPath})")
                     return it.uri

@@ -186,9 +186,9 @@ class ScamAlertManager(private val context: Context) {
     }
 
     private fun evidencePendingIntent(callId: String): PendingIntent {
-        val intent = Intent(context, com.rakshaksetu.app.MainActivity::class.java).apply {
+        val intent = Intent(context, com.rakshaksetu.app.ui.EvidenceActivity::class.java).apply {
             putExtra(EXTRA_CALL_ID, callId)
-            putExtra("NAV_ROUTE", "red_alert")
+            putExtra("CALL_ID", callId)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         return PendingIntent.getActivity(

@@ -178,7 +178,7 @@ object EvidenceManager {
                 appendLine("Audio SHA-256: ${manifest.preservedAudioSha256}")
             }
             appendLine()
-            appendLine("Generated on-device by Rakshak Setu v1.3.0 — offline AI pipeline, no cloud processing.")
+            appendLine("Generated on-device by Rakshak Setu v${com.rakshaksetu.app.BuildConfig.VERSION_NAME} — offline AI pipeline, no cloud processing.")
         }
         return manifestText
     }

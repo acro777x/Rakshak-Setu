@@ -1,19 +1,54 @@
-﻿package com.rakshaksetu.app.ui.navigation
+package com.rakshaksetu.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.rakshaksetu.app.ui.screens.*
+import com.rakshaksetu.app.ui.voip.*
 
 @Composable
-fun RakshakSetuNavGraph(startDestination: String = Screen.Splash.route) {
+fun RakshakSetuNavGraph(
+    startDestination: String = Screen.Splash.route,
+    dynamicRoute: String? = null
+) {
     val navController = rememberNavController()
 
+    androidx.compose.runtime.LaunchedEffect(dynamicRoute) {
+        if (!dynamicRoute.isNullOrBlank()) {
+            navController.navigate(dynamicRoute) {
+                launchSingleTop = true
+            }
+        }
+    }
+
+    val topLevelRoutes = remember {
+        setOf(
+            Screen.Dashboard.route,
+            Screen.ScanHub.route,
+            Screen.SecureLine.route,
+            Screen.Reports.route,
+            Screen.Profile.route
+        )
+    }
+
     fun navigateTo(route: String) {
-        navController.navigate(route)
+        if (route in topLevelRoutes) {
+            navController.navigate(route) {
+                popUpTo(Screen.Dashboard.route) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        } else {
+            navController.navigate(route) {
+                launchSingleTop = true
+            }
+        }
     }
 
     fun goBack() {
@@ -88,6 +123,78 @@ fun RakshakSetuNavGraph(startDestination: String = Screen.Splash.route) {
         }
         composable(Screen.ImageScanner.route) {
             ImageScannerScreen(onNavigate = ::navigateTo, onBack = ::goBack)
+        }
+
+        // ── SECURE LINE / SOVEREIGN VOIP TELEPHONY ─────────
+        composable(Screen.SecureLine.route) {
+            VoipDialerScreen(
+                onInitiateCall = { destination ->
+                    navigateTo(Screen.VoipActiveHud.createRoute(destination))
+                },
+                onSpeedDial1930 = {
+                    navigateTo(Screen.VoipActiveHud.createRoute("1930"))
+                },
+                onNavigate = ::navigateTo
+            )
+        }
+        composable(Screen.VoipDialer.route) {
+            VoipDialerScreen(
+                onInitiateCall = { destination ->
+                    navigateTo(Screen.VoipActiveHud.createRoute(destination))
+                },
+                onSpeedDial1930 = {
+                    navigateTo(Screen.VoipActiveHud.createRoute("1930"))
+                },
+                onNavigate = ::navigateTo
+            )
+        }
+        composable(
+            route = "voip_incoming_call/{callerId}",
+            arguments = listOf(navArgument("callerId") {
+                type = NavType.StringType
+                defaultValue = "DCP Cyber Crime (+91 98765 00001)"
+            })
+        ) { backStackEntry ->
+            val raw = backStackEntry.arguments?.getString("callerId") ?: "DCP Cyber Crime (+91 98765 00001)"
+            val callerId = try { java.net.URLDecoder.decode(raw, "UTF-8") } catch (_: Exception) { raw }
+            VoipIncomingCallScreen(
+                callerId = callerId,
+                onAcceptCall = {
+                    navigateTo(Screen.VoipActiveHud.createRoute(callerId))
+                },
+                onDeclineCall = ::goBack
+            )
+        }
+        composable("voip_incoming_call") {
+            VoipIncomingCallScreen(
+                callerId = "DCP Cyber Crime (+91 98765 00001)",
+                onAcceptCall = {
+                    navigateTo(Screen.VoipActiveHud.createRoute("DCP Cyber Crime"))
+                },
+                onDeclineCall = ::goBack
+            )
+        }
+        composable(
+            route = "voip_active_hud/{peerId}",
+            arguments = listOf(navArgument("peerId") {
+                type = NavType.StringType
+                defaultValue = "+91 98765 43210"
+            })
+        ) { backStackEntry ->
+            val raw = backStackEntry.arguments?.getString("peerId") ?: "+91 98765 43210"
+            val peerId = try { java.net.URLDecoder.decode(raw, "UTF-8") } catch (_: Exception) { raw }
+            VoipActiveCallHudScreen(
+                peerId = peerId,
+                onBack = ::goBack,
+                onNavigate = ::navigateTo
+            )
+        }
+        composable("voip_active_hud") {
+            VoipActiveCallHudScreen(
+                peerId = "+91 98765 43210",
+                onBack = ::goBack,
+                onNavigate = ::navigateTo
+            )
         }
 
         // ── REPORTS ───────────────────────────────────────

@@ -30,18 +30,35 @@ android {
         }
     }
 
+    // Release signing MUST come from a real, private keystore.
+//
+// It previously loaded ~/.android/debug.keystore with the hardcoded password
+// "android". That keystore ships inside every Android SDK and is a public
+// constant, so the produced APK could be replaced by any attacker signing with
+// the identical certificate -- Android matches updates by certificate, so such
+// an APK installs over this one silently. On an app holding RECORD_AUDIO,
+// READ_CALL_LOG and SEND_SMS aimed at elderly users, that is a full
+// surveillance / financial-fraud upgrade-hijack.
+//
+// Release builds now FAIL unless RAKSHAK_KEYSTORE / RAKSHAK_KEYSTORE_PASSWORD /
+// RAKSHAK_KEY_ALIAS / RAKSHAK_KEY_PASSWORD point at a private keystore.
+// Debug builds are unaffected and keep using the standard debug key, which is
+// correct for them.
     signingConfigs {
         create("release") {
-            val keystoreFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
-            if (keystoreFile.exists()) {
-                storeFile = keystoreFile
-                storePassword = "android"
-                keyAlias = "androiddebugkey"
-                keyPassword = "android"
-                enableV1Signing = true
-                enableV2Signing = true
-                enableV3Signing = true
+            // Configured lazily at signing time, NOT at configuration time, so a
+            // missing keystore does not break :app:compileDebugKotlin or
+            // :app:assembleDebug for local/hackathon builds.
+            val ksPath = providers.environmentVariable("RAKSHAK_KEYSTORE").orNull
+            if (!ksPath.isNullOrBlank()) {
+                storeFile = file(ksPath)
+                storePassword = providers.environmentVariable("RAKSHAK_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("RAKSHAK_KEY_ALIAS").orNull
+                keyPassword = providers.environmentVariable("RAKSHAK_KEY_PASSWORD").orNull
             }
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
         }
         getByName("debug") {
             val keystoreFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
@@ -89,11 +106,40 @@ android {
     }
 
     packaging {
+        jniLibs {
+            pickFirsts += "**/libjingle_peerconnection_so.so"
+            pickFirsts += "**/libc++_shared.so"
+            pickFirsts += "**/libvosk.so"
+            pickFirsts += "**/libonnxruntime.so"
+            pickFirsts += "**/libonnxruntime4j_jni.so"
+        }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "/META-INF/INDEX.LIST"
             excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE*"
+            excludes += "/META-INF/NOTICE*"
         }
+    }
+}
+
+// Fail loudly, but ONLY when a distributable release APK is actually requested.
+// This keeps :app:assembleDebug and :app:compileDebugKotlin working for local and
+// hackathon builds while making it impossible to accidentally ship an APK signed
+// with the public Android debug certificate.
+gradle.taskGraph.whenReady {
+    val wantsRelease = allTasks.any {
+        it.name.contains("Release", ignoreCase = true) &&
+            (it.name.startsWith("assemble") || it.name.startsWith("package") || it.name.startsWith("sign"))
+    }
+    if (wantsRelease && providers.environmentVariable("RAKSHAK_KEYSTORE").orNull.isNullOrBlank()) {
+        throw GradleException(
+            "Refusing to build a RELEASE APK without a private keystore. " +
+                "Set RAKSHAK_KEYSTORE, RAKSHAK_KEYSTORE_PASSWORD, RAKSHAK_KEY_ALIAS and " +
+                "RAKSHAK_KEY_PASSWORD. Signing with the public Android debug keystore " +
+                "allows any attacker to silently replace this app via an update. " +
+                "Use :app:assembleDebug for test builds."
+        )
     }
 }
 
@@ -146,6 +192,9 @@ dependencies {
     androidTestImplementation("androidx.test:rules:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+
+    // WebRTC Telephony Core
+    implementation("io.getstream:stream-webrtc-android:1.2.2")
 
     // AI Pipeline Dependencies
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.1") // A7: Embeddings

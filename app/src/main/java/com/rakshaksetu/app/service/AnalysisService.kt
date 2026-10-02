@@ -128,7 +128,11 @@ class AnalysisService : Service() {
         // S4: single-flight per callId
         if (!activeCallId.compareAndSet(null, callId)) {
             if (activeCallId.get() == callId) {
+                // Same callId already in flight. MUST return: falling through would
+                // re-enter startForeground(), overwrite the WakeLock reference (leaking
+                // the held lock) and launch a second concurrent pipeline for one call.
                 Log.d(TAG, "Duplicate trigger suppressed for callId=$callId")
+                return START_NOT_STICKY
             } else {
                 Log.d(TAG, "Another analysis in flight; re-persisting pending call.")
                 PendingCallStore.save(

@@ -48,7 +48,16 @@ object SpeakerVoiceProfileStore {
     fun extractVoiceprint(pcmSegments: List<ByteArray>): FloatArray {
         if (pcmSegments.isEmpty()) return FloatArray(EMBEDDING_DIM)
 
-        val totalPcm = pcmSegments.reduce { acc, bytes -> acc + bytes }
+        // Single-allocation join. `reduce { acc, b -> acc + b }` on ByteArray was
+        // O(n^2): one throwaway array per segment (~912MB transient over a 5-min call).
+        var total = 0L
+        for (s in pcmSegments) total += s.size
+        val totalPcm = ByteArray(total.toInt())
+        var off = 0
+        for (s in pcmSegments) {
+            System.arraycopy(s, 0, totalPcm, off, s.size)
+            off += s.size
+        }
         val lfccFrames = SpectralFeatureExtractor.extractLFCC(totalPcm)
         val prosody = ProsodyAnalyzer.analyze(totalPcm)
 

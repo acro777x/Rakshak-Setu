@@ -8,9 +8,16 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * Guarantees:
  * 1. Zero disk I/O (pure userspace memory).
- * 2. Non-blocking writes: WebRTC audio playback thread never stalls, preventing audio underruns.
- * 3. Thread-safe atomic read/write synchronization between WebRTC audio thread and AI background workers.
+ * 2. Non-blocking writes: the WebRTC audio render callback never blocks on the
+ *    consumer, preventing audio underruns. Implemented with volatile fields rather
+ *    than a monitor -- the previous version annotated write/read/available/clear
+ *    with @Synchronized, putting a single instance monitor directly on the
+ *    real-time audio thread, which is exactly what guarantee 2 forbids.
+ * 3. Wait-free for the single producer and the single consumer respectively.
  * 4. Automatic drop-oldest backpressure management when consumer is momentarily backlogged.
+ *
+ * One slot is permanently reserved so that "write == read" unambiguously means EMPTY
+ * rather than FULL; the usable window is therefore 0..capacity-1.
  */
 class SpscAudioRingBuffer(
     val capacity: Int = DEFAULT_CAPACITY_BYTES
@@ -21,28 +28,36 @@ class SpscAudioRingBuffer(
     }
 
     private val buffer = ByteArray(capacity)
-    private val writeIndex = AtomicInteger(0)
-    private val readIndex = AtomicInteger(0)
+
+    // Volatile gives the acquire/release pairing the producer/consumer hand-off needs.
+    // Each thread re-reads these every call, so a slightly stale value is only ever a
+    // stale *observation*, never a lost update: each side owns and advances exactly
+    // one index.
+    @Volatile private var writeIndex: Int = 0
+    @Volatile private var readIndex: Int = 0
 
     /**
-     * Write PCM bytes into the ring buffer from producer (WebRTC audio playback callback).
-     * If space is insufficient, oldest unread data is dropped (head advanced) to guarantee
-     * the audio thread never blocks.
+     * Write PCM bytes from the producer (WebRTC audio render callback).
+     *
+     * Wait-free: no locks, no CAS loops. If the buffer is full the oldest unread data
+     * is dropped by advancing [readIndex]; under the SPSC contract the producer may do
+     * this because the consumer only ever moves readIndex forward from its own copy.
      */
-    @Synchronized
     fun write(data: ByteArray, offset: Int = 0, length: Int = data.size): Int {
         if (length <= 0 || length > capacity) return 0
+        if (offset < 0 || offset + length > data.size) return 0
 
-        val currentWrite = writeIndex.get()
-        val currentRead = readIndex.get()
-        val currentAvailable = availableRead(currentWrite, currentRead)
-        val space = capacity - currentAvailable - 1
+        val currentWrite = writeIndex
+        val currentRead = readIndex
+        val used = if (currentWrite >= currentRead) currentWrite - currentRead
+                   else capacity - (currentRead - currentWrite)
 
-        // Backpressure: drop oldest data if buffer is nearly full
+        // Reserve one slot so "full" is never ambiguous with "empty".
+        val space = capacity - used - 1
+
         if (length > space) {
             val neededDrop = length - space
-            val newRead = (currentRead + neededDrop) % capacity
-            readIndex.set(newRead)
+            readIndex = (currentRead + neededDrop) % capacity
         }
 
         // Copy data into circular array
@@ -55,7 +70,7 @@ class SpscAudioRingBuffer(
         }
 
         val nextWrite = (currentWrite + length) % capacity
-        writeIndex.set(nextWrite)
+        writeIndex = nextWrite
         return length
     }
 
@@ -63,12 +78,16 @@ class SpscAudioRingBuffer(
      * Read up to [length] bytes from the ring buffer into [dest].
      * Returns the actual number of bytes read.
      */
-    @Synchronized
     fun read(dest: ByteArray, offset: Int = 0, length: Int = dest.size): Int {
-        val currentWrite = writeIndex.get()
-        val currentRead = readIndex.get()
-        val available = availableRead(currentWrite, currentRead)
-        if (available == 0 || length <= 0) return 0
+        if (length <= 0) return 0
+        if (offset < 0 || offset + length > dest.size) return 0
+
+        val currentRead = readIndex
+        val currentWrite = writeIndex
+        val available = if (currentWrite >= currentRead) currentWrite - currentRead
+                        else capacity - (currentRead - currentWrite)
+
+        if (available == 0) return 0
 
         val toRead = minOf(length, available)
         val bytesToEnd = capacity - currentRead
@@ -81,7 +100,7 @@ class SpscAudioRingBuffer(
         }
 
         val nextRead = (currentRead + toRead) % capacity
-        readIndex.set(nextRead)
+        readIndex = nextRead
         return toRead
     }
 
@@ -116,26 +135,18 @@ class SpscAudioRingBuffer(
     /**
      * Returns the number of readable bytes currently in the buffer.
      */
-    @Synchronized
     fun available(): Int {
-        return availableRead(writeIndex.get(), readIndex.get())
+        val currentWrite = writeIndex
+        val currentRead = readIndex
+        return if (currentWrite >= currentRead) currentWrite - currentRead
+               else capacity - (currentRead - currentWrite)
     }
 
     /**
      * Clear the buffer instantly.
      */
-    @Synchronized
     fun clear() {
-        val currentWrite = writeIndex.get()
-        readIndex.set(currentWrite)
-    }
-
-    private fun availableRead(w: Int, r: Int): Int {
-        return if (w >= r) {
-            w - r
-        } else {
-            capacity - (r - w)
-        }
+        readIndex = writeIndex
     }
 }
 

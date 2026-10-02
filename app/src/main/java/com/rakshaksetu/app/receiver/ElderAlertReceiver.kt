@@ -21,6 +21,18 @@ class ElderAlertReceiver : BroadcastReceiver() {
         const val ACTION_SMS_SENT = "com.rakshaksetu.app.ACTION_ELDER_SMS_SENT"
         const val EXTRA_CALL_ID = "EXTRA_CALL_ID"
         const val EXTRA_GUARDIAN_NUMBER = "EXTRA_GUARDIAN_NUMBER"
+
+        /**
+         * BroadcastReceiver.onReceive runs on the MAIN thread. EmergencyDispatcher's
+         * SMS + HTTP-gateway transport chain can block for tens of seconds, which would
+         * ANR the app and stall the system broadcast dispatcher. Work is therefore handed
+         * to a background executor while goAsync() keeps the receiver alive for its
+         * duration.
+         */
+        private val dispatchExecutor: java.util.concurrent.ExecutorService =
+            java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+                Thread(r, "rakshak-elder-alert").apply { isDaemon = true }
+            }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -39,10 +51,21 @@ class ElderAlertReceiver : BroadcastReceiver() {
                     return
                 }
                 try {
-                    val sent = EmergencyDispatcher.dispatchBlocking(appContext, result, autoTriggered = false)
-                    Log.i("ElderAlertReceiver", "One-tap family alert delivered to $sent guardian(s).")
+                    // Off-main-thread dispatch: goAsync() holds the receiver open
+                    // while the blocking SMS/gateway work runs on a worker thread.
+                    val pending = goAsync()
+                    dispatchExecutor.execute {
+                        try {
+                            val sent = EmergencyDispatcher.dispatchBlocking(appContext, result, autoTriggered = false)
+                            Log.i("ElderAlertReceiver", "One-tap family alert delivered to $sent guardian(s).")
+                        } catch (e: Exception) {
+                            Log.e("ElderAlertReceiver", "Family alert dispatch failed", e)
+                        } finally {
+                            pending.finish()
+                        }
+                    }
                 } catch (e: Exception) {
-                    Log.e("ElderAlertReceiver", "Family alert dispatch failed", e)
+                    Log.e("ElderAlertReceiver", "Could not schedule family alert dispatch", e)
                 }
             }
             ACTION_SMS_SENT -> {

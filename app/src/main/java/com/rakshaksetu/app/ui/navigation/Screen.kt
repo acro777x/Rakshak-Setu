@@ -35,6 +35,18 @@ sealed class Screen(val route: String) {
         fun createRoute(id: String) = "report_details/$id"
     }
 
+    // Secure Line / Sovereign VoIP Telephony
+    object SecureLine : Screen("secure_line")
+    object VoipDialer : Screen("voip_dialer")
+    object VoipIncomingCall : Screen("voip_incoming_call/{callerId}") {
+        fun createRoute(callerId: String = "+919876500001"): String =
+            "voip_incoming_call/${java.net.URLEncoder.encode(callerId, "UTF-8")}"
+    }
+    object VoipActiveHud : Screen("voip_active_hud/{peerId}") {
+        fun createRoute(peerId: String = "+919876543210"): String =
+            "voip_active_hud/${java.net.URLEncoder.encode(peerId, "UTF-8")}"
+    }
+
     // Cybercrime report wizard
     object ReportStep1 : Screen("report_step1")
     object ReportStep2 : Screen("report_step2")

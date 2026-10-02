@@ -464,6 +464,26 @@ fun DashboardScreen(
                     Spacer(Modifier.width(8.dp))
                     Text("🟢 Test Verified Safe Call", color = SafeGreen, fontWeight = FontWeight.Bold)
                 }
+
+                Spacer(Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                        try {
+                            com.rakshaksetu.app.telecom.IncomingCallNotificationManager(context)
+                                .postIncomingCall("DCP Cyber Crime (+91 98765 00001)")
+                        } catch (e: Exception) {
+                        }
+                        onNavigate(Screen.VoipIncomingCall.createRoute("DCP Cyber Crime (+91 98765 00001)"))
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RakshakSetuBlue),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Icon(Icons.Filled.Call, contentDescription = null, tint = SurfaceWhite)
+                    Spacer(Modifier.width(8.dp))
+                    Text("📞 Simulate Incoming Call (+91 98765 00001)", color = SurfaceWhite, fontWeight = FontWeight.Bold)
+                }
             }
 
             // ── ON-DEVICE AI MODELS STATUS (FULL TIER DYNAMIC) ──

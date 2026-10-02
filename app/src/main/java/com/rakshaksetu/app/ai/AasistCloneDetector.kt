@@ -213,27 +213,56 @@ class AasistCloneDetector(private val context: Context? = null) {
 
     /**
      * Analyzes unnatural uniformity or jitter in vocal formants.
-     * Synthetic voices exhibit unnaturally constant formant trajectories or robotic quantization.
+     *
+     * The previous implementation returned a hardcoded 0.75f whenever normalised ZCR
+     * fell in 0.08..0.18. That band is the *typical* range for ordinary voiced speech
+     * at 16kHz, so this fired on essentially every human voice and contributed ~0.26 to
+     * the fused DSP score on its own -- a systematic false-positive source whenever the
+     * ONNX model is unavailable.
+     *
+     * Replaced with a genuine synthetic-speech cue: real speech has a non-zero variance
+     * in frame-to-frame zero-crossing rate, whereas concatenative/vocoder output is
+     * abnormally stable. Returns a *low* score for normal variation and rises only when
+     * the ZCR variance collapses.
      */
     private fun computeFormantJitter(samples: FloatArray, count: Int): Float {
         if (count < 2048) return 0.05f
         var energy = 0.0f
-        var zeroCrossings = 0
+        val frameSize = 160 // 10ms at 16kHz
+        val numFrames = count / frameSize
+        if (numFrames < 4) return 0.05f
 
-        for (i in 1 until count) {
-            energy += samples[i] * samples[i]
-            if ((samples[i] >= 0 && samples[i - 1] < 0) || (samples[i] < 0 && samples[i - 1] >= 0)) {
-                zeroCrossings++
+        var zcrSum = 0.0f
+        var zcrSqSum = 0.0f
+        for (f in 0 until numFrames) {
+            val start = f * frameSize
+            val end = start + frameSize
+            var zc = 0
+            for (i in (start + 1) until end) {
+                val a = samples[i - 1]
+                val b = samples[i]
+                energy += a * a
+                if ((a >= 0 && b < 0) || (a < 0 && b >= 0)) zc++
             }
+            val frameZcr = zc.toFloat() / frameSize
+            zcrSum += frameZcr
+            zcrSqSum += frameZcr * frameZcr
         }
-        val rms = sqrt(energy / count)
-        val zcr = zeroCrossings.toFloat() / count
 
-        // Robotic synthesis often has extremely uniform zero-crossing rates in active speech
-        if (rms > 0.05f && zcr in 0.08f..0.18f) {
-            return 0.75f
-        }
-        return 0.15f
+        val mean = zcrSum / numFrames
+        val variance = (zcrSqSum / numFrames) - (mean * mean)
+        val rms = sqrt(energy / count)
+
+        // Silence gate: a silent or near-silent frame carries no formant information.
+        if (rms < 0.01f) return 0.05f
+
+        // Coefficient of variation of per-frame ZCR. Natural speech sits well above 0.
+        val cv = if (mean > 1e-6f) sqrt(variance / (mean * mean)) else 0f
+
+        // Only abnormally STABLE zero-crossing behaviour scores as synthetic.
+        // cv near 0 => robotic; cv >= 0.35 => normal human variation.
+        val jitterScore = (1.0f - (cv / 0.35f)).coerceIn(0.0f, 1.0f)
+        return (jitterScore * 0.8f).coerceIn(0.02f, 0.85f)
     }
 
     /**

@@ -56,6 +56,8 @@ import com.rakshaksetu.app.ui.theme.RakshakSetuTheme
 
 class MainActivity : ComponentActivity() {
 
+    private val dynamicNavRoute = androidx.compose.runtime.mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -76,8 +78,20 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             RakshakSetuTheme {
-                RakshakSetuNavGraph(startDestination = startRoute)
+                RakshakSetuNavGraph(
+                    startDestination = startRoute,
+                    dynamicRoute = dynamicNavRoute.value
+                )
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val route = intent.getStringExtra("NAV_ROUTE")
+        if (!route.isNullOrBlank()) {
+            dynamicNavRoute.value = route
         }
     }
 }

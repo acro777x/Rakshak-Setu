@@ -29,7 +29,11 @@ class RakshakShieldService : Service() {
     companion object {
         private const val TAG = "RakshakShieldService"
         const val CHANNEL_ID = "shield_status"
-        const val NOTIFICATION_ID = 1001
+        // NOTE: must not collide with telecom.IncomingCallNotificationManager.NOTIFICATION_ID_CALL
+        // (1001). Sharing that ID made any VoIP call silently replace the persistent
+        // shield notification, which never returned afterwards -- removing the user's
+        // only visible proof that call protection was still active.
+        const val NOTIFICATION_ID = 1002
         const val ACTION_STOP = "com.rakshaksetu.app.ACTION_STOP_SHIELD"
 
         fun start(context: Context) {
@@ -63,8 +67,11 @@ class RakshakShieldService : Service() {
         }
     }
 
+    private var isStopRequested = false
+
     override fun onCreate() {
         super.onCreate()
+        isStopRequested = false
         Log.i(TAG, "RakshakShieldService created.")
         ensureChannel()
         startInForeground()
@@ -74,6 +81,10 @@ class RakshakShieldService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             Log.i(TAG, "Stop action received, shutting down shield.")
+            // Latch the stop so onDestroy's restart-keeper does not immediately
+            // relaunch the service the user just turned off.
+            isStopRequested = true
+            ConsentStore(this).isShieldActive = false
             RakshakCallStateListener.unregister(this)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -97,8 +108,13 @@ class RakshakShieldService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "RakshakShieldService destroyed.")
-        // If shield is still configured active, restart to survive OEM task kills
-        if (ConsentStore(this).isShieldActive) {
+        // If shield is still configured active, restart to survive OEM task kills.
+        // Honour an explicit stop request first: previously this relaunched the
+        // service even when the user had just switched it off, making the Stop
+        // control inoperative and producing an unkillable self-restart loop.
+        if (isStopRequested) {
+            Log.i(TAG, "Stop was explicitly requested; not restarting.")
+        } else if (ConsentStore(this).isShieldActive) {
             Log.i(TAG, "Shield still active, requesting restart.")
             start(applicationContext)
         }

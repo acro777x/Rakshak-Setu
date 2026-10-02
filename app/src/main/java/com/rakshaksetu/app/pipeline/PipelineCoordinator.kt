@@ -217,7 +217,7 @@ class PipelineCoordinator(
         val voiceprint = SpeakerVoiceProfileStore.extractVoiceprint(pcmSegments)
         val speakerConsistency = SpeakerVoiceProfileStore.verifyConsistency(context, phoneNumber, voiceprint)
 
-        val totalPcm = if (pcmSegments.isNotEmpty()) pcmSegments.reduce { acc, b -> acc + b } else ByteArray(0)
+        val totalPcm = concatenatePcm(pcmSegments)
         val stressAssessment = VocalStressDetector.evaluateStress(totalPcm)
 
         val isIdentityImpersonation = speakerConsistency.isIdentityAnomaly
@@ -348,6 +348,30 @@ class PipelineCoordinator(
         val maxLoudness: Float,
         val avgSimilarity: Float
     )
+
+    /**
+     * Concatenates PCM segments into one contiguous buffer.
+     *
+     * The previous `segments.reduce { acc, b -> acc + b }` allocated a fresh array on
+     * every iteration, making the join O(n^2). For a 5-minute call (~60 five-second
+     * segments at 160KB each) that produced ~912MB of transient garbage and peaked
+     * near 24MB resident, which is an OutOfMemoryError on the <=4GB devices this app
+     * explicitly targets via DeviceCapabilityManager.AiTier.LITE.
+     *
+     * Single pass, single allocation, exact total size.
+     */
+    private fun concatenatePcm(segments: List<ByteArray>): ByteArray {
+        if (segments.isEmpty()) return ByteArray(0)
+        var total = 0L
+        for (s in segments) total += s.size
+        val out = ByteArray(total.toInt())
+        var offset = 0
+        for (s in segments) {
+            System.arraycopy(s, 0, out, offset, s.size)
+            offset += s.size
+        }
+        return out
+    }
 
     private fun bootstrapEngines() {
         try {

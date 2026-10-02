@@ -67,7 +67,7 @@ fun RakshakSetuTopBar(
     )
 }
 
-// ── BOTTOM NAVIGATION BAR (YUGANSH 5-ITEM WITH RAISED SHIELD) ──
+// ── BOTTOM NAVIGATION BAR (5-ITEM WITH DEDICATED SECURE LINE TAB) ──
 @Composable
 fun BottomNavBar(
     currentRoute: String,
@@ -80,13 +80,16 @@ fun BottomNavBar(
         val items = listOf(
             Triple("Home", Icons.Filled.Home, Screen.Dashboard.route),
             Triple("Scan", Icons.Filled.Search, Screen.ScanHub.route),
-            Triple("Shield", Icons.Filled.Shield, Screen.Dashboard.route),
+            Triple("Secure Line", Icons.Filled.Phone, Screen.SecureLine.route),
             Triple("Reports", Icons.Filled.Assessment, Screen.Reports.route),
             Triple("Profile", Icons.Filled.Person, Screen.Profile.route)
         )
         items.forEachIndexed { index, (label, icon, route) ->
+            val isSelected = currentRoute == route ||
+                (route == Screen.SecureLine.route && (currentRoute == Screen.VoipDialer.route || currentRoute == "secure_line" || currentRoute.startsWith("voip_")))
+
             NavigationBarItem(
-                selected = currentRoute == route && index != 2,
+                selected = isSelected,
                 onClick = { onNavigate(route) },
                 icon = {
                     if (index == 2) {
@@ -103,7 +106,7 @@ fun BottomNavBar(
                         Icon(icon, contentDescription = label)
                     }
                 },
-                label = { if (index != 2) Text(label, style = MaterialTheme.typography.labelSmall) },
+                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = RakshakSetuBlue,
                     selectedTextColor = RakshakSetuBlue,

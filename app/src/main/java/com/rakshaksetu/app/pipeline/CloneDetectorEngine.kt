@@ -246,9 +246,25 @@ class CloneDetectorEngine(private val context: Context) {
 
     fun isReady(): Boolean = isInitialized
 
+    /**
+     * Idempotent teardown of the native ONNX handles.
+     *
+     * OrtSession and OrtEnvironment wrap native memory that the JVM does not reclaim on
+     * GC. Every PipelineCoordinator allocates one of these, so without an explicit close
+     * each pipeline run leaked a native session plus its intra-op thread pool -- on the
+     * long-lived process that also hosts the 24/7 shield service.
+     */
+    @Synchronized
     fun release() {
-        ortSession?.close()
+        if (!isInitialized && ortSession == null) return
+        try {
+            ortSession?.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "OrtSession close failed: ${e.message}")
+        }
         ortSession = null
+        ortEnv = null
         isInitialized = false
+        Log.i(TAG, "Engine A released native ONNX handles.")
     }
 }

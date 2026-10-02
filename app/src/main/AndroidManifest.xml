@@ -2,26 +2,34 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Telephony -->
+    <!-- Telephony & VoIP Permissions -->
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     
-    <!-- Notifications -->
+    <!-- Audio & Hardware -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- Notifications & Full Screen Alerts -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
     
-    <!-- Foreground Service -->
+    <!-- Foreground Service (Android 14 API 34+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     
-    <!-- Actions -->
-    <uses-permission android:name="android.permission.CALL_PHONE" />
-    <uses-permission android:name="android.permission.SEND_SMS" />
+    <!-- Networking -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
     
     <!-- Storage -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
@@ -29,6 +37,14 @@
     
     <!-- Boot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Hardware Features -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="true" />
     
     <!-- Queries for Android 11+ Package Visibility -->
     <queries>
@@ -56,27 +72,43 @@
         android:theme="@style/Theme.Material3.DayNight"
         android:extractNativeLibs="true">
 
-        <!-- Launcher Activity -->
+        <!-- Main Host Activity (Launcher, Dialer Keypad & Live In-Call Threat HUD) -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Material3.DayNight">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tel" />
+            </intent-filter>
         </activity>
 
         <!-- Evidence Dossier Activity -->
+        <!-- exported=false: renders forensic dossiers containing call transcripts.
+             exported="true" let any app on the device launch it and read the result. -->
         <activity
             android:name=".ui.EvidenceActivity"
-            android:exported="true"
+            android:exported="false"
             android:theme="@style/Theme.Material3.DayNight" />
 
         <!-- Government Reporting Assistant (NCRP / Chakshu guided WebView) -->
+        <!-- exported=false: navigated to only from inside the app; no external entry
+             point is required, and exporting a WebView to other apps is a known risk. -->
         <activity
             android:name=".ui.GovtReportWebViewActivity"
-            android:exported="true"
+            android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:usesCleartextTraffic="false"
             android:theme="@style/Theme.Material3.DayNight" />
@@ -100,6 +132,23 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Post-call audio analysis for scam detection" />
         </service>
+
+        <!-- Native Telecom ConnectionService (Self-Managed VoIP Provider) -->
+        <service
+            android:name="com.rakshaksetu.app.telecom.RakshakConnectionService"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
+            android:foregroundServiceType="microphone|phoneCall"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
+        </service>
+
+        <!-- Active Call Foreground Service (Android 14 phoneCall|microphone) -->
+        <service
+            android:name="com.rakshaksetu.app.telecom.CallForegroundService"
+            android:foregroundServiceType="phoneCall|microphone"
+            android:exported="false" />
 
         <!-- Telephony BroadcastReceiver -->
         <receiver
