@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
@@ -10,6 +10,10 @@
     
     <!-- Audio & Hardware -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Real QR scanning (Scan Hub > QR Code Scanner). CameraX + ZXing. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!-- Notifications & Full Screen Alerts -->
@@ -189,3 +193,4 @@
 
     </application>
 </manifest>
+

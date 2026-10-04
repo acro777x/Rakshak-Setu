@@ -1,4 +1,4 @@
-package com.rakshaksetu.app
+﻿package com.rakshaksetu.app
 
 import android.Manifest
 import android.content.Context
@@ -35,7 +35,6 @@ import com.rakshaksetu.app.action.BankEmailAction
 import com.rakshaksetu.app.action.GovtPortalAction
 import com.rakshaksetu.app.action.HelplineAction
 import com.rakshaksetu.app.consent.ConsentStore
-import com.rakshaksetu.app.debug.FakePipelineEmitter
 import com.rakshaksetu.app.elder.ElderModeStore
 import com.rakshaksetu.app.elder.RakshakAppTheme
 import com.rakshaksetu.app.model.DetectionResult
@@ -267,9 +266,10 @@ fun MainDashboardScreen() {
 
             ComplaintProfileSection()
 
-            if (com.rakshaksetu.app.BuildConfig.DEBUG) {
-                SimulationSection(onResultSaved = { lastDetection = it })
-            }
+            // v2.2: the Simulation Studio is intentionally NOT rendered here.
+            // It emitted canned DetectionResults with hardcoded transcripts, which
+            // made the app look like it detected things it never analysed. Detection
+            // now comes only from the live pipeline (AnalysisService / Secure Line).
 
             LastDetectionSection(lastDetection) { refreshed -> lastDetection = refreshed }
 
@@ -818,94 +818,11 @@ private fun ProfileDialog(store: UserProfileStore, onDismiss: () -> Unit) {
         dismissButton = { OutlinedButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
-
-@Composable
-private fun SimulationSection(onResultSaved: (DetectionResult) -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val snackbar = remember { SnackbarHostState() }
-
-    fun triggerScenario(result: DetectionResult, label: String) {
-        try {
-            DetectionStore.saveLastResult(context, result)
-            onResultSaved(result)
-            ScamAlertManager(context).showScamAlert(result)
-            val serviceIntent = Intent(context, AnalysisService::class.java).apply {
-                putExtra(AnalysisService.EXTRA_CALL_ID, result.callId)
-                putExtra(AnalysisService.EXTRA_PHONE_NUMBER, result.phoneNumber)
-                putExtra(AnalysisService.EXTRA_IS_SIMULATION, true)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
-            }
-            scope.launch { snackbar.showSnackbar("Triggered: $label") }
-        } catch (e: Exception) {
-            scope.launch { snackbar.showSnackbar("Error: ${e.message}") }
-        }
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text("🧪 Threat Simulation & Test Studio", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Text(
-                "Tap any scenario to simulate a real call and verify AI alerts & evidence:",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Button(
-                onClick = { triggerScenario(FakePipelineEmitter.voiceCloneResult(), "AI Voice Clone Attack") },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF880E4F)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.RecordVoiceOver, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("🎭 Test AI Voice Clone Attack (SIH26104)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Button(
-                    onClick = { triggerScenario(FakePipelineEmitter.digitalArrestResult(), "CBI Digital Arrest") },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
-                    modifier = Modifier.weight(1f)
-                ) { Text("🚨 Digital Arrest", fontSize = 11.sp, maxLines = 1) }
-                Button(
-                    onClick = { triggerScenario(FakePipelineEmitter.screenShareResult(), "Screen Share Scam") },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
-                    modifier = Modifier.weight(1f)
-                ) { Text("📱 AnyDesk Scam", fontSize = 11.sp, maxLines = 1) }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Button(
-                    onClick = { triggerScenario(FakePipelineEmitter.kycFraudResult(), "Bank KYC Scam") },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD84315)),
-                    modifier = Modifier.weight(1f)
-                ) { Text("💳 Bank KYC Scam", fontSize = 11.sp, maxLines = 1) }
-                Button(
-                    onClick = { triggerScenario(FakePipelineEmitter.loanExtortionResult(), "Loan Extortion") },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFAD1457)),
-                    modifier = Modifier.weight(1f)
-                ) { Text("⚖️ Loan Extortion", fontSize = 11.sp, maxLines = 1) }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            OutlinedButton(
-                onClick = { triggerScenario(FakePipelineEmitter.benignResult(), "Safe Call") },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("🟢 Test Normal Safe Call", color = Color(0xFF2E7D32), fontSize = 12.sp)
-            }
-        }
-    }
-}
-
+// v2.2: SimulationSection has been deleted. It rendered a "Threat Simulation Studio"
+// whose buttons wrote canned DetectionResults (hardcoded transcripts, 0.94 confidence)
+// into DetectionStore, which the dashboard, reports and the police reporting dossier then
+// presented as real findings. Scenario fixtures remain available to unit tests via
+// com.rakshaksetu.app.debug.FakePipelineEmitter; they are no longer reachable from the UI.
 @Composable
 private fun LastDetectionSection(lastDetection: DetectionResult?, onChanged: (DetectionResult?) -> Unit) {
     val context = LocalContext.current
@@ -960,7 +877,7 @@ private fun QuickActionsSection(lastDetection: DetectionResult?) {
     Text("Quick Action Hub", fontWeight = FontWeight.Bold, fontSize = 16.sp)
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = { try { HelplineAction.dial1930(context) } catch (e: Exception) { scope.launch { snackbar.showSnackbar("Failed to dial 1930") } } }, modifier = Modifier.weight(1f)) { Text("Call 1930", fontSize = 12.sp) }
-        OutlinedButton(onClick = { try { val dummy = lastDetection ?: FakePipelineEmitter.digitalArrestResult(); val bank = BankEmailAction.getBanks().first(); context.startActivity(BankEmailAction.buildEmailIntent(dummy, bank)) } catch (e: Exception) { scope.launch { snackbar.showSnackbar("No email app installed") } } }, modifier = Modifier.weight(1f)) { Text("Bank Mail", fontSize = 12.sp) }
+        OutlinedButton(onClick = { try { val real = lastDetection; if (real == null) { scope.launch { snackbar.showSnackbar("No analysis yet - run Call Security first") } } else { val bank = BankEmailAction.getBanks().first(); context.startActivity(BankEmailAction.buildEmailIntent(real, bank)) } } catch (e: Exception) { scope.launch { snackbar.showSnackbar("Unable to compose bank mail") } } }, modifier = Modifier.weight(1f)) { Text("Bank Mail", fontSize = 12.sp) }
         OutlinedButton(onClick = { try { GovtPortalAction.openChakshu(context) } catch (e: Exception) { scope.launch { snackbar.showSnackbar("Cannot open browser") } } }, modifier = Modifier.weight(1f)) { Text("Chakshu", fontSize = 12.sp) }
     }
 }
@@ -981,3 +898,7 @@ fun PermissionItem(title: String, subtitle: String, isGranted: Boolean, onGrant:
         }
     }
 }
+
+
+
+

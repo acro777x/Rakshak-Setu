@@ -1,4 +1,4 @@
-package com.rakshaksetu.app.ui.screens
+﻿package com.rakshaksetu.app.ui.screens
 
 import android.Manifest
 import android.content.Context
@@ -28,7 +28,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.rakshaksetu.app.consent.ConsentStore
-import com.rakshaksetu.app.debug.FakePipelineEmitter
 import com.rakshaksetu.app.model.DetectionResult
 import com.rakshaksetu.app.model.DetectionStore
 import com.rakshaksetu.app.notification.ScamAlertManager
@@ -404,69 +403,19 @@ fun DashboardScreen(
                 }
             }
 
-            // ── THREAT SIMULATION STUDIO ────────────────────
-            SectionCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("🧪 Threat Simulation Studio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Surface(color = AIPurpleLight, shape = RoundedCornerShape(6.dp)) {
-                        Text("1-Tap Testing", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = AIPurple, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Text("Test on-device AI voice cloning & scam detection scenarios instantly:", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                Spacer(Modifier.height(10.dp))
+            // v2.2: the Threat Simulation Studio was removed. These buttons wrote a
+            // canned DetectionResult into DetectionStore, so the dashboard and
+            // reports then displayed a fabricated "94% voice clone" verdict for a
+            // call that never happened. Detection now comes only from real audio
+            // analysis.
 
-                Button(
-                    onClick = { triggerScenario(FakePipelineEmitter.voiceCloneResult(), "AI Voice Clone Attack (SIH26104)") },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF880E4F)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
-                ) {
-                    Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = SurfaceWhite)
-                    Spacer(Modifier.width(8.dp))
-                    Text("🎭 Test AI Voice Clone Attack (SIH26104)", color = SurfaceWhite, fontWeight = FontWeight.Bold)
-                }
 
-                Spacer(Modifier.height(8.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    Button(
-                        onClick = { triggerScenario(FakePipelineEmitter.digitalArrestResult(), "Digital Arrest Scam") },
-                        colors = ButtonDefaults.buttonColors(containerColor = BlockedRed),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f).height(46.dp)
-                    ) {
-                        Text("🚨 Digital Arrest", color = SurfaceWhite, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                    }
-
-                    Button(
-                        onClick = { triggerScenario(FakePipelineEmitter.kycFraudResult(), "Bank KYC Fraud") },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f).height(46.dp)
-                    ) {
-                        Text("💳 Bank KYC Scam", color = SurfaceWhite, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                OutlinedButton(
-                    onClick = { triggerScenario(FakePipelineEmitter.benignResult(), "Verified Safe Call") },
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.5.dp, SafeGreen),
-                    modifier = Modifier.fillMaxWidth().height(46.dp)
-                ) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = SafeGreen, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("🟢 Test Verified Safe Call", color = SafeGreen, fontWeight = FontWeight.Bold)
-                }
-
-                Spacer(Modifier.height(8.dp))
-
+            // Real incoming-call demo: posts a genuine system call notification
+            // and routes to the VoIP answer screen.
+            // (v2.2 removed the Threat Simulation Studio above -- its buttons wrote a
+            //  canned DetectionResult into DetectionStore, so the dashboard then
+            //  displayed a fabricated "94% voice clone" verdict for a call that never
+            //  happened. Detection now comes only from real audio analysis.)
                 Button(
                     onClick = {
                         try {
@@ -484,7 +433,6 @@ fun DashboardScreen(
                     Spacer(Modifier.width(8.dp))
                     Text("📞 Simulate Incoming Call (+91 98765 00001)", color = SurfaceWhite, fontWeight = FontWeight.Bold)
                 }
-            }
 
             // ── ON-DEVICE AI MODELS STATUS (FULL TIER DYNAMIC) ──
             SectionCard {
@@ -706,3 +654,7 @@ fun TrustedServiceChip(
         }
     }
 }
+
+
+
+

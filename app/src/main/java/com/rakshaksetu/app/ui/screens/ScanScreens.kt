@@ -1,4 +1,4 @@
-package com.rakshaksetu.app.ui.screens
+﻿package com.rakshaksetu.app.ui.screens
 
 import android.content.Context
 import android.content.Intent
@@ -19,6 +19,27 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.rakshaksetu.app.security.QrCodeAnalyzer
+import com.rakshaksetu.app.security.QrPayloadAnalyzer
+import com.rakshaksetu.app.security.EvidenceSource
+import com.rakshaksetu.app.security.UrlFinding
+import com.rakshaksetu.app.security.UrlThreatScanner
+import com.rakshaksetu.app.security.UrlThreatHeuristics
+import com.rakshaksetu.app.security.UrlRisk
+import com.rakshaksetu.app.security.Verdict
+import com.rakshaksetu.app.pipeline.AudioDecoder
+import com.rakshaksetu.app.pipeline.PipelineCoordinator
+import com.rakshaksetu.app.pipeline.VoskAsrEngine
+import com.rakshaksetu.app.pipeline.VotingEngine
+import java.io.File
 import com.rakshaksetu.app.debug.FakePipelineEmitter
 import com.rakshaksetu.app.model.DetectionResult
 import com.rakshaksetu.app.model.DetectionStore
@@ -91,33 +112,76 @@ fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     var phase by remember { mutableStateOf(if (activeResult != null) "result" else "upload") }
     var transcriptProgress by remember { mutableFloatStateOf(0f) }
 
+
+    var selectedUri by remember { mutableStateOf<Uri?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
     val audioPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        if (uri != null) {
-            phase = "transcript"
-        }
+        if (uri != null) selectedUri = uri
     }
 
-    LaunchedEffect(phase) {
-        if (phase == "transcript") {
-            repeat(100) {
-                delay(15)
-                transcriptProgress = it / 100f
+    LaunchedEffect(selectedUri) {
+        val uri = selectedUri ?: return@LaunchedEffect
+        busy = true
+        errorMsg = null
+        phase = "transcript"
+        transcriptProgress = 0f
+        try {
+            // Decode the REAL uploaded audio to 16 kHz mono 16-bit PCM, then run
+            // the actual on-device pipeline over it. The previous version showed
+            // a fake progress bar and then returned FakePipelineEmitter.voiceCloneResult()
+            // regardless of the file -- i.e. it reported "voice clone detected" for
+            // every file a user selected, including their grandmother's voicemail.
+            val destWav = File(context.cacheDir, "upload_${System.currentTimeMillis()}.wav")
+            val decoded = AudioDecoder.decodeToWav(context, uri, destWav.absolutePath)
+            if (!decoded || !destWav.exists() || destWav.length() == 0L) {
+                errorMsg = "Could not decode that audio file. Supported: WAV, M4A, MP3, 3GP, AMR."
+                phase = "upload"
+                busy = false
+                return@LaunchedEffect
+            }
+
+            for (step in 1..100) {
+                delay(10)
+                transcriptProgress = step / 100f
             }
             phase = "analysis"
-            delay(1200)
-            val res = FakePipelineEmitter.voiceCloneResult()
-            DetectionStore.saveLastResult(context, res)
-            activeResult = res
-            ScamAlertManager(context).showScamAlert(res)
-            phase = "result"
+
+            val coordinator = PipelineCoordinator(
+                context,
+                VoskAsrEngine(context),
+                VotingEngine()
+            )
+            val result = coordinator.runPipeline(
+                phoneNumber = "self-uploaded-audio",
+                callDurationSec = 0,
+                callEndEpoch = System.currentTimeMillis(),
+                destWavPath = destWav.absolutePath
+            )
+
+            if (result == null) {
+                errorMsg = "The analyser could not reach a verdict on this file."
+                phase = "upload"
+            } else {
+                DetectionStore.saveLastResult(context, result)
+                activeResult = result
+                if (result.isScam) ScamAlertManager(context).showScamAlert(result)
+                phase = "result"
+            }
+            destWav.delete()
+        } catch (e: Exception) {
+            errorMsg = "Analysis failed: ${e.message}"
+            phase = "upload"
+        } finally {
+            busy = false
         }
     }
 
     Scaffold(
         topBar = { RakshakSetuTopBar(title = "Call Security & Voice Clone", onBackClick = onBack) },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = BackgroundLight
     ) { padding ->
         Column(
@@ -231,27 +295,58 @@ fun LinkCheckerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     var resultStatus by remember { mutableStateOf(RiskStatus.SAFE) }
     var resultDetails by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
 
+    val scanner = remember { UrlThreatScanner() }
+    var isScanning by remember { mutableStateOf(false) }
+    var scannedUrl by remember { mutableStateOf("") }
+    var liveChecked by remember { mutableStateOf(false) }
+    var feedStatus by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+
+    /**
+     * Runs the real layered engine: offline heuristics first (instant), then
+     * the live reputation feeds. Never fabricates a verdict -- if the feeds
+     * cannot be reached the UI says so instead of implying a clean bill of
+     * health.
+     */
     fun checkUrl(url: String) {
-        val lower = url.lowercase().trim()
-        val isRisky = lower.contains("free-gift") || lower.contains("gift") || lower.contains("kyc") || lower.contains("otp") || lower.contains("apk") || lower.contains("refund") || lower.contains("sbi-") || lower.contains("login-")
-        if (isRisky) {
-            resultStatus = RiskStatus.HIGH_RISK
-            resultDetails = listOf(
-                "Risk Level" to "High Risk",
-                "Category" to "Suspected Phishing / Bank Fraud",
-                "Threat Indicators" to "Urgency keywords / Unregistered SSL",
-                "Domain" to url
-            )
-        } else {
-            resultStatus = RiskStatus.SAFE
-            resultDetails = listOf(
-                "Risk Level" to "Low Risk",
-                "Category" to "Verified Domain",
-                "SSL Certificate" to "Valid TLS 1.3",
-                "Domain" to url
-            )
-        }
+        if (url.isBlank()) return
+        scannedUrl = url
+        isScanning = true
         phase = "result"
+        scope.launch {
+            val outcome = scanner.scan(url)
+            val v = outcome.verdict
+            resultStatus = when (v.risk) {
+                UrlRisk.DANGEROUS -> RiskStatus.HIGH_RISK
+                UrlRisk.SUSPICIOUS -> RiskStatus.SUSPICIOUS
+                UrlRisk.SAFE -> RiskStatus.SAFE
+            }
+            liveChecked = outcome.liveChecked
+            feedStatus = outcome.feedStatus
+            val details = mutableListOf<Pair<String, String>>()
+            details += "Risk Score" to "${v.score}/100 (higher is worse)"
+            details += "Category" to when (v.risk) {
+                UrlRisk.DANGEROUS -> "High Risk - likely phishing / fraud"
+                UrlRisk.SUSPICIOUS -> "Suspicious - verify before proceeding"
+                UrlRisk.SAFE -> "No threat indicators found"
+            }
+            if (v.host.isNotBlank()) {
+                details += "Host" to v.host
+                details += "Domain" to v.registrableDomain
+                details += "Scheme" to v.scheme.uppercase()
+            }
+            details += "Evidence" to when (v.source) {
+                EvidenceSource.LIVE_FEED -> "Live feed match: ${v.feedNames.joinToString(", ")}"
+                EvidenceSource.LIVE_FEED_CLEAN -> "Live feeds checked, no listing found"
+                EvidenceSource.OFFLINE_HEURISTIC -> "On-device rules only (no live feed reachable)"
+            }
+            outcome.feedStatus.forEach { (name, st) -> details += "Feed: $name" to st }
+            v.findings.forEach { details += it.rule to it.detail }
+            if (v.findings.isEmpty()) {
+                details += "No Rules Fired" to "No on-device heuristic matched this URL"
+            }
+            resultDetails = details
+            isScanning = false
+        }
     }
 
     Scaffold(
@@ -280,24 +375,52 @@ fun LinkCheckerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                             }
                         }
                     )
-                    PrimaryButton("Check Link", onClick = { if (urlInput.isNotBlank()) checkUrl(urlInput) }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.Search)
+                    PrimaryButton(
+                        "Check Link",
+                        onClick = { if (urlInput.isNotBlank()) checkUrl(urlInput) },
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Filled.Search
+                    )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { urlInput = "https://free-gift-reward.xyz/claim"; checkUrl(urlInput) }, shape = RoundedCornerShape(8.dp), modifier = Modifier.weight(1f)) {
-                            Text("Try Phishing Link", style = MaterialTheme.typography.labelSmall)
-                        }
-                        OutlinedButton(onClick = { urlInput = "https://cybercrime.gov.in"; checkUrl(urlInput) }, shape = RoundedCornerShape(8.dp), modifier = Modifier.weight(1f)) {
-                            Text("Try Safe Link", style = MaterialTheme.typography.labelSmall)
-                        }
+                        OutlinedButton(
+                            onClick = { urlInput = "https://sbi-kyc-update-verify.co.in/claim"; checkUrl(urlInput) },
+                            shape = RoundedCornerShape(8.dp), modifier = Modifier.weight(1f)
+                        ) { Text("Test phishing pattern", style = MaterialTheme.typography.labelSmall) }
+                        OutlinedButton(
+                            onClick = { urlInput = "https://cybercrime.gov.in"; checkUrl(urlInput) },
+                            shape = RoundedCornerShape(8.dp), modifier = Modifier.weight(1f)
+                        ) { Text("Test official site", style = MaterialTheme.typography.labelSmall) }
                     }
                 }
 
                 "result" -> {
                     ResultCard(
                         status = resultStatus,
-                        headline = if (resultStatus == RiskStatus.HIGH_RISK) "🚨 Dangerous Phishing Link" else "✅ Link Verified Safe",
-                        body = if (resultStatus == RiskStatus.HIGH_RISK) "This domain contains phishing patterns designed to steal banking credentials." else "No malicious patterns detected."
+                        headline = when {
+                            isScanning -> "⏳ Checking…"
+                            resultStatus == RiskStatus.HIGH_RISK -> "🚨 Dangerous Phishing Link"
+                            resultStatus == RiskStatus.SUSPICIOUS -> "⚠️ Suspicious Link"
+                            liveChecked -> "✅ No Threat Indicators Found"
+                            else -> "⚠️ No Live Check Available"
+                        },
+                        body = when {
+                            isScanning -> "Running on-device rules and live reputation feeds."
+                            resultStatus == RiskStatus.HIGH_RISK ->
+                                "Live threat intelligence or multiple on-device rules matched this link."
+                            resultStatus == RiskStatus.SUSPICIOUS ->
+                                "Some indicators look suspicious. Verify before entering any personal detail."
+                            liveChecked ->
+                                "On-device rules found nothing and live feeds do not list this URL. Absence from a feed is not a guarantee."
+                            else ->
+                                "Live feeds were unreachable, so only on-device rules ran. Do not treat this as a clean result."
+                        }
                     )
+
+                    if (isScanning) {
+                        Text("Scanning…", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    }
+
 
                     SectionCard {
                         Text("Analysis Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -344,8 +467,31 @@ fun LinkCheckerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
 @Composable
 fun QRScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var phase by remember { mutableStateOf("scan") }
-    var decodedUrl by remember { mutableStateOf("https://sancharsaathi.gov.in") }
+    var payload by remember { mutableStateOf("") }
+    var manualEntry by remember { mutableStateOf("") }
+    var camError by remember { mutableStateOf<String?>(null) }
+    var analysis by remember { mutableStateOf<QrPayloadAnalyzer.Analysis?>(null) }
+    var urlVerdict by remember { mutableStateOf<Verdict?>(null) }
+    var isScanningUrl by remember { mutableStateOf(false) }
+    val scanner = remember { UrlThreatScanner() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    /** Decoded payload -> classify, and if it carries a URL, scan that URL too. */
+    fun handlePayload(decoded: String) {
+        payload = decoded
+        analysis = QrPayloadAnalyzer.analyze(decoded)
+        phase = "result"
+        val nested = QrPayloadAnalyzer.extractUrl(decoded)
+        if (nested != null) {
+            isScanningUrl = true
+            scope.launch {
+                urlVerdict = scanner.scan(nested).verdict
+                isScanningUrl = false
+            }
+        }
+    }
 
     Scaffold(
         topBar = { RakshakSetuTopBar(title = "QR Code Scanner", onBackClick = onBack) },
@@ -359,36 +505,134 @@ fun QRScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                 "scan" -> {
                     Text("Scan a QR Code", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(260.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF1A1A2E)),
+                        modifier = Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(20.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(Icons.Filled.QrCodeScanner, contentDescription = null, tint = SurfaceWhite.copy(alpha = 0.6f), modifier = Modifier.size(64.dp))
-                            Text("Aim camera at QR code", style = MaterialTheme.typography.bodyMedium, color = SurfaceWhite.copy(alpha = 0.8f))
-                        }
+                        AndroidView(
+                            modifier = Modifier.fillMaxSize(),
+                            factory = { ctx ->
+                                val pv = PreviewView(ctx)
+                                val executor = ContextCompat.getMainExecutor(ctx)
+                                val analyzer = QrCodeAnalyzer { text ->
+                                    scope.launch { handlePayload(text) }
+                                }
+                                val opts = ImageAnalysis.Builder()
+                                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                    .build()
+                                opts.setAnalyzer(executor, analyzer)
+                                try {
+                                    val preview = Preview.Builder().build()
+                                    preview.setSurfaceProvider(pv.surfaceProvider)
+                                    val provider = ProcessCameraProvider.getInstance(ctx).get()
+                                    provider.unbindAll()
+                                    provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, opts)
+                                } catch (e: Exception) {
+                                    camError = "Camera unavailable: ${e.message}"
+                                }
+                                pv
+                            }
+                        )
                     }
-                    PrimaryButton("Decode QR Code", onClick = { phase = "result" }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.QrCode)
+                    camError?.let {
+                        Text(it, color = BlockedRed, style = MaterialTheme.typography.bodySmall)
+                    }
+                    OutlinedButton(
+                        onClick = { phase = "manual" },
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                    ) { Text("Enter QR content manually", color = TextSecondary) }
+                }
+
+                "manual" -> {
+                    Text("Paste QR payload", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    OutlinedTextField(
+                        value = manualEntry,
+                        onValueChange = { manualEntry = it },
+                        label = { Text("QR content") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        minLines = 3
+                    )
+                    PrimaryButton("Analyse", onClick = {
+                        if (manualEntry.isNotBlank()) handlePayload(manualEntry.trim())
+                    }, modifier = Modifier.fillMaxWidth())
+                    OutlinedButton(
+                        onClick = { phase = "scan" },
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                    ) { Text("Back to camera", color = TextSecondary) }
                 }
 
                 "result" -> {
-                    ResultCard(RiskStatus.SAFE, "Decoded Safe QR Code", "Destination URL verified clean.")
-                    SectionCard {
-                        Text("QR Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(8.dp))
-                        AnalysisRow("Destination URL", decodedUrl, RakshakSetuBlue)
-                        AnalysisRow("Safety Status", "Verified Safe", SafeGreen)
-                    }
-                    PrimaryButton("Open URL in Browser", onClick = {
-                        try {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(decodedUrl)))
-                        } catch (ignored: Exception) {}
-                    }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.OpenInNew)
-                    OutlinedButton(onClick = { phase = "scan" }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                        Text("Scan Another QR", color = TextSecondary)
+                    val a = analysis
+                    if (a != null) {
+                        when (a.kind) {
+                            QrPayloadAnalyzer.Kind.UPI_COLLECT -> ResultCard(
+                                status = RiskStatus.BLOCKED,
+                                headline = "⚠️ UPI Payment Request",
+                                body = "This QR opens a payment screen pre-filled to a specific payee.",
+                            )
+                            QrPayloadAnalyzer.Kind.PAYMENT_DEEP_LINK -> ResultCard(
+                                status = RiskStatus.BLOCKED,
+                                headline = "⚠️ Payment App Link",
+                                body = "This QR opens a payment app directly.",
+                            )
+                            QrPayloadAnalyzer.Kind.URL -> ResultCard(
+                                status = RiskStatus.SUSPICIOUS,
+                                headline = "Web Link QR",
+                                body = "Destination is being checked against live threat feeds.",
+                            )
+                            else -> ResultCard(
+                                status = RiskStatus.SAFE,
+                                headline = "Non-payment QR",
+                                body = "This code carries ${a.label.lowercase()} rather than a payment request.",
+                            )
+                        }
+
+                        SectionCard {
+                            Text("Decoded Payload", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+                            AnalysisRow("Type", a.label, TextPrimary)
+                            a.upiHandle?.let { AnalysisRow("Payee UPI ID", it, BlockedRed) }
+                            a.payeeName?.let { AnalysisRow("Payee Name", it, TextPrimary) }
+                            a.amount?.let { AnalysisRow("Amount", "Rs $it", BlockedRed) }
+                            a.note?.let { AnalysisRow("Note", it, TextPrimary) }
+                            AnalysisRow("Raw", payload, TextPrimary)
+                        }
+
+                        if (a.warnings.isNotEmpty()) {
+                            SectionCard {
+                                Text("What to check", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(8.dp))
+                                a.warnings.forEach {
+                                    Text("• $it", style = MaterialTheme.typography.bodySmall, color = TextPrimary)
+                                    Spacer(Modifier.height(6.dp))
+                                }
+                            }
+                        }
+
+                        if (isScanningUrl) {
+                            Text("Checking destination against live feeds…", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        }
+                        urlVerdict?.let { v ->
+                            SectionCard {
+                                Text("Destination Check", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(8.dp))
+                                AnalysisRow("Score", "${v.score}/100", if (v.risk == UrlRisk.DANGEROUS) BlockedRed else TextPrimary)
+                                AnalysisRow("Verdict", v.risk.name, if (v.risk == UrlRisk.DANGEROUS) BlockedRed else TextPrimary)
+                                v.findings.forEach { AnalysisRow(it.rule, it.detail, TextPrimary) }
+                            }
+                        }
+
+                        if (a.kind == QrPayloadAnalyzer.Kind.URL) {
+                            PrimaryButton("Open in Browser", onClick = {
+                                try {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(a.nestedUrl ?: "")))
+                                } catch (ignored: Exception) {}
+                            }, modifier = Modifier.fillMaxWidth(), icon = Icons.Filled.OpenInNew)
+                        }
+                        OutlinedButton(
+                            onClick = { phase = "scan"; payload = ""; analysis = null; urlVerdict = null },
+                            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                        ) { Text("Scan Another QR", color = TextSecondary) }
                     }
                 }
             }
@@ -505,3 +749,31 @@ fun ImageScannerScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

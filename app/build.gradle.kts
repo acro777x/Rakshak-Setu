@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -14,8 +14,8 @@ android {
         applicationId = "com.rakshaksetu.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "2.1.0"
+        versionCode = 6
+        versionName = "2.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -253,4 +253,20 @@ dependencies {
 
     // Networking
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // ── Real QR scanning ──────────────────────────────────────────────
+    // The QR screen previously rendered a static box and reported a hardcoded
+    // government URL as "Verified Safe". These three artifacts make the camera
+    // actually decode a symbol:
+    //   camera-core / camera-camera2 / camera-lifecycle : preview + analysis feed
+    //   camera-view                                : PreviewView AndroidView target
+    //   zxing core                                 : the actual decoder
+    implementation("androidx.camera:camera-core:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+    implementation("com.google.zxing:core:3.5.3")
 }
+
+
+

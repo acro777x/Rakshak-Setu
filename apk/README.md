@@ -67,8 +67,8 @@ serve emulators. If you need an x86_64 emulator build, pass
 
 ## Versioning
 
-Version comes from `app/build.gradle.kts` (`versionName = "2.1.0"`,
-`versionCode = 5`). Filenames follow:
+Version comes from `app/build.gradle.kts` (`versionName = "2.2.0"`,
+`versionCode = 6`). Filenames follow:
 
 ```
 RakshakSetu-v<version>-<abi>-<BuildType>.apk
@@ -77,3 +77,47 @@ RakshakSetu-v<version>-<abi>-<BuildType>.apk
 When rebuilding an existing filename, git will show it as *modified* rather
 than *added* — that is expected and correct, and it keeps the folder from
 filling up with near-duplicates.
+
+---
+
+## v2.2.0 — the current release
+
+**Download `RakshakSetu-v2.2-arm64-v8a-Benchmark.apk` (25.9 MB)** unless you have
+a reason not to.
+
+### What changed vs v2.1
+
+Three screens previously looked like scanners but did not inspect anything. They
+are now real:
+
+| Screen | Was | Now |
+|---|---|---|
+| Link & Phishing Checker | substring match on `kyc`/`otp`/`apk`; printed a **fabricated** "SSL Certificate: Valid TLS 1.3" without opening a socket | strict URL parse → 5-layer rule engine → live feeds (OpenPhish, urlscan.io, Google Safe Browsing) |
+| QR Code Scanner | **never used the camera**; URL was hardcoded to `sancharsaathi.gov.in` and always reported "Verified Safe" | CameraX + ZXing decode, then payload classification (UPI collect / payment deep-link / URL / Wi-Fi) |
+| Call Security | showed a progress bar then returned a **canned voice-clone result for every file**, including benign recordings | decodes the real audio and runs the actual on-device pipeline |
+
+The Call Security bug was the most serious: it reported "94 % voice clone" for
+any file a user picked. That fabricated result could also reach the **police
+reporting dossier**, so all synthetic fallbacks were removed from production
+code. Scenario fixtures still exist in `debug/FakePipelineEmitter.kt` for unit
+tests, but are no longer reachable from the UI.
+
+### New permissions
+
+`CAMERA` was added for QR scanning. It is optional (`required="false"`), so the
+app still installs on devices without a camera — only the QR scanner is affected.
+
+### Verified vs unverified
+
+Please read this before quoting the release:
+
+| | |
+|---|---|
+| 258 unit tests pass | verified |
+| URL + QR engines compile and package into the APK | verified |
+| Live feed reachability (OpenPhish, urlscan.io) | verified 2026-10-02 |
+| QR decode on physical hardware | **not verified** — no device available at build time |
+| Two-device live calls | **not verified** — needs two devices + the signalling relay |
+| Google Safe Browsing | **not verified** — requires an API key |
+
+Test on a real device before presenting these APKs as working.

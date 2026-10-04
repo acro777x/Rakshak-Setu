@@ -1,4 +1,4 @@
-package com.rakshaksetu.app.service
+﻿package com.rakshaksetu.app.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -12,7 +12,6 @@ import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.rakshaksetu.app.BuildConfig
-import com.rakshaksetu.app.debug.FakePipelineEmitter
 import com.rakshaksetu.app.elder.ElderModeStore
 import com.rakshaksetu.app.elder.EmergencyDispatcher
 import com.rakshaksetu.app.model.DetectionStore
@@ -85,6 +84,7 @@ class AnalysisService : Service() {
             }
         }
     }
+
 
     override fun onCreate() {
         super.onCreate()
@@ -173,9 +173,15 @@ class AnalysisService : Service() {
                 Log.d(TAG, "Pipeline begin for callId=$fCallId (sim=$fSim)")
                 val startTimeMs = System.currentTimeMillis()
 
+
+                // v2.2: no synthetic fallback. Previously this substituted a canned
+                // DetectionResult when no stored result existed, which let a fabricated
+                // transcript flow into alerts and the police reporting dossier.
                 val result = if (fSim) {
-                    DetectionStore.getLastResult(applicationContext)
-                        ?: FakePipelineEmitter.voiceCloneResult()
+                    DetectionStore.getLastResult(applicationContext) ?: run {
+                        Log.w(TAG, "sim mode with no stored result - nothing to report.")
+                        return@launch
+                    }
                 } else {
                     val asrEngine = VoskAsrEngine(applicationContext)
                     val coordinator = PipelineCoordinator(
@@ -354,3 +360,12 @@ class AnalysisService : Service() {
         }
     }
 }
+
+
+
+
+
+
+
+
+

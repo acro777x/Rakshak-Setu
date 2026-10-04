@@ -1,4 +1,4 @@
-package com.rakshaksetu.app.ui
+﻿package com.rakshaksetu.app.ui
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -111,12 +111,12 @@ fun GovtReportScreen(
     var webViewInstance by remember { mutableStateOf<WebView?>(null) }
 
     val profile = remember { UserProfileStore(context) }
+    // v2.2: no synthetic fallback. A reporting dossier that silently pre-fills a
+    // fabricated "digital arrest" transcript would put invented evidence in front
+    // of a citizen filing with the police. Absent data is left absent.
     val detectionResult: DetectionResult? = remember(callId) {
         val last = DetectionStore.getLastResult(context)
-        when {
-            callId.isNotBlank() && last?.callId == callId -> last
-            else -> last ?: if (BuildConfig.DEBUG) FakePipelineEmitter.digitalArrestResult() else null
-        }
+        if (callId.isNotBlank() && last?.callId == callId) last else last
     }
 
     val epochMs = (detectionResult?.callEndEpoch ?: System.currentTimeMillis()).let {
@@ -710,3 +710,6 @@ fun buildFillerScript(payloadJson: String): String {
         })();
     """.trimIndent()
 }
+
+
+
