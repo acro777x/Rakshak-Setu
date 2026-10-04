@@ -84,10 +84,13 @@ object IndianNumberFormatter {
 fun VoipDialerScreen(
     onInitiateCall: (destination: String) -> Unit,
     onSpeedDial1930: () -> Unit,
+    localDeviceId: String = "",
+    onSetLocalDeviceId: ((String) -> Unit)? = null,
     onNavigate: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var rawDialString by remember { mutableStateOf("") }
+    var identityDraft by remember { mutableStateOf("") }
     val haptic = LocalHapticFeedback.current
 
     val keys = listOf(
@@ -192,6 +195,86 @@ fun VoipDialerScreen(
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium
                         )
+                    }
+                }
+
+                // This device's own Secure Line identity. Peers address each other by
+                // phone number, so the number registered here is the one the other
+                // device must dial. Without a visible, settable identity neither
+                // device can be reached.
+                if (localDeviceId.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = RakshakSetuBlueLight.copy(alpha = 0.12f)),
+                        border = BorderStroke(1.dp, RakshakSetuBlue.copy(alpha = 0.25f))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp, horizontal = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "THIS DEVICE'S SECURE LINE ID",
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.8.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = localDeviceId,
+                                color = RakshakSetuBlue,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Share this number so the other device can dial you",
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+
+                            if (onSetLocalDeviceId != null) {
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                OutlinedTextField(
+                                    value = identityDraft,
+                                    onValueChange = { identityDraft = it.filter { ch -> ch.isDigit() || ch == '+' }.take(15) },
+                                    singleLine = true,
+                                    label = { Text("My number (+91 98765 43210)") },
+                                    placeholder = { Text(localDeviceId, fontSize = 11.sp) },
+                                    textStyle = MaterialTheme.typography.bodyMedium
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                OutlinedButton(
+                                    onClick = {
+                                        val entered = identityDraft.trim()
+                                        if (entered.isNotEmpty()) {
+                                            onSetLocalDeviceId(entered)
+                                            identityDraft = ""
+                                        }
+                                    },
+                                    enabled = identityDraft.isNotBlank(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = RakshakSetuBlue),
+                                    border = BorderStroke(1.dp, RakshakSetuBlue.copy(alpha = 0.4f))
+                                ) {
+                                    Text(
+                                        text = "Save number",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

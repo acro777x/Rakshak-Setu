@@ -19,7 +19,27 @@ class SignalingClient(
 ) {
     companion object {
         private const val TAG = "SignalingClient"
-        const val DEFAULT_SERVER_URL = "ws://10.0.2.2:8080" // Android emulator loopback to host
+        const val DEFAULT_SERVER_URL = "ws://127.0.0.1:8080" // physical device + `adb reverse tcp:8080 tcp:8080`
+
+        /**
+         * OkHttp's URL parser (the one behind `Request.Builder().url`) only accepts
+         * `http` and `https`. WebSocket URLs are conventionally written `ws://` /
+         * `wss://`, so those schemes are mapped onto their HTTP equivalents here.
+         * OkHttp itself performs the `Upgrade: websocket` handshake, so passing an
+         * http/https URL to `newWebSocket` is the supported way to open a socket.
+         *
+         * Without this mapping the client fails with
+         * "Expected URL scheme 'http' or 'https' but no scheme was found", i.e. the
+         * signalling channel never opens and no call can ever be negotiated.
+         */
+        internal fun toOkHttpUrl(raw: String): String {
+            val trimmed = raw.trim()
+            return when {
+                trimmed.startsWith("ws://", ignoreCase = true) -> "http://" + trimmed.substring(5)
+                trimmed.startsWith("wss://", ignoreCase = true) -> "https://" + trimmed.substring(6)
+                else -> trimmed
+            }
+        }
     }
 
     interface Listener {
@@ -44,8 +64,9 @@ class SignalingClient(
 
     fun connect(clientId: String) {
         this.myClientId = clientId
+        val endpoint = toOkHttpUrl(serverUrl)
         try {
-            val request = Request.Builder().url(serverUrl).build()
+            val request = Request.Builder().url(endpoint).build()
             webSocket = client.newWebSocket(request, object : WebSocketListener() {
                 override fun onOpen(ws: WebSocket, response: Response) {
                     Log.i(TAG, "Signaling WebSocket connected to $serverUrl")
@@ -125,7 +146,20 @@ class SignalingClient(
     }
 
     private fun send(text: String) {
-        webSocket?.send(text)
+        val ws = webSocket
+        if (ws == null) {
+            Log.e(TAG, "send dropped: no WebSocket (payload=${text.take(80)})")
+            listener.onError("Not connected to signalling")
+            return
+        }
+        // OkHttp returns false when the frame could not be queued; previously that
+        // was discarded, so an offer silently vanished before reaching the relay.
+        if (!ws.send(text)) {
+            Log.e(TAG, "send failed: OkHttp rejected frame (payload=${text.take(80)})")
+            listener.onError("Failed to transmit signalling message")
+        } else {
+            Log.i(TAG, "send ok (${text.take(48)}...)")
+        }
     }
 
     fun disconnect() {

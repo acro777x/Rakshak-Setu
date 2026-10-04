@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -18,6 +18,15 @@ android {
         versionName = "2.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        // ── Signalling relay (build-time configurable) ────────────────────
+        // A physical device cannot reach the developer laptop at 10.0.2.2 (that
+        // alias only exists inside the Android emulator). Override with:
+        //   .\gradlew.bat :app:assembleBenchmark -PsignalingUrl=ws://<LAN-IP>:8080
+        // NavGraph.kt reads this via BuildConfig, so no source edit is needed.
+        val signalingUrl: String = (project.findProperty("signalingUrl") as String?)
+            ?: "ws://127.0.0.1:8080"
+buildConfigField("String", "SIGNALING_URL", "\"$signalingUrl\"")
     }
 
     // Generate separate lightweight APKs per architecture PLUS a universal APK that works on any phone

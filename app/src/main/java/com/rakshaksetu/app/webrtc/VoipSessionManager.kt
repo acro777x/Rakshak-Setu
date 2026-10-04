@@ -14,6 +14,36 @@ import org.webrtc.SessionDescription
 import java.util.UUID
 
 /**
+ * Stable, user-visible identity for this device on the signalling relay.
+ *
+ * The relay normalises every `clientId` through `normalizePhoneNumber`, and the
+ * dialer only ever collects phone numbers. A random per-process id would
+ * therefore make the device permanently unreachable: peers could never address
+ * it. The identity is therefore persisted, seeded once, and settable by the user
+ * so two devices can be paired by number.
+ */
+object SecureLineIdentity {
+    private const val PREFS = "rakshak_secure_line"
+    private const val KEY_ID = "identity"
+
+    fun get(context: Context): String {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        prefs.getString(KEY_ID, null)?.takeIf { it.isNotBlank() }?.let { return it }
+
+        val seeded = "rakshak-" + UUID.randomUUID().toString().take(8)
+        prefs.edit().putString(KEY_ID, seeded).apply()
+        return seeded
+    }
+
+    fun set(context: Context, identity: String) {
+        val cleaned = identity.trim()
+        if (cleaned.isEmpty()) return
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString(KEY_ID, cleaned).apply()
+    }
+}
+
+/**
  * Single composition root for a sovereign WebRTC call between two devices.
  *
  * WHY THIS EXISTS
@@ -83,13 +113,41 @@ class VoipSessionManager private constructor(
     private val interception: AudioInterceptionEngine by lazy { AudioInterceptionEngine(ringBuffer) }
 
     private var signaling: SignalingClient? = null
+    private var activeUrl: String? = null
     private var engine: WebRtcEngine? = null
     private var telecom: TelecomCallManager? = null
 
-    private val localId: String = "rakshak-" + UUID.randomUUID().toString().take(8)
+    private val localId: String
+        get() = SecureLineIdentity.get(context)
+
+    /**
+     * Register this device under [identity] instead of the generated fallback.
+     *
+     * The dialer addresses peers by phone number, and the relay normalises every
+     * `clientId` through `normalizePhoneNumber`, so a device is only reachable if
+     * it REGISTERED with a phone number too. Without this the offer is routed to
+     * `+91...` while the peer sits in the registry under `rakshak-ab12cd34`, the
+     * relay replies `peer_offline`, and no call is ever negotiated.
+     */
+    fun setLocalIdentity(identity: String) {
+        SecureLineIdentity.set(context, identity)
+        if (signaling != null) {
+            // Re-register so the relay learns the new identity on the live socket.
+            signaling?.connect(localId)
+        }
+    }
 
     /** Connect the signalling channel and register this device. */
     fun connect(serverUrl: String) {
+        // Already connected to the same relay: keep the existing socket alive.
+        // Re-connecting would call release() below and tear down a live
+        // registration (and any call in progress) every time the dialer screen
+        // is opened, because connect() now also runs once at app startup.
+        if (signaling != null && activeUrl == serverUrl) {
+            Log.i(TAG, "connect skipped: already registered as $localId")
+            return
+        }
+        activeUrl = serverUrl
         release()
         _uiState.update { it.copy(state = CallState.CONNECTING, error = null) }
         signaling = SignalingClient(serverUrl, signalingListener()).also { it.connect(localId) }
@@ -148,6 +206,7 @@ class VoipSessionManager private constructor(
 
         override fun onLocalSdpCreated(sdp: SessionDescription) {
             val peer = _uiState.value.peerId
+            Log.i(TAG, "onLocalSdpCreated: peer='$peer' outgoing=${_uiState.value.isOutgoing} signalingNull=${signaling == null}")
             if (peer.isBlank()) return
             // The role decides the message: whoever was called must answer.
             if (_uiState.value.isOutgoing) signaling?.sendOffer(peer, sdp.description)
@@ -166,6 +225,7 @@ class VoipSessionManager private constructor(
         }
         buildEngine()?.also { e ->
             e.callEvents = callEvents()
+            Log.i(TAG, "startOutgoingCall peer='$peerId' engineReady=${e.isReady()}")
             e.startCall(isInitiator = true)
         }
     }
@@ -194,6 +254,9 @@ class VoipSessionManager private constructor(
         try { signaling?.disconnect() } catch (ignored: Exception) {}
         engine = null
         signaling = null
+// Clear the cached relay URL so a later connect() to the same endpoint is not
+        // skipped by the already-connected guard.
+        activeUrl = null
         telecom = null
     }
 

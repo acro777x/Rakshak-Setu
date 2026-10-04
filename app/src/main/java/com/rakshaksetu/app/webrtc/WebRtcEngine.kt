@@ -43,6 +43,9 @@ class WebRtcEngine(
     var callEvents: CallEvents? = null
     var samplesReadyCallback: WebRtcAudioRecordSamplesReadyCallback? = null
 
+    /** True once the native PeerConnectionFactory finished initialising. */
+    fun isReady(): Boolean = isInitialized && peerConnectionFactory != null
+
     init {
         initializePeerConnectionFactory()
     }
@@ -88,10 +91,24 @@ class WebRtcEngine(
 
     /**
      * Creates and starts a new encrypted peer connection session.
+     *
+     * The work is posted to [executor] — the same single-thread executor used by
+     * [initializePeerConnectionFactory]. Because that executor is FIFO, any call
+     * placed before the native factory finished initialising is queued behind it
+     * instead of racing it. Without this ordering the factory was still null when
+     * this ran, `createPeerConnection` returned null, and `createOffer` silently
+     * did nothing, so the offer never reached the signalling relay.
      */
     fun startCall(isInitiator: Boolean) {
         executor.execute {
             try {
+                val factory = peerConnectionFactory
+                if (factory == null) {
+                    Log.e(TAG, "startCall aborted: PeerConnectionFactory not initialised")
+                    callEvents?.onCallDisconnected("webrtc_not_initialised")
+                    return@execute
+                }
+
                 val iceServers = listOf(
                     PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
                     PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer()
@@ -103,7 +120,7 @@ class WebRtcEngine(
                     // Sovereign DTLS-SRTP encryption is enforced by default
                 }
 
-                peerConnection = peerConnectionFactory?.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
+                peerConnection = factory.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
                     override fun onSignalingChange(state: PeerConnection.SignalingState?) {
                         Log.d(TAG, "SignalingState: $state")
                     }
@@ -155,8 +172,8 @@ class WebRtcEngine(
                     mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
                     mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "true"))
                 }
-                audioSource = peerConnectionFactory?.createAudioSource(audioConstraints)
-                localAudioTrack = peerConnectionFactory?.createAudioTrack(AUDIO_TRACK_ID, audioSource)
+                audioSource = factory.createAudioSource(audioConstraints)
+                localAudioTrack = factory.createAudioTrack(AUDIO_TRACK_ID, audioSource)
                 localAudioTrack?.setEnabled(true)
 
                 peerConnection?.addTrack(localAudioTrack, listOf("rakshak_stream"))

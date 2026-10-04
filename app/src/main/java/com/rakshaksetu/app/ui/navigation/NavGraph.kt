@@ -1,4 +1,4 @@
-package com.rakshaksetu.app.ui.navigation
+﻿package com.rakshaksetu.app.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -17,13 +17,11 @@ import kotlinx.coroutines.launch
 /**
  * Default WebSocket signalling relay.
  *
- * 10.0.2.2 is the Android emulator's alias for the host machine's loopback, so
- * `server/signaling_server.js` running on the developer's laptop is reachable
- * from an emulator with no configuration. A physical device needs the LAN IP
- * instead, which is why this is a constant that can be overridden at build time
- * rather than a hard-coded production host.
+ * Defaults to the handset's own loopback, which reaches the developer's laptop
+ * through `adb reverse tcp:8080 tcp:8080`. Override at build time for a LAN test:
+ *   .\gradlew.bat :app:assembleBenchmark -PsignalingUrl=ws://<LAN-IP>:8080
  */
-private const val DEFAULT_SIGNALING_URL = "ws://10.0.2.2:8080"
+private val DEFAULT_SIGNALING_URL: String = com.rakshaksetu.app.BuildConfig.SIGNALING_URL
 
 @Composable
 fun RakshakSetuNavGraph(
@@ -44,6 +42,15 @@ fun RakshakSetuNavGraph(
                 launchSingleTop = true
             }
         }
+    }
+
+    // Register with the signalling relay for the whole app lifetime, not just
+    // while dialling. A device that only connects when placing a call is invisible
+    // to the relay as a callee, so an inbound call to it is routed to an offline
+    // peer and dropped. Connecting at startup makes the device reachable the whole
+    // time it is installed and running.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        voipSession.connect(DEFAULT_SIGNALING_URL)
     }
 
     val topLevelRoutes = remember {
@@ -154,8 +161,12 @@ fun RakshakSetuNavGraph(
         composable(Screen.SecureLine.route) {
             VoipDialerScreen(
                 onInitiateCall = { destination ->
+                    // `connect` opens the WebSocket synchronously. Launching it in a
+                    // coroutine and immediately calling `startOutgoingCall` raced:
+                    // the socket was still null, so the call aborted with "Not
+                    // connected to signalling" and no offer ever reached the relay.
                     if (voipSession.uiState.value.state == VoipSessionManager.CallState.IDLE) {
-                        scope.launch { voipSession.connect(DEFAULT_SIGNALING_URL) }
+                        voipSession.connect(DEFAULT_SIGNALING_URL)
                     }
                     voipSession.startOutgoingCall(destination)
                     navigateTo(Screen.VoipActiveHud.createRoute(destination))
@@ -163,6 +174,8 @@ fun RakshakSetuNavGraph(
                 onSpeedDial1930 = {
                     navigateTo(Screen.VoipActiveHud.createRoute("1930"))
                 },
+                localDeviceId = voipSession.localDeviceId(),
+                onSetLocalDeviceId = { id -> voipSession.setLocalIdentity(id) },
                 onNavigate = ::navigateTo
             )
         }
@@ -170,7 +183,7 @@ fun RakshakSetuNavGraph(
             VoipDialerScreen(
                 onInitiateCall = { destination ->
                     if (voipSession.uiState.value.state == VoipSessionManager.CallState.IDLE) {
-                        scope.launch { voipSession.connect(DEFAULT_SIGNALING_URL) }
+                        voipSession.connect(DEFAULT_SIGNALING_URL)
                     }
                     voipSession.startOutgoingCall(destination)
                     navigateTo(Screen.VoipActiveHud.createRoute(destination))
@@ -178,6 +191,8 @@ fun RakshakSetuNavGraph(
                 onSpeedDial1930 = {
                     navigateTo(Screen.VoipActiveHud.createRoute("1930"))
                 },
+                localDeviceId = voipSession.localDeviceId(),
+                onSetLocalDeviceId = { id -> voipSession.setLocalIdentity(id) },
                 onNavigate = ::navigateTo
             )
         }
@@ -293,3 +308,4 @@ fun RakshakSetuNavGraph(
         }
     }
 }
+
