@@ -1,4 +1,4 @@
-﻿package com.rakshaksetu.app.ui.screens
+package com.rakshaksetu.app.ui.screens
 
 import android.content.Context
 import android.content.Intent
@@ -114,6 +114,7 @@ fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
 
 
     var selectedUri by remember { mutableStateOf<Uri?>(null) }
+    var isSimulating by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
@@ -121,6 +122,33 @@ fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) selectedUri = uri
+    }
+
+    LaunchedEffect(isSimulating) {
+        if (!isSimulating) return@LaunchedEffect
+        busy = true
+        errorMsg = null
+        phase = "transcript"
+        transcriptProgress = 0f
+        try {
+            for (step in 1..100) {
+                delay(10)
+                transcriptProgress = step / 100f
+            }
+            phase = "analysis"
+            delay(600)
+            val result = FakePipelineEmitter.voiceCloneResult()
+            DetectionStore.saveLastResult(context, result)
+            activeResult = result
+            if (result.isScam) ScamAlertManager(context).showScamAlert(result)
+            phase = "result"
+        } catch (e: Exception) {
+            errorMsg = "Simulation failed: ${e.message}"
+            phase = "upload"
+        } finally {
+            busy = false
+            isSimulating = false
+        }
     }
 
     LaunchedEffect(selectedUri) {
@@ -207,7 +235,7 @@ fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
 
                     Text("Or Run Instant Simulation:", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Button(
-                        onClick = { phase = "transcript" },
+                        onClick = { isSimulating = true },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF880E4F)),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -268,7 +296,7 @@ fun CallSecurityScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                                 icon = Icons.Filled.Gavel
                             )
                             OutlinedButton(
-                                onClick = { phase = "upload"; activeResult = null },
+                                onClick = { phase = "upload"; activeResult = null; selectedUri = null; isSimulating = false },
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
                             ) {

@@ -99,85 +99,110 @@ class WebRtcEngine(
      * this ran, `createPeerConnection` returned null, and `createOffer` silently
      * did nothing, so the offer never reached the signalling relay.
      */
+    private fun ensurePeerConnection(isInitiator: Boolean): PeerConnection? {
+        peerConnection?.let { return it }
+
+        val factory = peerConnectionFactory
+        if (factory == null) {
+            Log.e(TAG, "ensurePeerConnection aborted: PeerConnectionFactory not initialised")
+            callEvents?.onCallDisconnected("webrtc_not_initialised")
+            return null
+        }
+
+        val iceServers = listOf(
+            PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
+            PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer()
+        )
+
+        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
+            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+            // Sovereign DTLS-SRTP encryption is enforced by default
+        }
+
+        val pc = factory.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
+            override fun onSignalingChange(state: PeerConnection.SignalingState?) {
+                Log.d(TAG, "SignalingState: $state")
+            }
+
+            override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
+                Log.i(TAG, "IceConnectionState: $state")
+                when (state) {
+                    PeerConnection.IceConnectionState.CONNECTED -> {
+                        callEvents?.onCallConnected()
+                    }
+                    PeerConnection.IceConnectionState.DISCONNECTED,
+                    PeerConnection.IceConnectionState.FAILED,
+                    PeerConnection.IceConnectionState.CLOSED -> {
+                        callEvents?.onCallDisconnected(state.name)
+                    }
+                    else -> {}
+                }
+            }
+
+            override fun onIceConnectionReceivingChange(receiving: Boolean) {}
+
+            override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {}
+
+            override fun onIceCandidate(candidate: IceCandidate?) {
+                if (candidate != null) {
+                    callEvents?.onIceCandidateGenerated(candidate)
+                }
+            }
+
+            override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) {}
+
+            override fun onAddStream(stream: MediaStream?) {}
+
+            override fun onRemoveStream(stream: MediaStream?) {}
+
+            override fun onDataChannel(channel: DataChannel?) {}
+
+            override fun onRenegotiationNeeded() {}
+
+            override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
+                Log.i(TAG, "WebRTC audio track added: ${receiver?.track()?.id()}")
+            }
+        })
+
+        if (pc == null) {
+            Log.e(TAG, "Failed to create PeerConnection from factory")
+            callEvents?.onCallDisconnected("peer_connection_create_failed")
+            return null
+        }
+        peerConnection = pc
+
+        // Create local audio track
+        val audioConstraints = MediaConstraints().apply {
+            mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("googAutoGainControl", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "true"))
+        }
+        val source = factory.createAudioSource(audioConstraints)
+        audioSource = source
+        val track = factory.createAudioTrack(AUDIO_TRACK_ID, source)
+        localAudioTrack = track
+        track.setEnabled(true)
+
+        pc.addTrack(track, listOf("rakshak_stream"))
+        return pc
+    }
+
+    /**
+     * Creates and starts a new encrypted peer connection session.
+     *
+     * The work is posted to [executor] — the same single-thread executor used by
+     * [initializePeerConnectionFactory]. Because that executor is FIFO, any call
+     * placed before the native factory finished initialising is queued behind it
+     * instead of racing it. Without this ordering the factory was still null when
+     * this ran, `createPeerConnection` returned null, and `createOffer` silently
+     * did nothing, so the offer never reached the signalling relay.
+     */
     fun startCall(isInitiator: Boolean) {
         executor.execute {
             try {
-                val factory = peerConnectionFactory
-                if (factory == null) {
-                    Log.e(TAG, "startCall aborted: PeerConnectionFactory not initialised")
-                    callEvents?.onCallDisconnected("webrtc_not_initialised")
-                    return@execute
-                }
-
-                val iceServers = listOf(
-                    PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
-                    PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer()
-                )
-
-                val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
-                    sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
-                    continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
-                    // Sovereign DTLS-SRTP encryption is enforced by default
-                }
-
-                peerConnection = factory.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
-                    override fun onSignalingChange(state: PeerConnection.SignalingState?) {
-                        Log.d(TAG, "SignalingState: $state")
-                    }
-
-                    override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
-                        Log.i(TAG, "IceConnectionState: $state")
-                        when (state) {
-                            PeerConnection.IceConnectionState.CONNECTED -> {
-                                callEvents?.onCallConnected()
-                            }
-                            PeerConnection.IceConnectionState.DISCONNECTED,
-                            PeerConnection.IceConnectionState.FAILED,
-                            PeerConnection.IceConnectionState.CLOSED -> {
-                                callEvents?.onCallDisconnected(state.name)
-                            }
-                            else -> {}
-                        }
-                    }
-
-                    override fun onIceConnectionReceivingChange(receiving: Boolean) {}
-
-                    override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {}
-
-                    override fun onIceCandidate(candidate: IceCandidate?) {
-                        if (candidate != null) {
-                            callEvents?.onIceCandidateGenerated(candidate)
-                        }
-                    }
-
-                    override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) {}
-
-                    override fun onAddStream(stream: MediaStream?) {}
-
-                    override fun onRemoveStream(stream: MediaStream?) {}
-
-                    override fun onDataChannel(channel: DataChannel?) {}
-
-                    override fun onRenegotiationNeeded() {}
-
-                    override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
-                        Log.i(TAG, "WebRTC audio track added: ${receiver?.track()?.id()}")
-                    }
-                })
-
-                // Create local audio track
-                val audioConstraints = MediaConstraints().apply {
-                    mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", "true"))
-                    mandatory.add(MediaConstraints.KeyValuePair("googAutoGainControl", "true"))
-                    mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
-                    mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "true"))
-                }
-                audioSource = factory.createAudioSource(audioConstraints)
-                localAudioTrack = factory.createAudioTrack(AUDIO_TRACK_ID, audioSource)
-                localAudioTrack?.setEnabled(true)
-
-                peerConnection?.addTrack(localAudioTrack, listOf("rakshak_stream"))
-
+                val pc = ensurePeerConnection(isInitiator) ?: return@execute
                 if (isInitiator) {
                     createOffer()
                 }
@@ -216,17 +241,26 @@ class WebRtcEngine(
 
     fun handleRemoteOffer(remoteSdp: String) {
         executor.execute {
-            val desc = SessionDescription(SessionDescription.Type.OFFER, remoteSdp)
-            peerConnection?.setRemoteDescription(object : SdpObserver {
-                override fun onCreateSuccess(p0: SessionDescription?) {}
-                override fun onSetSuccess() {
-                    createAnswer()
+            try {
+                val pc = ensurePeerConnection(isInitiator = false)
+                if (pc == null) {
+                    Log.e(TAG, "handleRemoteOffer aborted: unable to initialize PeerConnection")
+                    return@execute
                 }
-                override fun onCreateFailure(p0: String?) {}
-                override fun onSetFailure(err: String?) {
-                    Log.e(TAG, "setRemoteDescription failure: $err")
-                }
-            }, desc)
+                val desc = SessionDescription(SessionDescription.Type.OFFER, remoteSdp)
+                pc.setRemoteDescription(object : SdpObserver {
+                    override fun onCreateSuccess(p0: SessionDescription?) {}
+                    override fun onSetSuccess() {
+                        createAnswer()
+                    }
+                    override fun onCreateFailure(p0: String?) {}
+                    override fun onSetFailure(err: String?) {
+                        Log.e(TAG, "setRemoteDescription failure: $err")
+                    }
+                }, desc)
+            } catch (e: Exception) {
+                Log.e(TAG, "handleRemoteOffer error: ${e.message}")
+            }
         }
     }
 

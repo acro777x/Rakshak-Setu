@@ -1,6 +1,9 @@
-﻿package com.rakshaksetu.app.ui.navigation
+package com.rakshaksetu.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
@@ -35,8 +38,18 @@ fun RakshakSetuNavGraph(
     // Single shared call session for the whole app. Constructed lazily, so a
     // user who never opens Secure Line never instantiates WebRTC.
     val voipSession = remember { VoipSessionManager.get(context) }
+    val voipUiState by voipSession.uiState.collectAsState()
 
-    androidx.compose.runtime.LaunchedEffect(dynamicRoute) {
+    LaunchedEffect(voipUiState.state, voipUiState.peerId) {
+        if (voipUiState.state == VoipSessionManager.CallState.RINGING) {
+            val peer = voipUiState.peerId.ifBlank { "Encrypted Peer" }
+            navController.navigate(Screen.VoipIncomingCall.createRoute(peer)) {
+                launchSingleTop = true
+            }
+        }
+    }
+
+    LaunchedEffect(dynamicRoute) {
         if (!dynamicRoute.isNullOrBlank()) {
             navController.navigate(dynamicRoute) {
                 launchSingleTop = true
@@ -208,18 +221,26 @@ fun RakshakSetuNavGraph(
             VoipIncomingCallScreen(
                 callerId = callerId,
                 onAcceptCall = {
+                    voipSession.acceptIncoming()
                     navigateTo(Screen.VoipActiveHud.createRoute(callerId))
                 },
-                onDeclineCall = ::goBack
+                onDeclineCall = {
+                    voipSession.endCall()
+                    goBack()
+                }
             )
         }
         composable("voip_incoming_call") {
             VoipIncomingCallScreen(
                 callerId = "DCP Cyber Crime (+91 98765 00001)",
                 onAcceptCall = {
+                    voipSession.acceptIncoming()
                     navigateTo(Screen.VoipActiveHud.createRoute("DCP Cyber Crime"))
                 },
-                onDeclineCall = ::goBack
+                onDeclineCall = {
+                    voipSession.endCall()
+                    goBack()
+                }
             )
         }
         composable(
@@ -233,14 +254,28 @@ fun RakshakSetuNavGraph(
             val peerId = try { java.net.URLDecoder.decode(raw, "UTF-8") } catch (_: Exception) { raw }
             VoipActiveCallHudScreen(
                 peerId = peerId,
-                onBack = ::goBack,
+                ringBuffer = voipSession.audioRingBuffer(),
+                onDisconnectAndBlock = {
+                    voipSession.endCall()
+                },
+                onBack = {
+                    voipSession.endCall()
+                    goBack()
+                },
                 onNavigate = ::navigateTo
             )
         }
         composable("voip_active_hud") {
             VoipActiveCallHudScreen(
                 peerId = "+91 98765 43210",
-                onBack = ::goBack,
+                ringBuffer = voipSession.audioRingBuffer(),
+                onDisconnectAndBlock = {
+                    voipSession.endCall()
+                },
+                onBack = {
+                    voipSession.endCall()
+                    goBack()
+                },
                 onNavigate = ::navigateTo
             )
         }

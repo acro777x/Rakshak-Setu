@@ -135,36 +135,36 @@ class AasistCloneDetector(private val context: Context? = null) {
 
         var usedNeural = false
 
-        // Run AASIST-L ONNX inference if model session is active
+        // Run AASIST-L / Deepfake ONNX inference if model session is active
         if (isModelLoaded && ortSession != null && ortEnv != null) {
             try {
+                val modelSamples = if (samples.size >= 16000) {
+                    samples.copyOfRange(0, 16000)
+                } else {
+                    FloatArray(16000) { i -> if (i < samples.size) samples[i] else 0.0f }
+                }
                 val inputTensor = OnnxTensor.createTensor(
                     ortEnv,
-                    FloatBuffer.wrap(samples),
-                    longArrayOf(1, WINDOW_SAMPLES.toLong())
+                    FloatBuffer.wrap(modelSamples),
+                    longArrayOf(1L, 1L, 16000L)
                 )
                 val inputName = ortSession!!.inputNames.first()
                 val result = ortSession!!.run(mapOf(inputName to inputTensor))
                 val output = result[0].value
 
-                val neuralScore = when (output) {
+                val neuralScore: Float = when (output) {
+                    is Float -> output
+                    is FloatArray -> output.firstOrNull() ?: dspScore
                     is Array<*> -> {
-                        @Suppress("UNCHECKED_CAST")
-                        val logits = output as Array<FloatArray>
-                        if (logits[0].size >= 2) {
-                            val bonafide = logits[0][0]
-                            val spoof = logits[0][1]
-                            val expB = exp(bonafide.toDouble())
-                            val expS = exp(spoof.toDouble())
-                            (expS / (expB + expS)).toFloat()
-                        } else {
-                            val l = logits[0][0]
-                            (1.0f / (1.0f + exp(-l.toDouble()))).toFloat()
+                        when (val first = output.firstOrNull()) {
+                            is FloatArray -> first.firstOrNull() ?: dspScore
+                            is Array<*> -> (first.firstOrNull() as? FloatArray)?.firstOrNull() ?: dspScore
+                            is Float -> first
+                            else -> dspScore
                         }
                     }
-                    is FloatArray -> output[0]
                     else -> dspScore
-                }
+                }.coerceIn(0.0f, 1.0f)
 
                 result.close()
                 inputTensor.close()

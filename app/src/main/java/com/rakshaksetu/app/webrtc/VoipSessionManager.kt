@@ -160,12 +160,14 @@ class VoipSessionManager private constructor(
         }
 
         override fun onDisconnected() {
-            _uiState.update { it.copy(state = CallState.ENDED) }
+            _uiState.update { it.copy(state = CallState.IDLE) }
         }
 
         override fun onOfferReceived(from: String, sdp: String) {
             _uiState.update { it.copy(state = CallState.RINGING, peerId = from, isOutgoing = false) }
-            buildEngine()?.handleRemoteOffer(sdp)
+            val eng = buildEngine()
+            eng?.callEvents = callEvents()
+            eng?.handleRemoteOffer(sdp)
         }
 
         override fun onAnswerReceived(from: String, sdp: String) {
@@ -183,6 +185,9 @@ class VoipSessionManager private constructor(
         }
 
         override fun onError(message: String) {
+            Log.e(TAG, "Signaling error: $message")
+            engine?.terminateCall()
+            interception.stopInterception()
             _uiState.update { it.copy(state = CallState.FAILED, error = message) }
         }
     }
@@ -194,7 +199,10 @@ class VoipSessionManager private constructor(
         }
 
         override fun onCallDisconnected(reason: String) {
-            _uiState.update { it.copy(state = CallState.ENDED) }
+            Log.i(TAG, "Call disconnected: $reason")
+            engine?.terminateCall()
+            interception.stopInterception()
+            _uiState.update { it.copy(state = CallState.IDLE, peerId = "", isOutgoing = false) }
         }
 
         override fun onIceCandidateGenerated(candidate: IceCandidate) {
@@ -232,6 +240,7 @@ class VoipSessionManager private constructor(
 
     /** Answer an inbound call. */
     fun acceptIncoming() {
+        _uiState.update { it.copy(state = CallState.CONNECTED) }
         buildEngine()?.also { e ->
             e.callEvents = callEvents()
             e.startCall(isInitiator = false)
@@ -244,7 +253,11 @@ class VoipSessionManager private constructor(
         if (peer.isNotBlank()) signaling?.sendHangup(peer)
         engine?.terminateCall()
         interception.stopInterception()
-        _uiState.update { it.copy(state = CallState.ENDED) }
+        _uiState.update { it.copy(state = CallState.IDLE, peerId = "", isOutgoing = false) }
+    }
+
+    fun resetCallState() {
+        _uiState.update { it.copy(state = CallState.IDLE, peerId = "", isOutgoing = false, error = null) }
     }
 
     /** Tear everything down. Safe to call repeatedly. */

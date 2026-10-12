@@ -168,7 +168,7 @@ class SignalingClient(
         isConnected = false
     }
 
-    private fun handleMessage(text: String) {
+    internal fun handleMessage(text: String) {
         try {
             val obj = gson.fromJson(text, JsonObject::class.java)
             val type = obj.get("type")?.asString ?: return
@@ -192,6 +192,18 @@ class SignalingClient(
                 "hangup" -> {
                     val reason = obj.get("reason")?.asString ?: "cleared"
                     listener.onHangupReceived(from, reason)
+                }
+                "peer_offline" -> {
+                    val peer = obj.get("peer")?.asString ?: obj.get("to")?.asString ?: from
+                    val msg = obj.get("message")?.asString
+                        ?: if (peer.isNotBlank()) "Peer offline: $peer" else "Peer is offline"
+                    Log.w(TAG, "peer_offline received: $msg")
+                    listener.onError(msg)
+                }
+                "error" -> {
+                    val msg = obj.get("message")?.asString ?: obj.get("error")?.asString ?: "Signaling error"
+                    Log.e(TAG, "Signaling server error: $msg")
+                    listener.onError(msg)
                 }
             }
         } catch (e: Exception) {

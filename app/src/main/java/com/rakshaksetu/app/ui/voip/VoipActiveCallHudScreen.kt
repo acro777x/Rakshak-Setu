@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.rakshaksetu.app.ai.AiPipelineCoordinator
 import com.rakshaksetu.app.ai.AiPipelineCoordinator.PipelineUiState
 import com.rakshaksetu.app.ai.AiPipelineCoordinator.ThreatLevel
+import com.rakshaksetu.app.audio.SpscAudioRingBuffer
 import com.rakshaksetu.app.forensics.Section65BEvidenceManager
 import com.rakshaksetu.app.ui.theme.*
 import kotlinx.coroutines.delay
@@ -52,6 +53,8 @@ import java.util.Locale
 fun VoipActiveCallHudScreen(
     peerId: String = "+91 98765 43210",
     coordinator: AiPipelineCoordinator? = null,
+    ringBuffer: SpscAudioRingBuffer? = null,
+    onDisconnectAndBlock: (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
     onNavigate: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -60,8 +63,11 @@ fun VoipActiveCallHudScreen(
     val coroutineScope = rememberCoroutineScope()
 
     // Active AI Pipeline Coordinator
-    val activeCoordinator = remember(coordinator) {
-        coordinator ?: AiPipelineCoordinator(context).apply { start() }
+    val activeCoordinator = remember(coordinator, ringBuffer) {
+        coordinator ?: AiPipelineCoordinator(
+            context = context,
+            ringBuffer = ringBuffer ?: SpscAudioRingBuffer()
+        ).apply { start() }
     }
 
     val uiState by activeCoordinator.uiState.collectAsState()
@@ -79,6 +85,7 @@ fun VoipActiveCallHudScreen(
         uiState = uiState,
         onDisconnectAndBlock = {
             activeCoordinator.stop()
+            onDisconnectAndBlock?.invoke()
             onBack?.invoke()
         },
         onSealSection65B = {
