@@ -227,13 +227,17 @@ class WebRtcEngine(
                             callEvents?.onLocalSdpCreated(desc)
                         }
                         override fun onCreateFailure(p0: String?) {}
-                        override fun onSetFailure(p0: String?) {}
+                        override fun onSetFailure(err: String?) {
+                            Log.e(TAG, "setLocalDescription failure: $err")
+                            callEvents?.onCallDisconnected("set_local_description_failed: $err")
+                        }
                     }, desc)
                 }
             }
             override fun onSetSuccess() {}
             override fun onCreateFailure(err: String?) {
                 Log.e(TAG, "createOffer failure: $err")
+                callEvents?.onCallDisconnected("create_offer_failed: $err")
             }
             override fun onSetFailure(err: String?) {}
         }, sdpConstraints)
@@ -245,6 +249,7 @@ class WebRtcEngine(
                 val pc = ensurePeerConnection(isInitiator = false)
                 if (pc == null) {
                     Log.e(TAG, "handleRemoteOffer aborted: unable to initialize PeerConnection")
+                    callEvents?.onCallDisconnected("peer_connection_null")
                     return@execute
                 }
                 val desc = SessionDescription(SessionDescription.Type.OFFER, remoteSdp)
@@ -256,10 +261,12 @@ class WebRtcEngine(
                     override fun onCreateFailure(p0: String?) {}
                     override fun onSetFailure(err: String?) {
                         Log.e(TAG, "setRemoteDescription failure: $err")
+                        callEvents?.onCallDisconnected("set_remote_offer_failed: $err")
                     }
                 }, desc)
             } catch (e: Exception) {
                 Log.e(TAG, "handleRemoteOffer error: ${e.message}")
+                callEvents?.onCallDisconnected("handle_remote_offer_error: ${e.message}")
             }
         }
     }
@@ -279,13 +286,17 @@ class WebRtcEngine(
                             callEvents?.onLocalSdpCreated(desc)
                         }
                         override fun onCreateFailure(p0: String?) {}
-                        override fun onSetFailure(p0: String?) {}
+                        override fun onSetFailure(err: String?) {
+                            Log.e(TAG, "setLocalDescription failure: $err")
+                            callEvents?.onCallDisconnected("set_local_answer_failed: $err")
+                        }
                     }, desc)
                 }
             }
             override fun onSetSuccess() {}
             override fun onCreateFailure(err: String?) {
                 Log.e(TAG, "createAnswer failure: $err")
+                callEvents?.onCallDisconnected("create_answer_failed: $err")
             }
             override fun onSetFailure(err: String?) {}
         }, sdpConstraints)
@@ -293,17 +304,23 @@ class WebRtcEngine(
 
     fun handleRemoteAnswer(remoteSdp: String) {
         executor.execute {
-            val desc = SessionDescription(SessionDescription.Type.ANSWER, remoteSdp)
-            peerConnection?.setRemoteDescription(object : SdpObserver {
-                override fun onCreateSuccess(p0: SessionDescription?) {}
-                override fun onSetSuccess() {
-                    Log.i(TAG, "Remote answer applied successfully")
-                }
-                override fun onCreateFailure(p0: String?) {}
-                override fun onSetFailure(err: String?) {
-                    Log.e(TAG, "handleRemoteAnswer failure: $err")
-                }
-            }, desc)
+            try {
+                val desc = SessionDescription(SessionDescription.Type.ANSWER, remoteSdp)
+                peerConnection?.setRemoteDescription(object : SdpObserver {
+                    override fun onCreateSuccess(p0: SessionDescription?) {}
+                    override fun onSetSuccess() {
+                        Log.i(TAG, "Remote answer applied successfully")
+                    }
+                    override fun onCreateFailure(p0: String?) {}
+                    override fun onSetFailure(err: String?) {
+                        Log.e(TAG, "handleRemoteAnswer failure: $err")
+                        callEvents?.onCallDisconnected("set_remote_answer_failed: $err")
+                    }
+                }, desc)
+            } catch (e: Exception) {
+                Log.e(TAG, "handleRemoteAnswer error: ${e.message}")
+                callEvents?.onCallDisconnected("handle_remote_answer_error: ${e.message}")
+            }
         }
     }
 
@@ -321,6 +338,8 @@ class WebRtcEngine(
         executor.execute {
             try {
                 localAudioTrack?.setEnabled(false)
+                localAudioTrack?.dispose()
+                localAudioTrack = null
                 peerConnection?.close()
                 peerConnection = null
                 audioSource?.dispose()

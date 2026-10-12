@@ -85,4 +85,22 @@ class SignalingClientTest {
         assertEquals(1, listenerEvents.size)
         assertEquals("error:Invalid payload format", listenerEvents[0])
     }
+
+    @Test
+    fun testHandleMessageMalformedJsonDoesNotCrash() {
+        client.handleMessage("""{invalid json content: """)
+        assertEquals(0, listenerEvents.size)
+    }
+
+    @Test
+    fun testHandleMessageMissingTypeDoesNotCrash() {
+        client.handleMessage("""{"from":"peer1","sdp":"..."}""")
+        assertEquals(0, listenerEvents.size)
+    }
+
+    @Test
+    fun testHandleMessageUnknownTypeDoesNotCrash() {
+        client.handleMessage("""{"type":"unknown_future_type","from":"peer1"}""")
+        assertEquals(0, listenerEvents.size)
+    }
 }

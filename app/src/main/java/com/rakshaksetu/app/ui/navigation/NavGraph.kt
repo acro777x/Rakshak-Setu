@@ -41,11 +41,22 @@ fun RakshakSetuNavGraph(
     val voipUiState by voipSession.uiState.collectAsState()
 
     LaunchedEffect(voipUiState.state, voipUiState.peerId) {
-        if (voipUiState.state == VoipSessionManager.CallState.RINGING) {
-            val peer = voipUiState.peerId.ifBlank { "Encrypted Peer" }
-            navController.navigate(Screen.VoipIncomingCall.createRoute(peer)) {
-                launchSingleTop = true
+        when (voipUiState.state) {
+            VoipSessionManager.CallState.RINGING -> {
+                val peer = voipUiState.peerId.ifBlank { "Encrypted Peer" }
+                navController.navigate(Screen.VoipIncomingCall.createRoute(peer)) {
+                    launchSingleTop = true
+                }
             }
+            VoipSessionManager.CallState.IDLE,
+            VoipSessionManager.CallState.FAILED,
+            VoipSessionManager.CallState.ENDED -> {
+                val currentRoute = navController.currentBackStackEntry?.destination?.route
+                if (currentRoute?.startsWith("voip_incoming_call") == true || currentRoute?.startsWith("voip_active_hud") == true) {
+                    navController.popBackStack()
+                }
+            }
+            else -> {}
         }
     }
 
@@ -222,7 +233,10 @@ fun RakshakSetuNavGraph(
                 callerId = callerId,
                 onAcceptCall = {
                     voipSession.acceptIncoming()
-                    navigateTo(Screen.VoipActiveHud.createRoute(callerId))
+                    navController.navigate(Screen.VoipActiveHud.createRoute(callerId)) {
+                        popUpTo("voip_incoming_call/{callerId}") { inclusive = true }
+                        launchSingleTop = true
+                    }
                 },
                 onDeclineCall = {
                     voipSession.endCall()
@@ -235,7 +249,10 @@ fun RakshakSetuNavGraph(
                 callerId = "DCP Cyber Crime (+91 98765 00001)",
                 onAcceptCall = {
                     voipSession.acceptIncoming()
-                    navigateTo(Screen.VoipActiveHud.createRoute("DCP Cyber Crime"))
+                    navController.navigate(Screen.VoipActiveHud.createRoute("DCP Cyber Crime")) {
+                        popUpTo("voip_incoming_call") { inclusive = true }
+                        launchSingleTop = true
+                    }
                 },
                 onDeclineCall = {
                     voipSession.endCall()

@@ -131,7 +131,9 @@ class AasistCloneDetector(private val context: Context? = null) {
             phaseDiscontinuity * 0.45f +
             formantJitter * 0.35f +
             highFreqHarmonicRatio * 0.20f
-        ).coerceIn(0.02f, 0.98f)
+        )
+        if (dspScore.isNaN()) dspScore = 0.5f
+        dspScore = dspScore.coerceIn(0.02f, 0.98f)
 
         var usedNeural = false
 
@@ -148,30 +150,30 @@ class AasistCloneDetector(private val context: Context? = null) {
                     FloatBuffer.wrap(modelSamples),
                     longArrayOf(1L, 1L, 16000L)
                 )
-                val inputName = ortSession!!.inputNames.first()
-                val result = ortSession!!.run(mapOf(inputName to inputTensor))
-                val output = result[0].value
+                inputTensor.use { tensor ->
+                    val inputName = ortSession!!.inputNames.first()
+                    ortSession!!.run(mapOf(inputName to tensor)).use { result ->
+                        val output = result[0].value
 
-                val neuralScore: Float = when (output) {
-                    is Float -> output
-                    is FloatArray -> output.firstOrNull() ?: dspScore
-                    is Array<*> -> {
-                        when (val first = output.firstOrNull()) {
-                            is FloatArray -> first.firstOrNull() ?: dspScore
-                            is Array<*> -> (first.firstOrNull() as? FloatArray)?.firstOrNull() ?: dspScore
-                            is Float -> first
+                        val neuralScore: Float = when (output) {
+                            is Float -> output
+                            is FloatArray -> output.firstOrNull() ?: dspScore
+                            is Array<*> -> {
+                                when (val first = output.firstOrNull()) {
+                                    is FloatArray -> first.firstOrNull() ?: dspScore
+                                    is Array<*> -> (first.firstOrNull() as? FloatArray)?.firstOrNull() ?: dspScore
+                                    is Float -> first
+                                    else -> dspScore
+                                }
+                            }
                             else -> dspScore
-                        }
+                        }.coerceIn(0.0f, 1.0f)
+
+                        // Fuse neural score (70%) with DSP vocoder heuristics (30%)
+                        dspScore = (neuralScore * 0.70f + dspScore * 0.30f).coerceIn(0.01f, 0.99f)
+                        usedNeural = true
                     }
-                    else -> dspScore
-                }.coerceIn(0.0f, 1.0f)
-
-                result.close()
-                inputTensor.close()
-
-                // Fuse neural score (70%) with DSP vocoder heuristics (30%)
-                dspScore = (neuralScore * 0.70f + dspScore * 0.30f).coerceIn(0.01f, 0.99f)
-                usedNeural = true
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "ONNX inference error, falling back to DSP score: ${e.message}")
             }
@@ -250,14 +252,16 @@ class AasistCloneDetector(private val context: Context? = null) {
         }
 
         val mean = zcrSum / numFrames
-        val variance = (zcrSqSum / numFrames) - (mean * mean)
-        val rms = sqrt(energy / count)
+        val rawVariance = (zcrSqSum / numFrames) - (mean * mean)
+        val variance = maxOf(0.0f, rawVariance)
+        val rms = sqrt(maxOf(0.0f, energy / count))
 
         // Silence gate: a silent or near-silent frame carries no formant information.
-        if (rms < 0.01f) return 0.05f
+        if (rms < 0.01f || rms.isNaN()) return 0.05f
 
         // Coefficient of variation of per-frame ZCR. Natural speech sits well above 0.
-        val cv = if (mean > 1e-6f) sqrt(variance / (mean * mean)) else 0f
+        val cv = if (mean > 1e-6f && variance > 0.0f) sqrt(variance / (mean * mean)) else 0f
+        if (cv.isNaN()) return 0.05f
 
         // Only abnormally STABLE zero-crossing behaviour scores as synthetic.
         // cv near 0 => robotic; cv >= 0.35 => normal human variation.
@@ -280,6 +284,7 @@ class AasistCloneDetector(private val context: Context? = null) {
         }
         if (totalEnergy < 1e-4f) return 0.05f
         val ratio = hfEnergy / totalEnergy
+        if (ratio.isNaN()) return 0.05f
         return (ratio * 1.5f).coerceIn(0.0f, 1.0f)
     }
 

@@ -160,7 +160,10 @@ class VoipSessionManager private constructor(
         }
 
         override fun onDisconnected() {
-            _uiState.update { it.copy(state = CallState.IDLE) }
+            _uiState.update { current ->
+                if (current.state == CallState.FAILED) current
+                else current.copy(state = CallState.IDLE)
+            }
         }
 
         override fun onOfferReceived(from: String, sdp: String) {
@@ -195,7 +198,10 @@ class VoipSessionManager private constructor(
 
     private fun callEvents() = object : WebRtcEngine.CallEvents {
         override fun onCallConnected() {
-            _uiState.update { it.copy(state = CallState.CONNECTED) }
+            _uiState.update { current ->
+                if (current.state == CallState.RINGING) current
+                else current.copy(state = CallState.CONNECTED)
+            }
         }
 
         override fun onCallDisconnected(reason: String) {
