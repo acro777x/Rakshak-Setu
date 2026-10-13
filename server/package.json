@@ -1,0 +1,21 @@
+{
+  "name": "rakshak-setu-signaling-server",
+  "version": "1.0.0",
+  "description": "Rakshak Setu Sovereign WebRTC Signaling Relay & Calling Console Server",
+  "main": "signaling_server.js",
+  "scripts": {
+    "start": "node signaling_server.js"
+  },
+  "keywords": [
+    "webrtc",
+    "signaling",
+    "rakshak-setu",
+    "voip",
+    "deepfake-detection"
+  ],
+  "author": "Rakshak Setu Team",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

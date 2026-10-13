@@ -13,16 +13,9 @@
       @keyframes dash {
         to { stroke-dashoffset: -32; }
       }
-      @keyframes pulseNode {
-        0%, 100% { transform: scale(1); opacity: 0.95; }
-        50% { transform: scale(1.02); opacity: 1; }
-      }
       .flow-path {
         stroke-dasharray: 6 6;
         animation: dash 1s linear infinite;
-      }
-      .node-pulse {
-        animation: pulseNode 2.5s ease-in-out infinite;
       }
     </style>
   </defs>
@@ -45,7 +38,9 @@
   </g>
 
   <!-- FLOW ARROW 1 -> 2 -->
-  <path d="M 190,150 L 230,150" stroke="#00f0ff" stroke-width="2" fill="none" class="flow-path" />
+  <path d="M 190,150 L 230,150" stroke="#00f0ff" stroke-width="2" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
 
   <!-- PHASE 2: SPSC CIRCULAR RAM BUFFER -->
   <g transform="translate(230, 80)">
@@ -61,8 +56,12 @@
   </g>
 
   <!-- BRANCH ARROWS 2 -> TRACK A & TRACK B -->
-  <path d="M 390,130 L 430,110" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-path" />
-  <path d="M 390,170 L 430,230" stroke="#c084fc" stroke-width="2" fill="none" class="flow-path" />
+  <path d="M 390,130 L 430,110" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
+  <path d="M 390,170 L 430,230" stroke="#c084fc" stroke-width="2" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
 
   <!-- TRACK A: ACOUSTIC ENGINE -->
   <g transform="translate(430, 45)">
@@ -89,8 +88,12 @@
   </g>
 
   <!-- MERGE INTO SPRT ENGINE -->
-  <path d="M 660,110 L 700,160" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-path" />
-  <path d="M 660,240 L 700,180" stroke="#c084fc" stroke-width="2" fill="none" class="flow-path" />
+  <path d="M 660,110 L 700,160" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
+  <path d="M 660,240 L 700,180" stroke="#c084fc" stroke-width="2" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
 
   <!-- PHASE 4: WALD SPRT DECISION ENGINE -->
   <g transform="translate(700, 110)">
@@ -105,7 +108,9 @@
   </g>
 
   <!-- FLOW DOWN TO ENFORCEMENT & FORENSICS -->
-  <path d="M 835,235 L 835,290" stroke="#ef4444" stroke-width="2.5" fill="none" class="flow-path" />
+  <path d="M 835,235 L 835,290" stroke="#ef4444" stroke-width="2.5" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
 
   <!-- PHASE 5: IMMEDIATE ACTION & BSA 2023 FORENSICS -->
   <g transform="translate(30, 290)">

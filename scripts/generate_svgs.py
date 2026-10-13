@@ -1,6 +1,7 @@
 import os
 
-radar_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" width="100%" height="360" style="background: #090d16; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+def create_radar_svg():
+    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" width="100%" height="360" style="background: #090d16; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
   <defs>
     <linearGradient id="radarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.6"/>
@@ -19,11 +20,6 @@ radar_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" wid
       @keyframes radarSweep {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
-      }
-      @keyframes wavePulse {
-        0% { transform: scaleY(0.4); opacity: 0.6; }
-        50% { transform: scaleY(1.2); opacity: 1.0; }
-        100% { transform: scaleY(0.4); opacity: 0.6; }
       }
       @keyframes blinkPulse {
         0%, 100% { opacity: 1; }
@@ -44,11 +40,6 @@ radar_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" wid
         stroke-dasharray: 8 4;
         animation: waveFlow 2s linear infinite;
       }
-      .bar-anim-1 { transform-origin: bottom; animation: wavePulse 1.2s ease-in-out infinite; }
-      .bar-anim-2 { transform-origin: bottom; animation: wavePulse 0.9s ease-in-out infinite 0.2s; }
-      .bar-anim-3 { transform-origin: bottom; animation: wavePulse 1.5s ease-in-out infinite 0.4s; }
-      .bar-anim-4 { transform-origin: bottom; animation: wavePulse 1.1s ease-in-out infinite 0.1s; }
-      .bar-anim-5 { transform-origin: bottom; animation: wavePulse 1.4s ease-in-out infinite 0.3s; }
     </style>
   </defs>
 
@@ -71,13 +62,25 @@ radar_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" wid
     <line x1="40" y1="180" x2="320" y2="180" stroke="#1e3860" stroke-width="1" />
     <line x1="180" y1="40" x2="180" y2="320" stroke="#1e3860" stroke-width="1" />
 
+    <!-- Radar Sweep with Dual CSS and SMIL Animation -->
     <g class="sweep-beam">
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from="0 180 180"
+        to="360 180 180"
+        dur="4s"
+        repeatCount="indefinite" />
       <path d="M180,180 L310,180 A130,130 0 0,0 272,88 Z" fill="url(#radarGrad)" />
       <line x1="180" y1="180" x2="310" y2="180" stroke="#00f0ff" stroke-width="2" filter="url(#glow)" />
     </g>
 
-    <circle cx="245" cy="135" r="4.5" fill="#ff0055" filter="url(#glow)" class="blink" />
-    <circle cx="245" cy="135" r="9" fill="none" stroke="#ff0055" stroke-width="1" class="blink" />
+    <circle cx="245" cy="135" r="4.5" fill="#ff0055" filter="url(#glow)" class="blink">
+      <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="245" cy="135" r="9" fill="none" stroke="#ff0055" stroke-width="1" class="blink">
+      <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite" />
+    </circle>
     <text x="260" y="132" fill="#ff0055" font-size="10" font-weight="bold" letter-spacing="1">SYNTH_VOCODER (98.4%)</text>
 
     <circle cx="130" cy="220" r="3.5" fill="#00ff88" />
@@ -91,24 +94,69 @@ radar_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" wid
   <g transform="translate(380, 0)">
     <text x="0" y="32" fill="#ffb800" font-size="12" font-weight="700" letter-spacing="1.5">SPECTRAL HARMONICS &amp; PHASE JITTER</text>
     
-    <path d="M 0,140 Q 30,80 60,140 T 120,140 T 180,110 T 240,165 T 260,140" fill="none" stroke="#00f0ff" stroke-width="2" filter="url(#glow)" class="wave-line-1" />
+    <path d="M 0,140 Q 30,80 60,140 T 120,140 T 180,110 T 240,165 T 260,140" fill="none" stroke="#00f0ff" stroke-width="2" filter="url(#glow)" class="wave-line-1">
+      <animate attributeName="stroke-dashoffset" from="0" to="-120" dur="2s" repeatCount="indefinite" />
+    </path>
     <path d="M 0,140 Q 25,190 50,140 T 100,170 T 150,130 T 200,150 T 260,140" fill="none" stroke="#ff0055" stroke-width="1.8" opacity="0.8" stroke-dasharray="4 2" />
 
+    <!-- Equalizer Spectrum Bars with Native SMIL + CSS -->
     <g transform="translate(10, 260)">
-      <rect x="0" y="-50" width="8" height="50" fill="#00f0ff" class="bar-anim-1" rx="2" />
-      <rect x="16" y="-75" width="8" height="75" fill="#00f0ff" class="bar-anim-2" rx="2" />
-      <rect x="32" y="-95" width="8" height="95" fill="#00f0ff" class="bar-anim-3" rx="2" />
-      <rect x="48" y="-60" width="8" height="60" fill="#00f0ff" class="bar-anim-4" rx="2" />
-      <rect x="64" y="-40" width="8" height="40" fill="#00f0ff" class="bar-anim-5" rx="2" />
-      <rect x="80" y="-70" width="8" height="70" fill="#ffb800" class="bar-anim-2" rx="2" />
-      <rect x="96" y="-85" width="8" height="85" fill="#ffb800" class="bar-anim-1" rx="2" />
-      <rect x="112" y="-60" width="8" height="60" fill="#ffb800" class="bar-anim-3" rx="2" />
-      <rect x="128" y="-105" width="8" height="105" fill="#ff0055" class="bar-anim-4" rx="2" filter="url(#glow)" />
-      <rect x="144" y="-115" width="8" height="115" fill="#ff0055" class="bar-anim-5" rx="2" filter="url(#glow)" />
-      <rect x="160" y="-85" width="8" height="85" fill="#ff0055" class="bar-anim-2" rx="2" />
-      <rect x="176" y="-50" width="8" height="50" fill="#ff0055" class="bar-anim-1" rx="2" />
-      <rect x="192" y="-35" width="8" height="35" fill="#00ff88" class="bar-anim-3" rx="2" />
-      <rect x="208" y="-20" width="8" height="20" fill="#00ff88" class="bar-anim-4" rx="2" />
+      <rect x="0" y="-50" width="8" height="50" fill="#00f0ff" rx="2">
+        <animate attributeName="height" values="20;50;25;60;20" dur="1.2s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-20;-50;-25;-60;-20" dur="1.2s" repeatCount="indefinite" />
+      </rect>
+      <rect x="16" y="-75" width="8" height="75" fill="#00f0ff" rx="2">
+        <animate attributeName="height" values="35;75;40;80;35" dur="0.9s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-35;-75;-40;-80;-35" dur="0.9s" repeatCount="indefinite" />
+      </rect>
+      <rect x="32" y="-95" width="8" height="95" fill="#00f0ff" rx="2">
+        <animate attributeName="height" values="45;95;60;100;45" dur="1.5s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-45;-95;-60;-100;-45" dur="1.5s" repeatCount="indefinite" />
+      </rect>
+      <rect x="48" y="-60" width="8" height="60" fill="#00f0ff" rx="2">
+        <animate attributeName="height" values="25;60;35;70;25" dur="1.1s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-25;-60;-35;-70;-25" dur="1.1s" repeatCount="indefinite" />
+      </rect>
+      <rect x="64" y="-40" width="8" height="40" fill="#00f0ff" rx="2">
+        <animate attributeName="height" values="15;40;25;50;15" dur="1.4s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-15;-40;-25;-50;-15" dur="1.4s" repeatCount="indefinite" />
+      </rect>
+      <rect x="80" y="-70" width="8" height="70" fill="#ffb800" rx="2">
+        <animate attributeName="height" values="30;70;45;85;30" dur="1.0s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-30;-70;-45;-85;-30" dur="1.0s" repeatCount="indefinite" />
+      </rect>
+      <rect x="96" y="-85" width="8" height="85" fill="#ffb800" rx="2">
+        <animate attributeName="height" values="40;85;50;90;40" dur="1.3s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-40;-85;-50;-90;-40" dur="1.3s" repeatCount="indefinite" />
+      </rect>
+      <rect x="112" y="-60" width="8" height="60" fill="#ffb800" rx="2">
+        <animate attributeName="height" values="20;60;30;75;20" dur="0.8s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-20;-60;-30;-75;-20" dur="0.8s" repeatCount="indefinite" />
+      </rect>
+      <rect x="128" y="-105" width="8" height="105" fill="#ff0055" rx="2" filter="url(#glow)">
+        <animate attributeName="height" values="50;105;65;115;50" dur="1.1s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-50;-105;-65;-115;-50" dur="1.1s" repeatCount="indefinite" />
+      </rect>
+      <rect x="144" y="-115" width="8" height="115" fill="#ff0055" rx="2" filter="url(#glow)">
+        <animate attributeName="height" values="60;115;75;125;60" dur="1.4s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-60;-115;-75;-125;-60" dur="1.4s" repeatCount="indefinite" />
+      </rect>
+      <rect x="160" y="-85" width="8" height="85" fill="#ff0055" rx="2">
+        <animate attributeName="height" values="35;85;45;95;35" dur="1.0s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-35;-85;-45;-95;-35" dur="1.0s" repeatCount="indefinite" />
+      </rect>
+      <rect x="176" y="-50" width="8" height="50" fill="#ff0055" rx="2">
+        <animate attributeName="height" values="20;50;30;60;20" dur="1.2s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-20;-50;-30;-60;-20" dur="1.2s" repeatCount="indefinite" />
+      </rect>
+      <rect x="192" y="-35" width="8" height="35" fill="#00ff88" rx="2">
+        <animate attributeName="height" values="15;35;20;45;15" dur="1.5s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-15;-35;-20;-45;-15" dur="1.5s" repeatCount="indefinite" />
+      </rect>
+      <rect x="208" y="-20" width="8" height="20" fill="#00ff88" rx="2">
+        <animate attributeName="height" values="10;20;15;30;10" dur="0.9s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-10;-20;-15;-30;-10" dur="0.9s" repeatCount="indefinite" />
+      </rect>
     </g>
 
     <text x="0" y="295" fill="#8da2c0" font-size="10" font-family="monospace">SincNet Bandpass: 60Hz - 7.8kHz</text>
@@ -121,7 +169,9 @@ radar_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" wid
     <text x="0" y="32" fill="#00ff88" font-size="12" font-weight="700" letter-spacing="1.5">WALD'S SPRT CONFIDENCE</text>
     
     <rect x="0" y="55" width="255" height="80" rx="8" fill="#111927" stroke="#ff0055" stroke-width="1.5" />
-    <circle cx="24" cy="80" r="8" fill="#ff0055" class="blink" />
+    <circle cx="24" cy="80" r="8" fill="#ff0055" class="blink">
+      <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite" />
+    </circle>
     <text x="42" y="84" fill="#ffffff" font-size="14" font-weight="700">CRIMSON THREAT ALERT</text>
     <text x="42" y="102" fill="#ff0055" font-size="11" font-family="monospace" font-weight="bold">DECISION LOG-RATIO: +6.41</text>
     <text x="42" y="120" fill="#8da2c0" font-size="10">Threshold A = +5.288 (Cloned Impersonation)</text>
@@ -148,7 +198,8 @@ radar_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" wid
 </svg>
 """
 
-pipeline_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="100%" height="440" style="background: #080c14; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+def create_pipeline_svg():
+    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="100%" height="440" style="background: #080c14; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
   <defs>
     <linearGradient id="pipeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#00f0ff"/>
@@ -163,16 +214,9 @@ pipeline_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440"
       @keyframes dash {
         to { stroke-dashoffset: -32; }
       }
-      @keyframes pulseNode {
-        0%, 100% { transform: scale(1); opacity: 0.95; }
-        50% { transform: scale(1.02); opacity: 1; }
-      }
       .flow-path {
         stroke-dasharray: 6 6;
         animation: dash 1s linear infinite;
-      }
-      .node-pulse {
-        animation: pulseNode 2.5s ease-in-out infinite;
       }
     </style>
   </defs>
@@ -195,7 +239,9 @@ pipeline_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440"
   </g>
 
   <!-- FLOW ARROW 1 -> 2 -->
-  <path d="M 190,150 L 230,150" stroke="#00f0ff" stroke-width="2" fill="none" class="flow-path" />
+  <path d="M 190,150 L 230,150" stroke="#00f0ff" stroke-width="2" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
 
   <!-- PHASE 2: SPSC CIRCULAR RAM BUFFER -->
   <g transform="translate(230, 80)">
@@ -211,8 +257,12 @@ pipeline_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440"
   </g>
 
   <!-- BRANCH ARROWS 2 -> TRACK A & TRACK B -->
-  <path d="M 390,130 L 430,110" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-path" />
-  <path d="M 390,170 L 430,230" stroke="#c084fc" stroke-width="2" fill="none" class="flow-path" />
+  <path d="M 390,130 L 430,110" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
+  <path d="M 390,170 L 430,230" stroke="#c084fc" stroke-width="2" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
 
   <!-- TRACK A: ACOUSTIC ENGINE -->
   <g transform="translate(430, 45)">
@@ -239,8 +289,12 @@ pipeline_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440"
   </g>
 
   <!-- MERGE INTO SPRT ENGINE -->
-  <path d="M 660,110 L 700,160" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-path" />
-  <path d="M 660,240 L 700,180" stroke="#c084fc" stroke-width="2" fill="none" class="flow-path" />
+  <path d="M 660,110 L 700,160" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
+  <path d="M 660,240 L 700,180" stroke="#c084fc" stroke-width="2" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
 
   <!-- PHASE 4: WALD SPRT DECISION ENGINE -->
   <g transform="translate(700, 110)">
@@ -255,7 +309,9 @@ pipeline_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440"
   </g>
 
   <!-- FLOW DOWN TO ENFORCEMENT & FORENSICS -->
-  <path d="M 835,235 L 835,290" stroke="#ef4444" stroke-width="2.5" fill="none" class="flow-path" />
+  <path d="M 835,235 L 835,290" stroke="#ef4444" stroke-width="2.5" fill="none" class="flow-path">
+    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
+  </path>
 
   <!-- PHASE 5: IMMEDIATE ACTION & BSA 2023 FORENSICS -->
   <g transform="translate(30, 290)">
@@ -287,30 +343,27 @@ pipeline_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440"
 </svg>
 """
 
-paths = [
-    r'c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\docs\images\threat_radar_waveform.svg',
-    r'c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\assets\threat_radar_waveform.svg',
-    r'c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\docs\images\dual_track_pipeline.svg',
-    r'c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\assets\dual_track_pipeline.svg',
-    r'c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\assets\threat_radar_waveform.svg',
-    r'c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\assets\dual_track_pipeline.svg'
-]
+def main():
+    radar = create_radar_svg()
+    pipeline = create_pipeline_svg()
 
-for p in paths:
-    os.makedirs(os.path.dirname(p), exist_ok=True)
+    paths = [
+        (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\docs\images", "threat_radar_waveform.svg", radar),
+        (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\docs\images", "dual_track_pipeline.svg", pipeline),
+        (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\assets", "threat_radar_waveform.svg", radar),
+        (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\assets", "dual_track_pipeline.svg", pipeline),
+        (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\docs\images", "threat_radar_waveform.svg", radar),
+        (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\docs\images", "dual_track_pipeline.svg", pipeline),
+        (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\assets", "threat_radar_waveform.svg", radar),
+        (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\assets", "dual_track_pipeline.svg", pipeline),
+    ]
 
-with open(paths[0], 'w', encoding='utf-8') as f:
-    f.write(radar_svg)
-with open(paths[1], 'w', encoding='utf-8') as f:
-    f.write(radar_svg)
-with open(paths[4], 'w', encoding='utf-8') as f:
-    f.write(radar_svg)
+    for d, filename, content in paths:
+        os.makedirs(d, exist_ok=True)
+        target = os.path.join(d, filename)
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"Generated: {target}")
 
-with open(paths[2], 'w', encoding='utf-8') as f:
-    f.write(pipeline_svg)
-with open(paths[3], 'w', encoding='utf-8') as f:
-    f.write(pipeline_svg)
-with open(paths[5], 'w', encoding='utf-8') as f:
-    f.write(pipeline_svg)
-
-print("SVG generation successful!")
+if __name__ == "__main__":
+    main()

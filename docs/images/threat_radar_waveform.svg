@@ -18,11 +18,6 @@
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
       }
-      @keyframes wavePulse {
-        0% { transform: scaleY(0.4); opacity: 0.6; }
-        50% { transform: scaleY(1.2); opacity: 1.0; }
-        100% { transform: scaleY(0.4); opacity: 0.6; }
-      }
       @keyframes blinkPulse {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.2; }
@@ -42,11 +37,6 @@
         stroke-dasharray: 8 4;
         animation: waveFlow 2s linear infinite;
       }
-      .bar-anim-1 { transform-origin: bottom; animation: wavePulse 1.2s ease-in-out infinite; }
-      .bar-anim-2 { transform-origin: bottom; animation: wavePulse 0.9s ease-in-out infinite 0.2s; }
-      .bar-anim-3 { transform-origin: bottom; animation: wavePulse 1.5s ease-in-out infinite 0.4s; }
-      .bar-anim-4 { transform-origin: bottom; animation: wavePulse 1.1s ease-in-out infinite 0.1s; }
-      .bar-anim-5 { transform-origin: bottom; animation: wavePulse 1.4s ease-in-out infinite 0.3s; }
     </style>
   </defs>
 
@@ -69,13 +59,25 @@
     <line x1="40" y1="180" x2="320" y2="180" stroke="#1e3860" stroke-width="1" />
     <line x1="180" y1="40" x2="180" y2="320" stroke="#1e3860" stroke-width="1" />
 
+    <!-- Radar Sweep with Dual CSS and SMIL Animation -->
     <g class="sweep-beam">
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from="0 180 180"
+        to="360 180 180"
+        dur="4s"
+        repeatCount="indefinite" />
       <path d="M180,180 L310,180 A130,130 0 0,0 272,88 Z" fill="url(#radarGrad)" />
       <line x1="180" y1="180" x2="310" y2="180" stroke="#00f0ff" stroke-width="2" filter="url(#glow)" />
     </g>
 
-    <circle cx="245" cy="135" r="4.5" fill="#ff0055" filter="url(#glow)" class="blink" />
-    <circle cx="245" cy="135" r="9" fill="none" stroke="#ff0055" stroke-width="1" class="blink" />
+    <circle cx="245" cy="135" r="4.5" fill="#ff0055" filter="url(#glow)" class="blink">
+      <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="245" cy="135" r="9" fill="none" stroke="#ff0055" stroke-width="1" class="blink">
+      <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite" />
+    </circle>
     <text x="260" y="132" fill="#ff0055" font-size="10" font-weight="bold" letter-spacing="1">SYNTH_VOCODER (98.4%)</text>
 
     <circle cx="130" cy="220" r="3.5" fill="#00ff88" />
@@ -89,24 +91,69 @@
   <g transform="translate(380, 0)">
     <text x="0" y="32" fill="#ffb800" font-size="12" font-weight="700" letter-spacing="1.5">SPECTRAL HARMONICS &amp; PHASE JITTER</text>
     
-    <path d="M 0,140 Q 30,80 60,140 T 120,140 T 180,110 T 240,165 T 260,140" fill="none" stroke="#00f0ff" stroke-width="2" filter="url(#glow)" class="wave-line-1" />
+    <path d="M 0,140 Q 30,80 60,140 T 120,140 T 180,110 T 240,165 T 260,140" fill="none" stroke="#00f0ff" stroke-width="2" filter="url(#glow)" class="wave-line-1">
+      <animate attributeName="stroke-dashoffset" from="0" to="-120" dur="2s" repeatCount="indefinite" />
+    </path>
     <path d="M 0,140 Q 25,190 50,140 T 100,170 T 150,130 T 200,150 T 260,140" fill="none" stroke="#ff0055" stroke-width="1.8" opacity="0.8" stroke-dasharray="4 2" />
 
+    <!-- Equalizer Spectrum Bars with Native SMIL + CSS -->
     <g transform="translate(10, 260)">
-      <rect x="0" y="-50" width="8" height="50" fill="#00f0ff" class="bar-anim-1" rx="2" />
-      <rect x="16" y="-75" width="8" height="75" fill="#00f0ff" class="bar-anim-2" rx="2" />
-      <rect x="32" y="-95" width="8" height="95" fill="#00f0ff" class="bar-anim-3" rx="2" />
-      <rect x="48" y="-60" width="8" height="60" fill="#00f0ff" class="bar-anim-4" rx="2" />
-      <rect x="64" y="-40" width="8" height="40" fill="#00f0ff" class="bar-anim-5" rx="2" />
-      <rect x="80" y="-70" width="8" height="70" fill="#ffb800" class="bar-anim-2" rx="2" />
-      <rect x="96" y="-85" width="8" height="85" fill="#ffb800" class="bar-anim-1" rx="2" />
-      <rect x="112" y="-60" width="8" height="60" fill="#ffb800" class="bar-anim-3" rx="2" />
-      <rect x="128" y="-105" width="8" height="105" fill="#ff0055" class="bar-anim-4" rx="2" filter="url(#glow)" />
-      <rect x="144" y="-115" width="8" height="115" fill="#ff0055" class="bar-anim-5" rx="2" filter="url(#glow)" />
-      <rect x="160" y="-85" width="8" height="85" fill="#ff0055" class="bar-anim-2" rx="2" />
-      <rect x="176" y="-50" width="8" height="50" fill="#ff0055" class="bar-anim-1" rx="2" />
-      <rect x="192" y="-35" width="8" height="35" fill="#00ff88" class="bar-anim-3" rx="2" />
-      <rect x="208" y="-20" width="8" height="20" fill="#00ff88" class="bar-anim-4" rx="2" />
+      <rect x="0" y="-50" width="8" height="50" fill="#00f0ff" rx="2">
+        <animate attributeName="height" values="20;50;25;60;20" dur="1.2s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-20;-50;-25;-60;-20" dur="1.2s" repeatCount="indefinite" />
+      </rect>
+      <rect x="16" y="-75" width="8" height="75" fill="#00f0ff" rx="2">
+        <animate attributeName="height" values="35;75;40;80;35" dur="0.9s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-35;-75;-40;-80;-35" dur="0.9s" repeatCount="indefinite" />
+      </rect>
+      <rect x="32" y="-95" width="8" height="95" fill="#00f0ff" rx="2">
+        <animate attributeName="height" values="45;95;60;100;45" dur="1.5s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-45;-95;-60;-100;-45" dur="1.5s" repeatCount="indefinite" />
+      </rect>
+      <rect x="48" y="-60" width="8" height="60" fill="#00f0ff" rx="2">
+        <animate attributeName="height" values="25;60;35;70;25" dur="1.1s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-25;-60;-35;-70;-25" dur="1.1s" repeatCount="indefinite" />
+      </rect>
+      <rect x="64" y="-40" width="8" height="40" fill="#00f0ff" rx="2">
+        <animate attributeName="height" values="15;40;25;50;15" dur="1.4s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-15;-40;-25;-50;-15" dur="1.4s" repeatCount="indefinite" />
+      </rect>
+      <rect x="80" y="-70" width="8" height="70" fill="#ffb800" rx="2">
+        <animate attributeName="height" values="30;70;45;85;30" dur="1.0s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-30;-70;-45;-85;-30" dur="1.0s" repeatCount="indefinite" />
+      </rect>
+      <rect x="96" y="-85" width="8" height="85" fill="#ffb800" rx="2">
+        <animate attributeName="height" values="40;85;50;90;40" dur="1.3s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-40;-85;-50;-90;-40" dur="1.3s" repeatCount="indefinite" />
+      </rect>
+      <rect x="112" y="-60" width="8" height="60" fill="#ffb800" rx="2">
+        <animate attributeName="height" values="20;60;30;75;20" dur="0.8s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-20;-60;-30;-75;-20" dur="0.8s" repeatCount="indefinite" />
+      </rect>
+      <rect x="128" y="-105" width="8" height="105" fill="#ff0055" rx="2" filter="url(#glow)">
+        <animate attributeName="height" values="50;105;65;115;50" dur="1.1s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-50;-105;-65;-115;-50" dur="1.1s" repeatCount="indefinite" />
+      </rect>
+      <rect x="144" y="-115" width="8" height="115" fill="#ff0055" rx="2" filter="url(#glow)">
+        <animate attributeName="height" values="60;115;75;125;60" dur="1.4s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-60;-115;-75;-125;-60" dur="1.4s" repeatCount="indefinite" />
+      </rect>
+      <rect x="160" y="-85" width="8" height="85" fill="#ff0055" rx="2">
+        <animate attributeName="height" values="35;85;45;95;35" dur="1.0s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-35;-85;-45;-95;-35" dur="1.0s" repeatCount="indefinite" />
+      </rect>
+      <rect x="176" y="-50" width="8" height="50" fill="#ff0055" rx="2">
+        <animate attributeName="height" values="20;50;30;60;20" dur="1.2s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-20;-50;-30;-60;-20" dur="1.2s" repeatCount="indefinite" />
+      </rect>
+      <rect x="192" y="-35" width="8" height="35" fill="#00ff88" rx="2">
+        <animate attributeName="height" values="15;35;20;45;15" dur="1.5s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-15;-35;-20;-45;-15" dur="1.5s" repeatCount="indefinite" />
+      </rect>
+      <rect x="208" y="-20" width="8" height="20" fill="#00ff88" rx="2">
+        <animate attributeName="height" values="10;20;15;30;10" dur="0.9s" repeatCount="indefinite" />
+        <animate attributeName="y" values="-10;-20;-15;-30;-10" dur="0.9s" repeatCount="indefinite" />
+      </rect>
     </g>
 
     <text x="0" y="295" fill="#8da2c0" font-size="10" font-family="monospace">SincNet Bandpass: 60Hz - 7.8kHz</text>
@@ -119,7 +166,9 @@
     <text x="0" y="32" fill="#00ff88" font-size="12" font-weight="700" letter-spacing="1.5">WALD'S SPRT CONFIDENCE</text>
     
     <rect x="0" y="55" width="255" height="80" rx="8" fill="#111927" stroke="#ff0055" stroke-width="1.5" />
-    <circle cx="24" cy="80" r="8" fill="#ff0055" class="blink" />
+    <circle cx="24" cy="80" r="8" fill="#ff0055" class="blink">
+      <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite" />
+    </circle>
     <text x="42" y="84" fill="#ffffff" font-size="14" font-weight="700">CRIMSON THREAT ALERT</text>
     <text x="42" y="102" fill="#ff0055" font-size="11" font-family="monospace" font-weight="bold">DECISION LOG-RATIO: +6.41</text>
     <text x="42" y="120" fill="#8da2c0" font-size="10">Threshold A = +5.288 (Cloned Impersonation)</text>

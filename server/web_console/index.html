@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rakshak Setu — Sovereign WebRTC Calling Rig & Audio Stream Switcher</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300D2FF'><path d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z'/></svg>">
+    <style>
+        :root {
+            --bg-dark: #070D1E;
+            --bg-card: rgba(14, 25, 54, 0.85);
+            --bg-card-hover: rgba(22, 38, 78, 0.95);
+            --border-color: rgba(59, 130, 246, 0.25);
+            --border-active: #00D2FF;
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --accent-blue: #1565C0;
+            --accent-cyan: #00D2FF;
+            --color-safe: #10B981;
+            --color-warning: #F59E0B;
+            --color-threat: #EF4444;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(21, 101, 192, 0.18) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(0, 210, 255, 0.12) 0%, transparent 45%);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            min-height: 100vh;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Top Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .shield-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #1565C0 0%, #00D2FF 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 18px rgba(0, 210, 255, 0.4);
+        }
+
+        .shield-icon svg {
+            width: 26px;
+            height: 26px;
+            fill: #FFFFFF;
+        }
+
+        .brand-title h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-title .badge {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: rgba(0, 210, 255, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            padding: 2px 8px;
+            border-radius: 9999px;
+        }
+
+        .brand-title p {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .header-status-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 9999px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.online {
+            background-color: var(--color-safe);
+            box-shadow: 0 0 8px var(--color-safe);
+        }
+
+        .status-dot.active {
+            background-color: var(--accent-cyan);
+            box-shadow: 0 0 10px var(--accent-cyan);
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.threat {
+            background-color: var(--color-threat);
+            box-shadow: 0 0 10px var(--color-threat);
+            animation: pulse 0.8s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.15); }
+        }
+
+        /* Main Grid Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 20px;
+            flex: 1;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.4);
+        }
+
+        .panel-card h2 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-primary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 12px;
+        }
+
+        .panel-card h2 svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--accent-cyan);
+        }
+
+        /* Forms & Inputs */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-secondary);
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            background: rgba(7, 13, 30, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            font-size: 0.92rem;
+            transition: all 0.2s ease;
+        }
+
+        .input-wrapper input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.2);
+            background: rgba(7, 13, 30, 0.9);
+        }
+
+        .input-wrapper input.mono {
+            font-family: var(--font-mono);
+            letter-spacing: 0.04em;
+        }
+
+        /* Preset Buttons */
+        .preset-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .preset-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        .preset-btn {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .preset-btn:hover {
+            background: rgba(30, 58, 138, 0.3);
+            border-color: rgba(0, 210, 255, 0.4);
+            color: var(--text-primary);
+        }
+
+        .preset-tag {
+            font-size: 0.68rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .tag-safe { background: rgba(16, 185, 129, 0.15); color: var(--color-safe); }
+        .tag-clone { background: rgba(239, 68, 68, 0.15); color: var(--color-threat); }
+        .tag-extort { background: rgba(245, 158, 11, 0.15); color: var(--color-warning); }
+
+        /* Dialing Actions */
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 4px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn-call {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            color: #FFFFFF;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-call:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
+        }
+
+        .btn-hangup {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+            color: #FFFFFF;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+        }
+
+        .btn-hangup:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
+        }
+
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .call-timer-card {
+            background: rgba(7, 13, 30, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .timer-val {
+            font-family: var(--font-mono);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            letter-spacing: 0.05em;
+        }
+
+        /* 5-Channel Audio Switcher */
+        .channel-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .channel-card {
+            background: rgba(10, 19, 43, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .channel-card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(0, 210, 255, 0.4);
+            transform: translateX(3px);
+        }
+
+        .channel-card.active {
+            background: rgba(21, 101, 192, 0.22);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.25), inset 0 0 12px rgba(0, 210, 255, 0.1);
+        }
+
+        .channel-card.active::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, #00D2FF, #1565C0);
+        }
+
+        .channel-info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+        }
+
+        .channel-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .channel-card.active .channel-num {
+            background: var(--accent-cyan);
+            color: #070D1E;
+            border-color: transparent;
+            box-shadow: 0 0 10px var(--accent-cyan);
+        }
+
+        .channel-details h3 {
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .channel-details p {
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            margin-top: 3px;
+        }
+
+        .channel-badge {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .badge-live { background: rgba(0, 210, 255, 0.15); color: var(--accent-cyan); }
+        .badge-safe { background: rgba(16, 185, 129, 0.15); color: var(--color-safe); }
+        .badge-threat { background: rgba(239, 68, 68, 0.15); color: var(--color-threat); }
+        .badge-extort { background: rgba(245, 158, 11, 0.15); color: var(--color-warning); }
+
+        .air-indicator {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: rgba(0, 210, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 210, 255, 0.3);
+        }
+
+        .channel-card.active .air-indicator {
+            display: flex;
+        }
+
+        /* Custom File Upload Dropzone */
+        .dropzone {
+            border: 2px dashed var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+            background: rgba(7, 13, 30, 0.4);
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 6px;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 210, 255, 0.05);
+        }
+
+        .dropzone p {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        /* Visualizer Panel */
+        .visualizer-container {
+            position: relative;
+            background: #040814;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            height: 160px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        canvas#audioWaveform {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .visualizer-overlay {
+            position: absolute;
+            top: 10px;
+            left: 14px;
+            right: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .overlay-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .overlay-stats {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--accent-cyan);
+        }
+
+        /* Console Logs */
+        .log-terminal {
+            background: #03060E;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px;
+            height: 170px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 0.76rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .log-entry {
+            line-height: 1.4;
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-time {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .log-tag {
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .log-tag.ws { color: var(--accent-cyan); }
+        .log-tag.webrtc { color: #818CF8; }
+        .log-tag.audio { color: var(--color-safe); }
+        .log-tag.warn { color: var(--color-warning); }
+        .log-tag.error { color: var(--color-threat); }
+        .log-msg { color: var(--text-secondary); word-break: break-all; }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="brand-container">
+            <div class="shield-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            </div>
+            <div class="brand-title">
+                <h1>Rakshak Setu VoIP Calling Rig <span class="badge">Relay v2.1</span></h1>
+                <p>Laptop WebRTC Sovereign Defense Rig & Real-Time Audio Injector</p>
+            </div>
+        </div>
+
+        <div class="header-status-group">
+            <div class="status-pill">
+                <span class="status-dot" id="wsStatusDot"></span>
+                <span id="wsStatusText">Relay: Connecting...</span>
+            </div>
+            <div class="status-pill">
+                <span class="status-dot" id="callStatusDot"></span>
+                <span id="callStatusText">Call: Idle</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Grid -->
+    <div class="main-grid">
+
+        <!-- Column 1: Telephony Controls & Presets -->
+        <div class="panel-card">
+            <h2>
+                <span>Telephony Handshake</span>
+                <svg viewBox="0 0 24 24"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
+            </h2>
+
+            <!-- Demonstration Presets -->
+            <div class="preset-container">
+                <div class="preset-label">Demonstration Protocols</div>
+                <div class="preset-buttons">
+                    <button class="preset-btn" onclick="applyPreset('genuine')">
+                        <span><strong>1. Genuine Rohan</strong> (Funds Transfer)</span>
+                        <span class="preset-tag tag-safe">Safe Risk &lt;0.05</span>
+                    </button>
+                    <button class="preset-btn" onclick="applyPreset('clone')">
+                        <span><strong>2. Cloned Rohan</strong> (AASIST-L Defense)</span>
+                        <span class="preset-tag tag-clone">Threat &gt;0.95 (2.3s)</span>
+                    </button>
+                    <button class="preset-btn" onclick="applyPreset('extortion')">
+                        <span><strong>3. Digital Arrest</strong> (DCP Cyber Cell)</span>
+                        <span class="preset-tag tag-extort">Arrest Extortion</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Identity Inputs -->
+            <div class="form-group">
+                <label for="callerNameInput">Caller ID Name</label>
+                <div class="input-wrapper">
+                    <input type="text" id="callerNameInput" value="Rohan (Consenting Speaker)" placeholder="e.g. DCP Cyber Crime">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="callerPhoneInput">Caller Phone Number</label>
+                <div class="input-wrapper">
+                    <input type="text" id="callerPhoneInput" class="mono" value="+91 98765 00001" placeholder="+91 98765 00001">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="calleePhoneInput">Target Phone Number (Mobile Device)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="calleePhoneInput" class="mono" value="+91 98765 43210" placeholder="+91 98765 43210">
+                </div>
+            </div>
+
+            <!-- Call Timer & Controls -->
+            <div class="call-timer-card">
+                <div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Call Duration</div>
+                    <div class="timer-val" id="callTimerDisplay">00:00</div>
+                </div>
+                <div style="font-size: 0.78rem; text-align: right; color: var(--text-secondary);">
+                    <div id="codecDisplay">Opus Wideband (48kHz)</div>
+                    <div style="color: var(--color-safe); font-weight: 600;">DTLS-SRTP Encrypted</div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-call" id="btnDial" onclick="startCall()">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
+                    <span>Dial Phone</span>
+                </button>
+                <button class="btn btn-hangup" id="btnHangup" onclick="hangupCall('user_hangup')" disabled>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.996.996 0 010-1.41C3.42 8.47 7.46 6.5 12 6.5s8.58 1.97 11.71 5.17c.39.39.39 1.02 0 1.41l-2.48 2.48c-.18.18-.43.29-.71.29s-.52-.11-.7-.28c-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+                    <span>Sever Call</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Column 2: 5-Channel Audio Stream Switcher & Telemetry -->
+        <div class="panel-card">
+            <h2>
+                <span>5-Channel Instant Audio Stream Switcher</span>
+                <span style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 500;">Zero-Glitch In-Flight Crossfade</span>
+            </h2>
+
+            <!-- Channel Selector List -->
+            <div class="channel-list">
+                <!-- Channel 1: Laptop Microphone -->
+                <div class="channel-card" id="chanCard-1" onclick="switchChannel(1)">
+                    <div class="channel-info">
+                        <div class="channel-num">1</div>
+                        <div class="channel-details">
+                            <h3>Live Physical Laptop Microphone <span class="channel-badge badge-live">Normal Human</span></h3>
+                            <p>Direct hardware microphone capture with real-time acoustic passthrough.</p>
+                        </div>
+                    </div>
+                    <div class="air-indicator">
+                        <span class="status-dot active"></span> ON AIR
+                    </div>
+                </div>
+
+                <!-- Channel 2: Genuine Voice Sample -->
+                <div class="channel-card active" id="chanCard-2" onclick="switchChannel(2)">
+                    <div class="channel-info">
+                        <div class="channel-num">2</div>
+                        <div class="channel-details">
+                            <h3>Same-Speaker GENUINE Voice Sample <span class="channel-badge badge-safe">Safe Risk &lt;0.05</span></h3>
+                            <p>Rohan transferring ₹50,000. Natural human formants, phase coherence &amp; jitter.</p>
+                        </div>
+                    </div>
+                    <div class="air-indicator">
+                        <span class="status-dot active"></span> ON AIR
+                    </div>
+                </div>
+
+                <!-- Channel 3: Neural Voice Clone -->
+                <div class="channel-card" id="chanCard-3" onclick="switchChannel(3)">
+                    <div class="channel-info">
+                        <div class="channel-num">3</div>
+                        <div class="channel-details">
+                            <h3>Same-Speaker CLONED Voice Sample <span class="channel-badge badge-threat">AASIST-L Threat &gt;0.95</span></h3>
+                            <p>Identical text &amp; timbre synthesized with neural vocoder phase/harmonic artifacts.</p>
+                        </div>
+                    </div>
+                    <div class="air-indicator">
+                        <span class="status-dot threat"></span> ON AIR
+                    </div>
+                </div>
+
+                <!-- Channel 4: Digital Arrest Extortion -->
+                <div class="channel-card" id="chanCard-4" onclick="switchChannel(4)">
+                    <div class="channel-info">
+                        <div class="channel-num">4</div>
+                        <div class="channel-details">
+                            <h3>Digital Arrest Law Enforcement Extortion <span class="channel-badge badge-extort">High-Urgency Attack</span></h3>
+                            <p>DCP Cyber Crime extortion speech triggering Aho-Corasick arrest keywords.</p>
+                        </div>
+                    </div>
+                    <div class="air-indicator">
+                        <span class="status-dot threat"></span> ON AIR
+                    </div>
+                </div>
+
+                <!-- Channel 5: Custom Audio Injector -->
+                <div class="channel-card" id="chanCard-5" onclick="switchChannel(5)">
+                    <div class="channel-info">
+                        <div class="channel-num">5</div>
+                        <div class="channel-details">
+                            <h3>Custom Audio WAV / MP3 Injector <span class="channel-badge badge-live">User Upload</span></h3>
+                            <p id="customFileName">Drag &amp; drop any audio file or browse from disk.</p>
+                        </div>
+                    </div>
+                    <div class="air-indicator">
+                        <span class="status-dot active"></span> ON AIR
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom File Dropzone (Visible if Channel 5 selected) -->
+            <div class="dropzone" id="audioDropzone" onclick="document.getElementById('fileInput').click()">
+                <input type="file" id="fileInput" accept="audio/*" style="display: none;" onchange="handleFileUpload(this.files)">
+                <p>📁 Click or drag-and-drop custom WAV/MP3 to inject into the live WebRTC stream</p>
+            </div>
+
+            <!-- Real-Time Transmitted Audio Oscilloscope -->
+            <div class="visualizer-container">
+                <canvas id="audioWaveform"></canvas>
+                <div class="visualizer-overlay">
+                    <div class="overlay-label">
+                        <span class="status-dot active"></span> Outbound WebRTC Audio Tap
+                    </div>
+                    <div class="overlay-stats" id="audioStats">16.0 kHz | Linear PCM | Active</div>
+                </div>
+            </div>
+
+            <!-- Live Signaling & Telemetry Log Drawer -->
+            <div class="log-terminal" id="logTerminal">
+                <!-- Log entries will be inserted here dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Remote Audio Sink for Bidirectional Call Listening -->
+    <audio id="remoteAudio" autoplay></audio>
+
+    <script>
+        /**
+         * Rakshak Setu WebRTC Calling Console Core Engine
+         */
+        const CONFIG = {
+            wsUrl: `ws://${window.location.host}`,
+            audioAssets: {
+                2: '/assets/audio/genuine_speaker.wav',
+                3: '/assets/audio/cloned_speaker.wav',
+                4: '/assets/audio/digital_arrest_extortion.wav'
+            },
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+
+        // State variables
+        let ws = null;
+        let pc = null;
+        let isRegistered = false;
+        let currentCallState = 'idle'; // 'idle', 'dialing', 'connected'
+        let activeChannel = 2; // Default to Genuine Speaker
+        let callTimerInterval = null;
+        let callSeconds = 0;
+
+        // Web Audio API Graph Nodes
+        let audioCtx = null;
+        let streamDest = null;
+        let outboundTrack = null;
+        let channelGainNodes = {}; // channelId -> GainNode
+        let channelSourceNodes = {}; // channelId -> AudioBufferSourceNode / MediaStreamSourceNode
+        let audioBuffers = {}; // channelId -> AudioBuffer
+        let micStream = null;
+        let analyser = null;
+
+        // UI Element References
+        const wsStatusDot = document.getElementById('wsStatusDot');
+        const wsStatusText = document.getElementById('wsStatusText');
+        const callStatusDot = document.getElementById('callStatusDot');
+        const callStatusText = document.getElementById('callStatusText');
+        const btnDial = document.getElementById('btnDial');
+        const btnHangup = document.getElementById('btnHangup');
+        const callTimerDisplay = document.getElementById('callTimerDisplay');
+        const logTerminal = document.getElementById('logTerminal');
+        const canvas = document.getElementById('audioWaveform');
+        const canvasCtx = canvas.getContext('2d');
+
+        // Initialize Console on Page Load
+        window.addEventListener('DOMContentLoaded', async () => {
+            log('ws', 'Initializing Rakshak Setu Calling Console...');
+            initWebSocket();
+            initVisualizerCanvas();
+            // Pre-load audio samples
+            preloadAudioBuffers();
+        });
+
+        // Logger utility
+        function log(tag, message) {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">[${timeStr}]</span>
+                <span class="log-tag ${tag}">${tag.toUpperCase()}</span>
+                <span class="log-msg">${escapeHtml(message)}</span>
+            `;
+            logTerminal.appendChild(entry);
+            logTerminal.scrollTop = logTerminal.scrollHeight;
+            console.log(`[${tag.toUpperCase()}] ${message}`);
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+
+        /**
+         * 1. WebSocket Signaling Connection
+         */
+        function initWebSocket() {
+            wsStatusText.textContent = 'Relay: Connecting...';
+            wsStatusDot.className = 'status-dot';
+
+            try {
+                ws = new WebSocket(CONFIG.wsUrl);
+            } catch (err) {
+                log('error', `WebSocket failed: ${err.message}`);
+                return;
+            }
+
+            ws.onopen = () => {
+                log('ws', `Connected to signaling relay at ${CONFIG.wsUrl}`);
+                wsStatusText.textContent = 'Relay: Connected';
+                wsStatusDot.className = 'status-dot online';
+                registerWithServer();
+            };
+
+            ws.onmessage = async (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleSignalingMessage(data);
+                } catch (e) {
+                    log('error', `Malformed signaling payload: ${event.data}`);
+                }
+            };
+
+            ws.onclose = () => {
+                log('warn', 'Signaling WebSocket closed. Reconnecting in 3s...');
+                wsStatusText.textContent = 'Relay: Offline';
+                wsStatusDot.className = 'status-dot';
+                isRegistered = false;
+                setTimeout(initWebSocket, 3000);
+            };
+
+            ws.onerror = (err) => {
+                log('error', 'WebSocket transport error');
+            };
+        }
+
+        function registerWithServer() {
+            const callerPhone = document.getElementById('callerPhoneInput').value.trim();
+            const callerName = document.getElementById('callerNameInput').value.trim();
+            ws.send(JSON.stringify({
+                type: 'register',
+                clientId: callerPhone,
+                role: 'laptop_caller_console',
+                callerName: callerName
+            }));
+        }
+
+        function handleSignalingMessage(data) {
+            switch (data.type) {
+                case 'registered':
+                    isRegistered = true;
+                    log('ws', `Console registered as '${data.clientId}' (status: ${data.status})`);
+                    break;
+
+                case 'answer':
+                    log('webrtc', `Received SDP Answer from callee '${data.from}'`);
+                    handleRemoteAnswer(data.sdp);
+                    break;
+
+                case 'candidate':
+                    if (data.sdpCandidate) {
+                        handleRemoteCandidate(data);
+                    }
+                    break;
+
+                case 'hangup':
+                    log('webrtc', `Call terminated by peer: ${data.reason || 'normal_clearing'}`);
+                    endCall('remote_hangup', data.reason);
+                    break;
+
+                case 'peer_offline':
+                    log('warn', `Target peer '${data.to}' is not registered on signaling relay.`);
+                    alert(`Target phone (${data.to}) is offline or not connected to signaling server.`);
+                    endCall('peer_offline');
+                    break;
+
+                case 'error':
+                    log('error', `Signaling error: ${data.message}`);
+                    break;
+            }
+        }
+
+        /**
+         * 2. Web Audio API Graph & Seamless 5-Channel Switcher
+         */
+        async function ensureAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+                streamDest = audioCtx.createMediaStreamDestination();
+                outboundTrack = streamDest.stream.getAudioTracks()[0];
+
+                // Create Master Analyser Node for the Oscilloscope
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 1024;
+                streamDest.stream.getAudioTracks()[0]; // active track
+
+                // Setup gain nodes for each channel (1 through 5)
+                for (let i = 1; i <= 5; i++) {
+                    const gain = audioCtx.createGain();
+                    gain.gain.value = (i === activeChannel) ? 1.0 : 0.0;
+                    gain.connect(streamDest);
+                    gain.connect(analyser);
+                    channelGainNodes[i] = gain;
+                }
+                log('audio', 'Web Audio API graph initialized with MediaStreamDestination and Analyser');
+            }
+
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+        }
+
+        async function preloadAudioBuffers() {
+            await ensureAudioContext();
+            for (const [chan, url] of Object.entries(CONFIG.audioAssets)) {
+                try {
+                    const res = await fetch(url);
+                    const arrayBuf = await res.arrayBuffer();
+                    audioBuffers[chan] = await audioCtx.decodeAudioData(arrayBuf);
+                    log('audio', `Preloaded channel ${chan} audio sample (${url})`);
+                } catch (e) {
+                    log('warn', `Could not preload audio asset for channel ${chan}: ${e.message}`);
+                }
+            }
+            // Start default active channel playing in loop
+            playChannelSource(activeChannel);
+        }
+
+        function playChannelSource(channelId) {
+            // Stop previous node if running
+            if (channelSourceNodes[channelId]) {
+                try { channelSourceNodes[channelId].stop(); } catch (_) {}
+                channelSourceNodes[channelId] = null;
+            }
+
+            if (channelId === 1) {
+                // Laptop Microphone
+                startMicrophone();
+            } else if (channelId >= 2 && channelId <= 5) {
+                const buffer = audioBuffers[channelId];
+                if (buffer) {
+                    const src = audioCtx.createBufferSource();
+                    src.buffer = buffer;
+                    src.loop = true;
+                    src.connect(channelGainNodes[channelId]);
+                    src.start();
+                    channelSourceNodes[channelId] = src;
+                }
+            }
+        }
+
+        async function startMicrophone() {
+            try {
+                if (!micStream) {
+                    micStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: false,
+                            autoGainControl: true
+                        },
+                        video: false
+                    });
+                }
+                const micSource = audioCtx.createMediaStreamSource(micStream);
+                micSource.connect(channelGainNodes[1]);
+                channelSourceNodes[1] = micSource;
+                log('audio', 'Physical Laptop Microphone connected to Channel 1');
+            } catch (err) {
+                log('error', `Microphone access denied: ${err.message}`);
+                alert('Could not access laptop microphone: ' + err.message);
+                switchChannel(2); // fallback to genuine voice
+            }
+        }
+
+        /**
+         * Instant Glitch-Free Audio Channel Switcher
+         * Uses 15ms GainNode ramp crossfades: zero clicks, zero packet drops, zero renegotiation!
+         */
+        async function switchChannel(newChannel) {
+            if (newChannel === activeChannel && channelSourceNodes[newChannel]) return;
+            await ensureAudioContext();
+
+            const oldChannel = activeChannel;
+            activeChannel = newChannel;
+            const now = audioCtx.currentTime;
+            const fadeDuration = 0.015; // 15ms linear crossfade
+
+            // Start playing new source if not playing
+            playChannelSource(newChannel);
+
+            // Crossfade: Ramp out old channel, ramp in new channel
+            if (channelGainNodes[oldChannel]) {
+                channelGainNodes[oldChannel].gain.cancelScheduledValues(now);
+                channelGainNodes[oldChannel].gain.setValueAtTime(channelGainNodes[oldChannel].gain.value, now);
+                channelGainNodes[oldChannel].gain.linearRampToValueAtTime(0.0, now + fadeDuration);
+            }
+
+            if (channelGainNodes[newChannel]) {
+                channelGainNodes[newChannel].gain.cancelScheduledValues(now);
+                channelGainNodes[newChannel].gain.setValueAtTime(channelGainNodes[newChannel].gain.value, now);
+                channelGainNodes[newChannel].gain.linearRampToValueAtTime(1.0, now + fadeDuration);
+            }
+
+            // Update UI channel cards
+            for (let i = 1; i <= 5; i++) {
+                const card = document.getElementById(`chanCard-${i}`);
+                if (card) {
+                    if (i === newChannel) {
+                        card.classList.add('active');
+                    } else {
+                        card.classList.remove('active');
+                    }
+                }
+            }
+
+            log('audio', `Switched active audio stream: Channel ${oldChannel} -> Channel ${newChannel} (15ms crossfade)`);
+        }
+
+        // Handle Custom Audio File Upload (Channel 5)
+        async function handleFileUpload(files) {
+            if (!files || files.length === 0) return;
+            const file = files[0];
+            await ensureAudioContext();
+
+            log('audio', `Decoding custom user audio file: ${file.name} (${file.size} bytes)`);
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const buffer = await audioCtx.decodeAudioData(e.target.result);
+                    audioBuffers[5] = buffer;
+                    document.getElementById('customFileName').textContent = `Loaded: ${file.name} (${buffer.duration.toFixed(1)}s, ${buffer.sampleRate}Hz)`;
+                    switchChannel(5);
+                    log('audio', `Custom audio loaded successfully into Channel 5`);
+                } catch (err) {
+                    log('error', `Failed to decode audio file: ${err.message}`);
+                    alert('Invalid audio file format. Please choose a WAV, MP3, or OGG file.');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Drag and drop handlers
+        const dropzone = document.getElementById('audioDropzone');
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            handleFileUpload(e.dataTransfer.files);
+        });
+
+        /**
+         * 3. Demonstration Presets
+         */
+        function applyPreset(presetType) {
+            const callerNameInput = document.getElementById('callerNameInput');
+            const callerPhoneInput = document.getElementById('callerPhoneInput');
+
+            switch (presetType) {
+                case 'genuine':
+                    callerNameInput.value = 'Rohan (Consenting Speaker)';
+                    callerPhoneInput.value = '+91 98765 00001';
+                    switchChannel(2);
+                    log('audio', 'Applied Preset: Genuine Rohan (Safe Human Voice)');
+                    break;
+                case 'clone':
+                    callerNameInput.value = 'Rohan (Neural Voice Clone)';
+                    callerPhoneInput.value = '+91 98765 00001';
+                    switchChannel(3);
+                    log('audio', 'Applied Preset: Cloned Rohan (AASIST-L Threat Injection)');
+                    break;
+                case 'extortion':
+                    callerNameInput.value = 'DCP Cyber Crime (Digital Arrest Cell)';
+                    callerPhoneInput.value = '+91 98765 00001';
+                    switchChannel(4);
+                    log('audio', 'Applied Preset: Digital Arrest Cyber Crime Extortion');
+                    break;
+            }
+        }
+
+        /**
+         * 4. WebRTC Call Session Management
+         */
+        async function startCall() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Signaling relay is not connected!');
+                return;
+            }
+
+            const callerName = document.getElementById('callerNameInput').value.trim();
+            const callerPhone = document.getElementById('callerPhoneInput').value.trim();
+            const calleePhone = document.getElementById('calleePhoneInput').value.trim();
+
+            if (!calleePhone) {
+                alert('Please enter target callee phone number');
+                return;
+            }
+
+            await ensureAudioContext();
+
+            // Set Call State
+            currentCallState = 'dialing';
+            btnDial.disabled = true;
+            btnHangup.disabled = false;
+            callStatusText.textContent = 'Call: Dialing...';
+            callStatusDot.className = 'status-dot active';
+
+            log('webrtc', `Initiating WebRTC offer to callee ${calleePhone}...`);
+
+            // Create PeerConnection
+            pc = new RTCPeerConnection({ iceServers: CONFIG.iceServers });
+
+            // Add our permanent destination audio track to PC
+            if (outboundTrack) {
+                pc.addTrack(outboundTrack, streamDest.stream);
+                log('webrtc', 'Attached Web Audio API outbound stream to WebRTC PeerConnection');
+            }
+
+            // Listen for ICE candidates
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({
+                        type: 'candidate',
+                        from: callerPhone,
+                        to: calleePhone,
+                        sdpMid: event.candidate.sdpMid,
+                        sdpMLineIndex: event.candidate.sdpMLineIndex,
+                        sdpCandidate: event.candidate.candidate
+                    }));
+                    log('webrtc', `Gathered and dispatched ICE candidate (${event.candidate.sdpMid})`);
+                }
+            };
+
+            // Remote audio playback
+            pc.ontrack = (event) => {
+                log('webrtc', `Received incoming remote audio track from mobile endpoint`);
+                const remoteAudio = document.getElementById('remoteAudio');
+                remoteAudio.srcObject = event.streams[0];
+            };
+
+            // Track connection state
+            pc.onconnectionstatechange = () => {
+                log('webrtc', `PeerConnection state: ${pc.connectionState}`);
+                if (pc.connectionState === 'connected') {
+                    currentCallState = 'connected';
+                    callStatusText.textContent = 'Call: Connected';
+                    callStatusDot.className = 'status-dot online';
+                    startCallTimer();
+                } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                    endCall('connection_loss');
+                }
+            };
+
+            // Create & set local Offer
+            try {
+                const offer = await pc.createOffer({
+                    offerToReceiveAudio: true,
+                    offerToReceiveVideo: false
+                });
+
+                // Fine-tune Opus SDP for AASIST-L / 16kHz linear tap
+                const tunedSdp = tuneOpusSdp(offer.sdp);
+                await pc.setLocalDescription(new RTCSessionDescription({ type: 'offer', sdp: tunedSdp }));
+
+                // Send offer to callee
+                ws.send(JSON.stringify({
+                    type: 'offer',
+                    from: callerPhone,
+                    callerName: callerName,
+                    to: calleePhone,
+                    sdp: tunedSdp
+                }));
+
+                log('webrtc', `Dispatched SDP Offer to ${calleePhone} (callerName: ${callerName})`);
+            } catch (err) {
+                log('error', `Failed to create SDP offer: ${err.message}`);
+                endCall('offer_failure');
+            }
+        }
+
+        async function handleRemoteAnswer(sdp) {
+            if (!pc) return;
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: sdp }));
+                log('webrtc', 'Applied remote SDP Answer successfully. Negotiating DTLS-SRTP...');
+            } catch (err) {
+                log('error', `Failed to apply remote answer: ${err.message}`);
+            }
+        }
+
+        async function handleRemoteCandidate(data) {
+            if (!pc) return;
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate({
+                    sdpMid: data.sdpMid,
+                    sdpMLineIndex: data.sdpMLineIndex,
+                    candidate: data.sdpCandidate
+                }));
+            } catch (err) {
+                log('warn', `Failed to add remote ICE candidate: ${err.message}`);
+            }
+        }
+
+        function hangupCall(reason = 'user_hangup') {
+            const callerPhone = document.getElementById('callerPhoneInput').value.trim();
+            const calleePhone = document.getElementById('calleePhoneInput').value.trim();
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'hangup',
+                    from: callerPhone,
+                    to: calleePhone,
+                    reason: reason
+                }));
+            }
+            log('webrtc', `Sent hangup notification (${reason})`);
+            endCall(reason);
+        }
+
+        function endCall(reason) {
+            if (callTimerInterval) {
+                clearInterval(callTimerInterval);
+                callTimerInterval = null;
+            }
+
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+
+            currentCallState = 'idle';
+            btnDial.disabled = false;
+            btnHangup.disabled = true;
+            callStatusText.textContent = 'Call: Idle';
+            callStatusDot.className = 'status-dot';
+            log('webrtc', `Call ended: ${reason}`);
+        }
+
+        function startCallTimer() {
+            callSeconds = 0;
+            if (callTimerInterval) clearInterval(callTimerInterval);
+            callTimerInterval = setInterval(() => {
+                callSeconds++;
+                const mins = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+                const secs = String(callSeconds % 60).padStart(2, '0');
+                callTimerDisplay.textContent = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        /**
+         * SDP Opus Profile Tuning
+         * Enforces mono channel and high-fidelity speech profile
+         */
+        function tuneOpusSdp(sdp) {
+            let lines = sdp.split('\r\n');
+            let opusPt = null;
+
+            for (let line of lines) {
+                if (line.startsWith('a=rtpmap:') && line.toLowerCase().includes('opus/48000')) {
+                    opusPt = line.split(':')[1].split(' ')[0];
+                    break;
+                }
+            }
+
+            if (opusPt) {
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].startsWith(`a=fmtp:${opusPt}`)) {
+                        lines[i] = `a=fmtp:${opusPt} minptime=10;useinbandfec=1;maxaveragebitrate=64000;stereo=0;sprop-stereo=0`;
+                        return lines.join('\r\n');
+                    }
+                }
+                // If not found, append fmtp
+                lines.push(`a=fmtp:${opusPt} minptime=10;useinbandfec=1;maxaveragebitrate=64000;stereo=0;sprop-stereo=0`);
+            }
+
+            return lines.join('\r\n');
+        }
+
+        /**
+         * 5. Real-Time Oscilloscope Waveform Renderer
+         */
+        function initVisualizerCanvas() {
+            function resizeCanvas() {
+                canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
+                canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            drawVisualizer();
+        }
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+            if (!canvasCtx) return;
+
+            const width = canvas.width;
+            const height = canvas.height;
+            canvasCtx.clearRect(0, 0, width, height);
+
+            // Draw Subtle Grid Lines
+            canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+            canvasCtx.lineWidth = 1;
+            for (let x = 0; x < width; x += 40) {
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(x, 0);
+                canvasCtx.lineTo(x, height);
+                canvasCtx.stroke();
+            }
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(0, height / 2);
+            canvasCtx.lineTo(width, height / 2);
+            canvasCtx.stroke();
+
+            if (!analyser) return;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            // Determine stroke color based on active channel
+            let strokeColor = '#00D2FF'; // Electric Cyan
+            if (activeChannel === 3 || activeChannel === 4) {
+                strokeColor = '#EF4444'; // Threat Crimson
+            } else if (activeChannel === 2) {
+                strokeColor = '#10B981'; // Safe Emerald
+            }
+
+            canvasCtx.lineWidth = 2.5 * window.devicePixelRatio;
+            canvasCtx.strokeStyle = strokeColor;
+            canvasCtx.shadowColor = strokeColor;
+            canvasCtx.shadowBlur = 12;
+            canvasCtx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0; // 0.0 to 2.0
+                const y = (v * height) / 2;
+
+                if (i === 0) {
+                    canvasCtx.moveTo(x, y);
+                } else {
+                    canvasCtx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            canvasCtx.lineTo(width, height / 2);
+            canvasCtx.stroke();
+            canvasCtx.shadowBlur = 0; // reset
+        }
+    </script>
+</body>
+</html>
