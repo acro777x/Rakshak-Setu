@@ -290,7 +290,8 @@ fun VoipActiveCallHudContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "WALD SPRT ACCUMULATOR (A = +5.288, B = -4.600)",
+                        text = "WALD SPRT ACCUMULATOR",
+                        modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = TextSecondary,
@@ -303,6 +304,12 @@ fun VoipActiveCallHudContent(
                         fontWeight = FontWeight.Bold
                     )
                 }
+                Text(
+                    text = "Bounds: A = +5.288 (Scam) | B = -4.600 (Safe)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary.copy(alpha = 0.75f),
+                    fontFamily = FontFamily.Monospace
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 

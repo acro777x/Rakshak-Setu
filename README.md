@@ -160,29 +160,31 @@ Protects against supplementary attack vectors (phishing links sent via SMS/Whats
 
 All screenshots below represent live production builds tested on physical hardware (**TECNO LJ8, Android 15** and **Poco F1, Android 14**):
 
-### Primary Defense &amp; Legal Forensics Showcase
+### Primary Defense & Legal Forensics Showcase
 
-<table align="center">
+<table align="center" width="100%">
   <tr>
-    <td align="center" width="25%">
-      <img src="docs/screenshots/01_in_call_threat_hud.png" width="240" alt="In-Call Threat HUD"/><br/>
-      <strong>1. In-Call Threat HUD</strong><br/>
-      <sub>Crimson alert with Wald SPRT (Λ = +5.620) &amp; emergency hang-up</sub>
+    <td align="center" width="50%" valign="top">
+      <img src="docs/screenshots/01_in_call_threat_hud.png" width="380" alt="Active In-Call HUD"/><br/>
+      <strong>1) Active In-Call HUD (Crimson Alert - Voice Clone Intercepted)</strong><br/>
+      <sub>Real-time full-screen crimson alert with Wald SPRT accumulator (Λ = +5.620) &amp; emergency hang-up gate</sub>
     </td>
-    <td align="center" width="25%">
-      <img src="docs/screenshots/02_scam_alert_evidence.png" width="240" alt="Evidence Dossier"/><br/>
-      <strong>2. Evidence &amp; Action Dossier</strong><br/>
-      <sub>Section 65B BSA court evidence with 1-tap 1930 police dispatch</sub>
+    <td align="center" width="50%" valign="top">
+      <img src="docs/screenshots/02_scam_alert_evidence.png" width="380" alt="Tamper-Evident Evidence Seal"/><br/>
+      <strong>2) Tamper-Evident Evidence Seal (Section 65B BSA Hardware Attestation)</strong><br/>
+      <sub>Section 65B BSA court-admissible electronic dossier signed via Android StrongBox Keystore with 1-tap 1930 dispatch</sub>
     </td>
-    <td align="center" width="25%">
-      <img src="docs/screenshots/03_defense_dashboard.png" width="240" alt="Defense Dashboard"/><br/>
-      <strong>3. Security Command Center</strong><br/>
-      <sub>Live on-device shield toggle, call/URL/QR/file scanners</sub>
+  </tr>
+  <tr>
+    <td align="center" width="50%" valign="top">
+      <img src="docs/screenshots/03_defense_dashboard.png" width="380" alt="Scan Hub & Security Dashboard"/><br/>
+      <strong>3) Scan Hub &amp; Security Dashboard</strong><br/>
+      <sub>Live on-device telemetry hub, zero-disk volatile shield monitor, and multi-vector scanning suite</sub>
     </td>
-    <td align="center" width="25%">
-      <img src="docs/screenshots/04_forensic_reports_audit.png" width="240" alt="Forensic Incident Audit"/><br/>
-      <strong>4. Forensic Audit &amp; Reports</strong><br/>
-      <sub>Logged high-risk incidents with StrongBox cryptographic seal</sub>
+    <td align="center" width="50%" valign="top">
+      <img src="docs/screenshots/04_forensic_reports_audit.png" width="380" alt="Forensic Audit & Incident Detail Report"/><br/>
+      <strong>4) Forensic Audit &amp; Incident Detail Report</strong><br/>
+      <sub>Tamper-evident incident registry with SHA-256 chain of custody and legal dossier export</sub>
     </td>
   </tr>
 </table>

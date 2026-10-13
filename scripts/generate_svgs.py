@@ -1,359 +1,452 @@
 import os
 
 def create_radar_svg():
-    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" width="100%" height="360" style="background: #090d16; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 340" width="100%" height="340" style="background: #FFFFFF; border: 1.5px solid #E2E8F0; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
   <defs>
-    <linearGradient id="radarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.6"/>
-      <stop offset="50%" stop-color="#00f0ff" stop-opacity="0.1"/>
-      <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.0"/>
+    <linearGradient id="radarGradLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" stop-opacity="0.35"/>
+      <stop offset="60%" stop-color="#3B82F6" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.0"/>
     </linearGradient>
-    <linearGradient id="threatGlow" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#ff0055" stop-opacity="0.8"/>
-      <stop offset="100%" stop-color="#ff7700" stop-opacity="0.8"/>
+    <linearGradient id="crimsonAlertGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#DC2626"/>
+      <stop offset="100%" stop-color="#EA580C"/>
     </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="4" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
     <style>
       @keyframes radarSweep {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
       }
-      @keyframes blinkPulse {
+      @keyframes pulseAlert {
         0%, 100% { opacity: 1; }
-        50% { opacity: 0.2; }
+        50% { opacity: 0.25; }
       }
       @keyframes waveFlow {
         0% { stroke-dashoffset: 0; }
         100% { stroke-dashoffset: -120; }
       }
       .sweep-beam {
-        transform-origin: 180px 180px;
+        transform-origin: 170px 170px;
         animation: radarSweep 4s linear infinite;
       }
-      .blink {
-        animation: blinkPulse 1.6s ease-in-out infinite;
+      .pulse-beacon {
+        animation: pulseAlert 1.5s ease-in-out infinite;
       }
-      .wave-line-1 {
+      .stream-wave {
         stroke-dasharray: 8 4;
         animation: waveFlow 2s linear infinite;
       }
     </style>
   </defs>
 
-  <!-- Background Grid and Accents -->
-  <g stroke="#152033" stroke-width="1">
+  <!-- Clean Grid Lines -->
+  <g stroke="#F1F5F9" stroke-width="1.5">
     <line x1="0" y1="60" x2="960" y2="60" />
-    <line x1="0" y1="180" x2="960" y2="180" />
-    <line x1="0" y1="300" x2="960" y2="300" />
-    <line x1="360" y1="0" x2="360" y2="360" stroke="#1a2942" stroke-width="1.5" />
-    <line x1="660" y1="0" x2="660" y2="360" stroke="#1a2942" stroke-width="1.5" />
+    <line x1="0" y1="170" x2="960" y2="170" />
+    <line x1="0" y1="280" x2="960" y2="280" />
+    <line x1="340" y1="0" x2="340" y2="340" stroke="#E2E8F0" stroke-width="1.5" />
+    <line x1="650" y1="0" x2="650" y2="340" stroke="#E2E8F0" stroke-width="1.5" />
   </g>
 
-  <!-- RADAR SECTION (Left: 0 - 360) -->
+  <!-- RADAR SECTION (Left: 0 - 340) -->
   <g transform="translate(0, 0)">
-    <circle cx="180" cy="180" r="130" fill="none" stroke="#1b2d4b" stroke-width="1.5" />
-    <circle cx="180" cy="180" r="95" fill="none" stroke="#1e3860" stroke-width="1.5" stroke-dasharray="4 4" />
-    <circle cx="180" cy="180" r="60" fill="none" stroke="#24497d" stroke-width="1.5" />
-    <circle cx="180" cy="180" r="25" fill="none" stroke="#2b5b9e" stroke-width="1.5" />
+    <circle cx="170" cy="170" r="120" fill="none" stroke="#CBD5E1" stroke-width="1.5" />
+    <circle cx="170" cy="170" r="90" fill="none" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="4 4" />
+    <circle cx="170" cy="170" r="60" fill="none" stroke="#CBD5E1" stroke-width="1.5" />
+    <circle cx="170" cy="170" r="30" fill="none" stroke="#94A3B8" stroke-width="1.5" />
     
-    <line x1="40" y1="180" x2="320" y2="180" stroke="#1e3860" stroke-width="1" />
-    <line x1="180" y1="40" x2="180" y2="320" stroke="#1e3860" stroke-width="1" />
-
-    <!-- Radar Sweep with Dual CSS and SMIL Animation -->
+    <line x1="40" y1="170" x2="300" y2="170" stroke="#CBD5E1" stroke-width="1" />
+    <line x1="170" y1="40" x2="170" y2="300" stroke="#CBD5E1" stroke-width="1" />
+    
+    <!-- Rotating Sweep Beam -->
     <g class="sweep-beam">
-      <animateTransform
-        attributeName="transform"
-        type="rotate"
-        from="0 180 180"
-        to="360 180 180"
-        dur="4s"
-        repeatCount="indefinite" />
-      <path d="M180,180 L310,180 A130,130 0 0,0 272,88 Z" fill="url(#radarGrad)" />
-      <line x1="180" y1="180" x2="310" y2="180" stroke="#00f0ff" stroke-width="2" filter="url(#glow)" />
+      <path d="M 170 170 L 290 170 A 120 120 0 0 0 255 85 Z" fill="url(#radarGradLight)" />
+      <line x1="170" y1="170" x2="290" y2="170" stroke="#2563EB" stroke-width="2" />
     </g>
 
-    <circle cx="245" cy="135" r="4.5" fill="#ff0055" filter="url(#glow)" class="blink">
-      <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite" />
-    </circle>
-    <circle cx="245" cy="135" r="9" fill="none" stroke="#ff0055" stroke-width="1" class="blink">
-      <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite" />
-    </circle>
-    <text x="260" y="132" fill="#ff0055" font-size="10" font-weight="bold" letter-spacing="1">SYNTH_VOCODER (98.4%)</text>
+    <!-- Radar Target 1: Intercepted Voice Clone -->
+    <circle cx="235" cy="115" r="5.5" fill="#DC2626" class="pulse-beacon" />
+    <circle cx="235" cy="115" r="11" fill="none" stroke="#EF4444" stroke-width="1" class="pulse-beacon" opacity="0.6" />
+    <text x="248" y="119" fill="#DC2626" font-size="10" font-weight="700">CLONE IDENTIFIED</text>
 
-    <circle cx="130" cy="220" r="3.5" fill="#00ff88" />
-    <text x="80" y="238" fill="#00ff88" font-size="9" opacity="0.8">BONAFIDE_PCM</text>
+    <!-- Radar Target 2: Safe Bonafide Speaker -->
+    <circle cx="110" cy="225" r="4.5" fill="#10B981" />
+    <text x="50" y="240" fill="#059669" font-size="9" font-weight="600">HUMAN VERIFIED</text>
 
-    <text x="24" y="32" fill="#00f0ff" font-size="12" font-weight="700" letter-spacing="1.5">THREAT RADAR • LIVE ACOUSTIC SCAN</text>
-    <text x="24" y="340" fill="#47688d" font-size="10" font-family="monospace">BANDWIDTH: 16kHz SincNet • LATENCY: 2.1s</text>
+    <!-- Center Pivot -->
+    <circle cx="170" cy="170" r="4" fill="#1E40AF" />
+
+    <text x="25" y="30" fill="#0F172A" font-size="11" font-weight="800">ACOUSTIC RADAR SWEEP</text>
+    <text x="25" y="44" fill="#64748B" font-size="9.5">SincNet 8kHz Telephony Filterbank</text>
   </g>
 
-  <!-- LIVE WAVEFORM AND SPECTRAL ANALYZER (Center: 360 - 660) -->
-  <g transform="translate(380, 0)">
-    <text x="0" y="32" fill="#ffb800" font-size="12" font-weight="700" letter-spacing="1.5">SPECTRAL HARMONICS &amp; PHASE JITTER</text>
-    
-    <path d="M 0,140 Q 30,80 60,140 T 120,140 T 180,110 T 240,165 T 260,140" fill="none" stroke="#00f0ff" stroke-width="2" filter="url(#glow)" class="wave-line-1">
-      <animate attributeName="stroke-dashoffset" from="0" to="-120" dur="2s" repeatCount="indefinite" />
-    </path>
-    <path d="M 0,140 Q 25,190 50,140 T 100,170 T 150,130 T 200,150 T 260,140" fill="none" stroke="#ff0055" stroke-width="1.8" opacity="0.8" stroke-dasharray="4 2" />
+  <!-- SPECTRAL HARMONICS & WAVEFORM SECTION (Center: 340 - 650) -->
+  <g transform="translate(350, 0)">
+    <text x="10" y="30" fill="#0F172A" font-size="11" font-weight="800">TELEPHONY WAVEFORM &amp; VOCODER PHASE</text>
+    <text x="10" y="44" fill="#64748B" font-size="9.5">Phase Jitter &amp; Cepstral Peak Prominence (CPP)</text>
 
-    <!-- Equalizer Spectrum Bars with Native SMIL + CSS -->
-    <g transform="translate(10, 260)">
-      <rect x="0" y="-50" width="8" height="50" fill="#00f0ff" rx="2">
-        <animate attributeName="height" values="20;50;25;60;20" dur="1.2s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-20;-50;-25;-60;-20" dur="1.2s" repeatCount="indefinite" />
-      </rect>
-      <rect x="16" y="-75" width="8" height="75" fill="#00f0ff" rx="2">
-        <animate attributeName="height" values="35;75;40;80;35" dur="0.9s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-35;-75;-40;-80;-35" dur="0.9s" repeatCount="indefinite" />
-      </rect>
-      <rect x="32" y="-95" width="8" height="95" fill="#00f0ff" rx="2">
-        <animate attributeName="height" values="45;95;60;100;45" dur="1.5s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-45;-95;-60;-100;-45" dur="1.5s" repeatCount="indefinite" />
-      </rect>
-      <rect x="48" y="-60" width="8" height="60" fill="#00f0ff" rx="2">
-        <animate attributeName="height" values="25;60;35;70;25" dur="1.1s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-25;-60;-35;-70;-25" dur="1.1s" repeatCount="indefinite" />
-      </rect>
-      <rect x="64" y="-40" width="8" height="40" fill="#00f0ff" rx="2">
-        <animate attributeName="height" values="15;40;25;50;15" dur="1.4s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-15;-40;-25;-50;-15" dur="1.4s" repeatCount="indefinite" />
-      </rect>
-      <rect x="80" y="-70" width="8" height="70" fill="#ffb800" rx="2">
-        <animate attributeName="height" values="30;70;45;85;30" dur="1.0s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-30;-70;-45;-85;-30" dur="1.0s" repeatCount="indefinite" />
-      </rect>
-      <rect x="96" y="-85" width="8" height="85" fill="#ffb800" rx="2">
-        <animate attributeName="height" values="40;85;50;90;40" dur="1.3s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-40;-85;-50;-90;-40" dur="1.3s" repeatCount="indefinite" />
-      </rect>
-      <rect x="112" y="-60" width="8" height="60" fill="#ffb800" rx="2">
-        <animate attributeName="height" values="20;60;30;75;20" dur="0.8s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-20;-60;-30;-75;-20" dur="0.8s" repeatCount="indefinite" />
-      </rect>
-      <rect x="128" y="-105" width="8" height="105" fill="#ff0055" rx="2" filter="url(#glow)">
-        <animate attributeName="height" values="50;105;65;115;50" dur="1.1s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-50;-105;-65;-115;-50" dur="1.1s" repeatCount="indefinite" />
-      </rect>
-      <rect x="144" y="-115" width="8" height="115" fill="#ff0055" rx="2" filter="url(#glow)">
-        <animate attributeName="height" values="60;115;75;125;60" dur="1.4s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-60;-115;-75;-125;-60" dur="1.4s" repeatCount="indefinite" />
-      </rect>
-      <rect x="160" y="-85" width="8" height="85" fill="#ff0055" rx="2">
-        <animate attributeName="height" values="35;85;45;95;35" dur="1.0s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-35;-85;-45;-95;-35" dur="1.0s" repeatCount="indefinite" />
-      </rect>
-      <rect x="176" y="-50" width="8" height="50" fill="#ff0055" rx="2">
-        <animate attributeName="height" values="20;50;30;60;20" dur="1.2s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-20;-50;-30;-60;-20" dur="1.2s" repeatCount="indefinite" />
-      </rect>
-      <rect x="192" y="-35" width="8" height="35" fill="#00ff88" rx="2">
-        <animate attributeName="height" values="15;35;20;45;15" dur="1.5s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-15;-35;-20;-45;-15" dur="1.5s" repeatCount="indefinite" />
-      </rect>
-      <rect x="208" y="-20" width="8" height="20" fill="#00ff88" rx="2">
-        <animate attributeName="height" values="10;20;15;30;10" dur="0.9s" repeatCount="indefinite" />
-        <animate attributeName="y" values="-10;-20;-15;-30;-10" dur="0.9s" repeatCount="indefinite" />
-      </rect>
-    </g>
+    <!-- Baseline In-Flight 16kHz PCM Waveform -->
+    <path d="M 10 130 Q 40 80, 70 130 T 130 130 T 190 130 T 250 130 T 280 130" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 2" opacity="0.7" />
 
-    <text x="0" y="295" fill="#8da2c0" font-size="10" font-family="monospace">SincNet Bandpass: 60Hz - 7.8kHz</text>
-    <text x="0" y="312" fill="#ff0055" font-size="10" font-family="monospace" font-weight="bold">Phase Discontinuity: DETECTED (p &lt; 0.001)</text>
-    <text x="0" y="340" fill="#47688d" font-size="10" font-family="monospace">BUFFER: SPSC Lock-Free RAM (Zero Disk IO)</text>
+    <!-- Genuine Speech Waveform (Blue) -->
+    <path d="M 10 160 Q 30 100, 60 160 T 120 160 T 180 160 T 240 160 T 280 160" fill="none" stroke="#2563EB" stroke-width="2.5" class="stream-wave" />
+
+    <!-- Synthetic Neural Vocoder Discontinuity (Crimson Jitter) -->
+    <path d="M 10 200 Q 25 240, 50 190 T 90 230 T 130 180 T 170 235 T 210 185 T 250 240 T 280 195" fill="none" stroke="#DC2626" stroke-width="2" />
+
+    <!-- Waveform Labels -->
+    <rect x="10" y="248" width="130" height="22" rx="4" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1" />
+    <text x="16" y="263" fill="#1D4ED8" font-size="9.5" font-weight="700">● Genuine Vocal Track</text>
+
+    <rect x="148" y="248" width="134" height="22" rx="4" fill="#FEF2F2" stroke="#FECACA" stroke-width="1" />
+    <text x="154" y="263" fill="#DC2626" font-size="9.5" font-weight="700">▲ Vocoder Phase Glitch</text>
+
+    <!-- Telephony Metrics Card -->
+    <rect x="10" y="285" width="272" height="38" rx="6" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+    <text x="18" y="301" fill="#475569" font-size="9.5">AMR-NB Codec Loss: <tspan fill="#059669" font-weight="700">Compensated</tspan></text>
+    <text x="18" y="315" fill="#475569" font-size="9.5">CPP Metric: <tspan fill="#DC2626" font-weight="700">4.12 dB (Anomalous)</tspan></text>
   </g>
 
-  <!-- WALD SPRT DECISION ENGINE (Right: 660 - 960) -->
-  <g transform="translate(680, 0)">
-    <text x="0" y="32" fill="#00ff88" font-size="12" font-weight="700" letter-spacing="1.5">WALD'S SPRT CONFIDENCE</text>
-    
-    <rect x="0" y="55" width="255" height="80" rx="8" fill="#111927" stroke="#ff0055" stroke-width="1.5" />
-    <circle cx="24" cy="80" r="8" fill="#ff0055" class="blink">
-      <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite" />
-    </circle>
-    <text x="42" y="84" fill="#ffffff" font-size="14" font-weight="700">CRIMSON THREAT ALERT</text>
-    <text x="42" y="102" fill="#ff0055" font-size="11" font-family="monospace" font-weight="bold">DECISION LOG-RATIO: +6.41</text>
-    <text x="42" y="120" fill="#8da2c0" font-size="10">Threshold A = +5.288 (Cloned Impersonation)</text>
+  <!-- WALD'S SPRT DECISION ACCUMULATOR (Right: 650 - 960) -->
+  <g transform="translate(660, 0)">
+    <text x="10" y="30" fill="#0F172A" font-size="11" font-weight="800">WALD'S SPRT SEQUENTIAL CONVERGENCE</text>
+    <text x="10" y="44" fill="#64748B" font-size="9.5">Log-Likelihood Stopping Bounds (α ≤ 0.5%)</text>
 
-    <g transform="translate(0, 155)">
-      <rect x="0" y="0" width="120" height="52" rx="6" fill="#111927" stroke="#1c2d47" />
-      <text x="10" y="18" fill="#6f8ab0" font-size="9" font-weight="bold">FALSE ALARM (α)</text>
-      <text x="10" y="38" fill="#00ff88" font-size="16" font-weight="bold" font-family="monospace">≤ 0.5%</text>
+    <!-- SPRT Boundary Graph -->
+    <g transform="translate(10, 60)">
+      <!-- Threshold A: Cloned Scam -->
+      <line x1="0" y1="35" x2="270" y2="35" stroke="#DC2626" stroke-width="1.5" stroke-dasharray="4 2" />
+      <text x="185" y="30" fill="#DC2626" font-size="9.5" font-weight="700">A = +5.288 (FRAUD)</text>
 
-      <rect x="135" y="0" width="120" height="52" rx="6" fill="#111927" stroke="#1c2d47" />
-      <text x="145" y="18" fill="#6f8ab0" font-size="9" font-weight="bold">STOPPING TIME</text>
-      <text x="145" y="38" fill="#00f0ff" font-size="16" font-weight="bold" font-family="monospace">2.4 sec</text>
+      <!-- Baseline 0 -->
+      <line x1="0" y1="95" x2="270" y2="95" stroke="#CBD5E1" stroke-width="1" />
+      <text x="210" y="91" fill="#94A3B8" font-size="9">Baseline (0.00)</text>
+
+      <!-- Threshold B: Bonafide Safe -->
+      <line x1="0" y1="155" x2="270" y2="155" stroke="#059669" stroke-width="1.5" stroke-dasharray="4 2" />
+      <text x="195" y="169" fill="#059669" font-size="9.5" font-weight="700">B = -4.600 (SAFE)</text>
+
+      <!-- Trajectory of Cloned Threat (Rapid Convergence to A) -->
+      <path d="M 0 95 L 35 90 L 70 80 L 105 60 L 140 40 L 165 34" fill="none" stroke="#DC2626" stroke-width="2.5" />
+      <circle cx="165" cy="34" r="5" fill="#DC2626" class="pulse-beacon" />
+      <text x="145" y="20" fill="#DC2626" font-size="9" font-weight="800">t = 2.3s</text>
+
+      <!-- Trajectory of Safe Call (Downward to B) -->
+      <path d="M 0 95 L 40 105 L 85 125 L 130 145 L 160 156" fill="none" stroke="#059669" stroke-width="2" stroke-dasharray="3 3" />
+      <circle cx="160" cy="156" r="4" fill="#059669" />
     </g>
 
-    <g transform="translate(0, 220)">
-      <rect x="0" y="0" width="255" height="56" rx="6" fill="#111927" stroke="#1c2d47" />
-      <text x="12" y="18" fill="#6f8ab0" font-size="9" font-weight="bold">BSA 2023 / SEC 65B EVIDENCE DOSSIER</text>
-      <text x="12" y="36" fill="#ffb800" font-size="11" font-family="monospace">SHA256: 7f8b9a2c... StrongBox-Signed</text>
-      <text x="12" y="49" fill="#00ff88" font-size="9" font-weight="bold">READY FOR 1930 / NCRP / CHAKSHU</text>
-    </g>
-
-    <text x="0" y="340" fill="#47688d" font-size="10" font-family="monospace">SIH 2026 • PS26104 • TEAM FORGE LABS</text>
+    <!-- Verdict Banner -->
+    <rect x="10" y="258" width="270" height="65" rx="8" fill="#FEF2F2" stroke="#FECACA" stroke-width="1.5" />
+    <text x="20" y="278" fill="#991B1B" font-size="11" font-weight="800">CRIMSON FRAUD INTERCEPT TRIGGERED</text>
+    <text x="20" y="296" fill="#B91C1C" font-size="9.5">Wald SPRT Log-Likelihood: <tspan font-weight="700">Λ = +5.620</tspan></text>
+    <text x="20" y="312" fill="#475569" font-size="9">Action: In-Call HUD + StrongBox Sec 65B Seal</text>
   </g>
-</svg>
-"""
+</svg>"""
 
 def create_pipeline_svg():
-    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="100%" height="440" style="background: #080c14; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 420" width="100%" height="420" style="background: #FFFFFF; border: 1.5px solid #E2E8F0; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
   <defs>
-    <linearGradient id="pipeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#00f0ff"/>
-      <stop offset="50%" stop-color="#7928ca"/>
-      <stop offset="100%" stop-color="#ff0055"/>
-    </linearGradient>
-    <filter id="glowPipe" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="3" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    <filter id="lightCardShadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0F172A" flood-opacity="0.05" />
     </filter>
     <style>
-      @keyframes dash {
-        to { stroke-dashoffset: -32; }
+      @keyframes dashAnim {
+        to { stroke-dashoffset: -24; }
       }
-      .flow-path {
-        stroke-dasharray: 6 6;
-        animation: dash 1s linear infinite;
+      .flow-stream {
+        stroke-dasharray: 6 4;
+        animation: dashAnim 1.2s linear infinite;
       }
     </style>
   </defs>
 
   <!-- Title & Subtitle Header -->
-  <text x="30" y="36" fill="#00f0ff" font-size="16" font-weight="800" letter-spacing="1.5">RAKSHAK SETU (रक्षक सेतु) — DUAL-TRACK ON-DEVICE PIPELINE</text>
-  <text x="30" y="54" fill="#758ea8" font-size="11">Sovereign Telecom Call Interception • 100% On-Device Edge ML • DPDP Act 2023 &amp; BSA Sec 65B Compliant</text>
+  <text x="30" y="34" fill="#0F172A" font-size="16" font-weight="800" letter-spacing="0.5">RAKSHAK SETU (रक्षक सेतु) — DUAL-TRACK ON-DEVICE PIPELINE</text>
+  <text x="30" y="52" fill="#475569" font-size="11.5">Sovereign Telecom Call Interception • 100% On-Device Edge ML • DPDP Act 2023 &amp; BSA Sec 65B Compliant</text>
+  <line x1="30" y1="68" x2="970" y2="68" stroke="#E2E8F0" stroke-width="1.5" />
 
   <!-- PHASE 1: TELECOM INGEST -->
-  <g transform="translate(30, 80)">
-    <rect x="0" y="0" width="160" height="140" rx="8" fill="#0f1726" stroke="#1e3454" stroke-width="1.5" />
-    <rect x="0" y="0" width="160" height="28" rx="8" fill="#16263d" />
-    <text x="12" y="19" fill="#38bdf8" font-size="11" font-weight="bold">1. TELECOM INGEST</text>
-    <text x="12" y="50" fill="#e2e8f0" font-size="11" font-weight="600">Android 14+ Telecom</text>
-    <text x="12" y="68" fill="#8da2c0" font-size="9.5">• ConnectionService Hook</text>
-    <text x="12" y="84" fill="#8da2c0" font-size="9.5">• WebRTC DTLS-SRTP</text>
-    <text x="12" y="100" fill="#8da2c0" font-size="9.5">• Opus to 16kHz PCM</text>
-    <rect x="10" y="114" width="140" height="18" rx="4" fill="#0284c7" opacity="0.2" />
-    <text x="16" y="127" fill="#38bdf8" font-size="9" font-weight="bold">IN-FLIGHT STREAM</text>
+  <g transform="translate(30, 85)" filter="url(#lightCardShadow)">
+    <rect x="0" y="0" width="165" height="150" rx="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" />
+    <path d="M 0 8 Q 0 0 8 0 L 157 0 Q 165 0 165 8 L 165 30 L 0 30 Z" fill="#F0F9FF" />
+    <text x="12" y="20" fill="#0284C7" font-size="11" font-weight="bold">1. TELECOM INGEST</text>
+    <text x="12" y="52" fill="#0F172A" font-size="11" font-weight="600">Android 14+ Telecom</text>
+    <text x="12" y="70" fill="#475569" font-size="10">• ConnectionService</text>
+    <text x="12" y="86" fill="#475569" font-size="10">• WebRTC DTLS-SRTP</text>
+    <text x="12" y="102" fill="#475569" font-size="10">• 16kHz PCM Stream</text>
+    <rect x="10" y="118" width="145" height="20" rx="4" fill="#E0F2FE" />
+    <text x="18" y="132" fill="#0284C7" font-size="9" font-weight="bold">IN-FLIGHT STREAM</text>
   </g>
 
   <!-- FLOW ARROW 1 -> 2 -->
-  <path d="M 190,150 L 230,150" stroke="#00f0ff" stroke-width="2" fill="none" class="flow-path">
-    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
-  </path>
+  <line x1="195" y1="160" x2="235" y2="160" stroke="#0284C7" stroke-width="2.5" class="flow-stream" />
 
   <!-- PHASE 2: SPSC CIRCULAR RAM BUFFER -->
-  <g transform="translate(230, 80)">
-    <rect x="0" y="0" width="160" height="140" rx="8" fill="#0f1726" stroke="#818cf8" stroke-width="1.5" />
-    <rect x="0" y="0" width="160" height="28" rx="8" fill="#22204c" />
-    <text x="12" y="19" fill="#a5b4fc" font-size="11" font-weight="bold">2. SPSC RAM BUFFER</text>
-    <text x="12" y="50" fill="#e2e8f0" font-size="11" font-weight="600">Lock-Free Circular RAM</text>
-    <text x="12" y="68" fill="#8da2c0" font-size="9.5">• 32KB Circular Array</text>
-    <text x="12" y="84" fill="#8da2c0" font-size="9.5">• Atomic Read/Write Ptr</text>
-    <text x="12" y="100" fill="#34d399" font-size="9.5" font-weight="bold">• ZERO DISK WRITE (RAM)</text>
-    <rect x="10" y="114" width="140" height="18" rx="4" fill="#10b981" opacity="0.2" />
-    <text x="16" y="127" fill="#34d399" font-size="9" font-weight="bold">DPDP ACT 2023 COMPLIANT</text>
+  <g transform="translate(235, 85)" filter="url(#lightCardShadow)">
+    <rect x="0" y="0" width="165" height="150" rx="8" fill="#FFFFFF" stroke="#A7F3D0" stroke-width="1.5" />
+    <path d="M 0 8 Q 0 0 8 0 L 157 0 Q 165 0 165 8 L 165 30 L 0 30 Z" fill="#ECFDF5" />
+    <text x="12" y="20" fill="#059669" font-size="11" font-weight="bold">2. SPSC RAM RING</text>
+    <text x="12" y="52" fill="#0F172A" font-size="11" font-weight="600">Lock-Free Circular RAM</text>
+    <text x="12" y="70" fill="#475569" font-size="10">• 32KB Circular Array</text>
+    <text x="12" y="86" fill="#475569" font-size="10">• Atomic Ptr Exchange</text>
+    <text x="12" y="102" fill="#059669" font-size="10" font-weight="bold">• ZERO DISK WRITE</text>
+    <rect x="10" y="118" width="145" height="20" rx="4" fill="#D1FAE5" />
+    <text x="16" y="132" fill="#047857" font-size="9" font-weight="bold">DPDP ACT 2023 PRIVACY</text>
   </g>
 
   <!-- BRANCH ARROWS 2 -> TRACK A & TRACK B -->
-  <path d="M 390,130 L 430,110" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-path">
-    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
-  </path>
-  <path d="M 390,170 L 430,230" stroke="#c084fc" stroke-width="2" fill="none" class="flow-path">
-    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
-  </path>
+  <path d="M 400,135 C 420,135 420,110 440,110" fill="none" stroke="#2563EB" stroke-width="2" class="flow-stream" />
+  <path d="M 400,185 C 420,185 420,210 440,210" fill="none" stroke="#7C3AED" stroke-width="2" class="flow-stream" />
 
-  <!-- TRACK A: ACOUSTIC ENGINE -->
-  <g transform="translate(430, 45)">
-    <rect x="0" y="0" width="230" height="125" rx="8" fill="#0f1726" stroke="#38bdf8" stroke-width="1.5" />
-    <rect x="0" y="0" width="230" height="26" rx="8" fill="#122b47" />
-    <text x="12" y="18" fill="#38bdf8" font-size="11" font-weight="bold">TRACK A: ACOUSTIC ENGINE (HOW)</text>
-    <text x="12" y="46" fill="#e2e8f0" font-size="10.5" font-weight="600">AASIST-L INT8 ONNX [1, 1, 16000L]</text>
-    <text x="12" y="63" fill="#8da2c0" font-size="9">• SincNet Learnable Bandpass (8kHz Safe)</text>
-    <text x="12" y="78" fill="#8da2c0" font-size="9">• Neural Vocoder Phase Jitter Extraction</text>
-    <text x="12" y="93" fill="#8da2c0" font-size="9">• Cepstral Peak Prominence &amp; Shimmer</text>
-    <text x="12" y="112" fill="#38bdf8" font-size="9.5" font-weight="bold">Voice Biometric Authenticity Score</text>
+  <!-- PHASE 3A: TRACK A ACOUSTIC -->
+  <g transform="translate(440, 75)" filter="url(#lightCardShadow)">
+    <rect x="0" y="0" width="190" height="95" rx="8" fill="#FFFFFF" stroke="#BFDBFE" stroke-width="1.5" />
+    <path d="M 0 8 Q 0 0 8 0 L 182 0 Q 190 0 190 8 L 190 26 L 0 26 Z" fill="#EFF6FF" />
+    <text x="10" y="18" fill="#1D4ED8" font-size="10.5" font-weight="bold">TRACK A: ACOUSTIC BIO</text>
+    <text x="10" y="44" fill="#475569" font-size="9.5">• AASIST-L INT8 ONNX Mobile</text>
+    <text x="10" y="60" fill="#475569" font-size="9.5">• SincNet 8kHz Telephony Filter</text>
+    <text x="10" y="76" fill="#475569" font-size="9.5">• Vocoder Phase Jitter &amp; CPP</text>
   </g>
 
-  <!-- TRACK B: SEMANTIC ENGINE -->
-  <g transform="translate(430, 190)">
-    <rect x="0" y="0" width="230" height="125" rx="8" fill="#0f1726" stroke="#c084fc" stroke-width="1.5" />
-    <rect x="0" y="0" width="230" height="26" rx="8" fill="#2b1b47" />
-    <text x="12" y="18" fill="#c084fc" font-size="11" font-weight="bold">TRACK B: SEMANTIC ENGINE (WHAT)</text>
-    <text x="12" y="46" fill="#e2e8f0" font-size="10.5" font-weight="600">Streaming Vosk ASR + MiniLM</text>
-    <text x="12" y="63" fill="#8da2c0" font-size="9">• Aho-Corasick Multi-Pattern Threat Trie</text>
-    <text x="12" y="78" fill="#8da2c0" font-size="9">• 21+ Indian Scam Vectors (Digital Arrest)</text>
-    <text x="12" y="93" fill="#8da2c0" font-size="9">• Intent Cosine Distance &amp; Coercion Map</text>
-    <text x="12" y="112" fill="#c084fc" font-size="9.5" font-weight="bold">Extortion &amp; Scam Intent Score</text>
+  <!-- PHASE 3B: TRACK B SEMANTIC -->
+  <g transform="translate(440, 185)" filter="url(#lightCardShadow)">
+    <rect x="0" y="0" width="190" height="95" rx="8" fill="#FFFFFF" stroke="#DDD6FE" stroke-width="1.5" />
+    <path d="M 0 8 Q 0 0 8 0 L 182 0 Q 190 0 190 8 L 190 26 L 0 26 Z" fill="#F5F3FF" />
+    <text x="10" y="18" fill="#6D28D9" font-size="10.5" font-weight="bold">TRACK B: SEMANTIC INTENT</text>
+    <text x="10" y="44" fill="#475569" font-size="9.5">• Streaming Vosk ASR Engine</text>
+    <text x="10" y="60" fill="#475569" font-size="9.5">• 450+ Threat Trie (Aho-Corasick)</text>
+    <text x="10" y="76" fill="#475569" font-size="9.5">• 21+ Indian Scam Taxonomies</text>
   </g>
 
-  <!-- MERGE INTO SPRT ENGINE -->
-  <path d="M 660,110 L 700,160" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-path">
-    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
-  </path>
-  <path d="M 660,240 L 700,180" stroke="#c084fc" stroke-width="2" fill="none" class="flow-path">
-    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
-  </path>
+  <!-- CONVERGENCE ARROWS TO WALD SPRT -->
+  <path d="M 630,122 C 650,122 650,160 670,160" fill="none" stroke="#2563EB" stroke-width="2" class="flow-stream" />
+  <path d="M 630,232 C 650,232 650,160 670,160" fill="none" stroke="#7C3AED" stroke-width="2" class="flow-stream" />
 
-  <!-- PHASE 4: WALD SPRT DECISION ENGINE -->
-  <g transform="translate(700, 110)">
-    <rect x="0" y="0" width="270" height="125" rx="8" fill="#150e24" stroke="#f59e0b" stroke-width="2" />
-    <rect x="0" y="0" width="270" height="28" rx="8" fill="#2b1a05" />
-    <text x="12" y="19" fill="#fbbf24" font-size="11" font-weight="bold">4. WALD'S SPRT DECISION MATRIX</text>
-    <text x="12" y="48" fill="#ffffff" font-size="10.5" font-weight="bold">Sequential Probability Ratio Test</text>
-    <text x="12" y="66" fill="#e2e8f0" font-size="9.5">• Upper Threat Threshold: <tspan fill="#ef4444" font-weight="bold">A = +5.288</tspan></text>
-    <text x="12" y="82" fill="#e2e8f0" font-size="9.5">• Lower Safe Threshold: <tspan fill="#10b981" font-weight="bold">B = -4.600</tspan></text>
-    <text x="12" y="98" fill="#38bdf8" font-size="9.5">• Stopping Time: <tspan font-weight="bold">2.1 - 2.6 sec</tspan> | α ≤ 0.5%</text>
-    <text x="12" y="114" fill="#fbbf24" font-size="9" font-weight="bold">Zero Indecision • Mathematically Optimal</text>
+  <!-- PHASE 4: WALD'S SPRT -->
+  <g transform="translate(670, 85)" filter="url(#lightCardShadow)">
+    <rect x="0" y="0" width="155" height="150" rx="8" fill="#FFFFFF" stroke="#FED7AA" stroke-width="1.5" />
+    <path d="M 0 8 Q 0 0 8 0 L 147 0 Q 155 0 155 8 L 155 30 L 0 30 Z" fill="#FFF7ED" />
+    <text x="10" y="20" fill="#EA580C" font-size="11" font-weight="bold">4. WALD'S SPRT</text>
+    <text x="10" y="52" fill="#0F172A" font-size="11" font-weight="600">Sequential Stopping</text>
+    <text x="10" y="70" fill="#475569" font-size="10">• Log-Likelihood Λ_n</text>
+    <text x="10" y="86" fill="#DC2626" font-size="10" font-weight="bold">• A = +5.288 (Scam)</text>
+    <text x="10" y="102" fill="#059669" font-size="10" font-weight="bold">• B = -4.600 (Safe)</text>
+    <rect x="8" y="118" width="139" height="20" rx="4" fill="#FFEDD5" />
+    <text x="14" y="132" fill="#C2410C" font-size="9" font-weight="bold">2.1s – 2.6s CONVERGENCE</text>
   </g>
 
-  <!-- FLOW DOWN TO ENFORCEMENT & FORENSICS -->
-  <path d="M 835,235 L 835,290" stroke="#ef4444" stroke-width="2.5" fill="none" class="flow-path">
-    <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite" />
-  </path>
+  <!-- FLOW ARROWS 4 -> 5 -->
+  <line x1="825" y1="160" x2="855" y2="160" stroke="#DC2626" stroke-width="2.5" class="flow-stream" />
 
-  <!-- PHASE 5: IMMEDIATE ACTION & BSA 2023 FORENSICS -->
-  <g transform="translate(30, 290)">
-    <rect x="0" y="0" width="940" height="125" rx="8" fill="#180a10" stroke="#ef4444" stroke-width="1.5" />
-    <rect x="0" y="0" width="940" height="26" rx="8" fill="#330c17" />
-    <text x="16" y="18" fill="#f87171" font-size="11" font-weight="bold">5. CITIZEN DEFENSE ENFORCEMENT &amp; COURTROOM EVIDENCE ADMISSIBILITY (BSA 2023)</text>
+  <!-- PHASE 5: ACTION & BSA EVIDENCE -->
+  <g transform="translate(855, 85)" filter="url(#lightCardShadow)">
+    <rect x="0" y="0" width="130" height="150" rx="8" fill="#FFFFFF" stroke="#FECDD3" stroke-width="1.5" />
+    <path d="M 0 8 Q 0 0 8 0 L 122 0 Q 130 0 130 8 L 130 30 L 0 30 Z" fill="#FFF1F2" />
+    <text x="10" y="20" fill="#BE123C" font-size="10.5" font-weight="bold">5. DEFENSE</text>
+    <text x="10" y="52" fill="#DC2626" font-size="10.5" font-weight="700">• Crimson HUD</text>
+    <text x="10" y="68" fill="#475569" font-size="9.5">• Audio Killswitch</text>
+    <text x="10" y="84" fill="#475569" font-size="9.5">• StrongBox Keystore</text>
+    <text x="10" y="100" fill="#475569" font-size="9.5">• Sec 65B BSA Dossier</text>
+    <rect x="8" y="118" width="114" height="20" rx="4" fill="#FFE4E6" />
+    <text x="12" y="132" fill="#BE123C" font-size="8.5" font-weight="bold">1930 / CHAKSHU</text>
+  </g>
+
+  <!-- Bottom Metric Strip -->
+  <rect x="30" y="360" width="940" height="42" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+  <text x="45" y="386" fill="#475569" font-size="11"><strong>Edge Resource Profile:</strong> Model Size: <tspan fill="#1D4ED8" font-weight="700">6.2 MB</tspan> | Average CPU: <tspan fill="#059669" font-weight="700">&lt; 3.2%</tspan> | Battery Drain: <tspan fill="#059669" font-weight="700">&lt; 1.4%/hr</tspan> | Offline Resilient: <tspan fill="#059669" font-weight="700">100%</tspan> | Cloud Cost: <tspan fill="#059669" font-weight="700">₹0.00</tspan></text>
+</svg>"""
+
+def create_architecture_light_svg():
+    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 460" width="100%" height="460" style="background: #FFFFFF; border: 1.5px solid #E2E8F0; border-radius: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <filter id="cardShadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.06" />
+    </filter>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1E40AF" />
+      <stop offset="100%" stop-color="#0D9488" />
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#64748B" />
+    </marker>
+  </defs>
+
+  <!-- Top Decorative Header Bar -->
+  <rect x="0" y="0" width="1120" height="8" fill="url(#headerGrad)" rx="7" />
+
+  <!-- Header Banner -->
+  <g transform="translate(35, 30)">
+    <text x="0" y="22" fill="#0F172A" font-size="20" font-weight="800" letter-spacing="0.3">🛡️ RAKSHAK SETU (रक्षक सेतु) — SOVEREIGN ON-DEVICE DEFENSE PIPELINE</text>
+    <text x="0" y="42" fill="#475569" font-size="12.5" font-weight="500">Real-Time Acoustic &amp; Semantic Scam Interception • 100% Handset RAM (Zero Disk I/O) • Section 65B BSA 2023 Attested</text>
     
-    <g transform="translate(20, 38)">
-      <rect x="0" y="0" width="280" height="72" rx="6" fill="#220d15" stroke="#ef4444" />
-      <text x="12" y="20" fill="#ffffff" font-size="11" font-weight="bold">IN-CALL CRIMSON HUD</text>
-      <text x="12" y="38" fill="#fca5a5" font-size="9.5">• Full-Screen Threat Warning</text>
-      <text x="12" y="54" fill="#fca5a5" font-size="9.5">• One-Tap Emergency Call Killswitch</text>
-    </g>
-
-    <g transform="translate(320, 38)">
-      <rect x="0" y="0" width="280" height="72" rx="6" fill="#1b1c0b" stroke="#eab308" />
-      <text x="12" y="20" fill="#ffffff" font-size="11" font-weight="bold">GOVERNMENT PORTAL CO-PILOT</text>
-      <text x="12" y="38" fill="#fef08a" font-size="9.5">• NCRP 1930 Cybercrime Auto-Fill</text>
-      <text x="12" y="54" fill="#fef08a" font-size="9.5">• DoT Chakshu Sanchar Saathi Dispatch</text>
-    </g>
-
-    <g transform="translate(620, 38)">
-      <rect x="0" y="0" width="300" height="72" rx="6" fill="#0b1f1a" stroke="#10b981" />
-      <text x="12" y="20" fill="#ffffff" font-size="11" font-weight="bold">BSA 2023 / SEC 65B FORENSIC SEAL</text>
-      <text x="12" y="38" fill="#6ee7b7" font-size="9.5">• Hardware Keystore / StrongBox Signature</text>
-      <text x="12" y="54" fill="#6ee7b7" font-size="9.5">• SHA-256 Tamper-Evident Court Dossier</text>
+    <!-- Badges -->
+    <g transform="translate(790, 2)">
+      <rect x="0" y="0" width="125" height="24" rx="12" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1" />
+      <text x="62" y="16" fill="#1D4ED8" font-size="11" font-weight="700" text-anchor="middle">SIH2026 PS26104</text>
+      
+      <rect x="133" y="0" width="130" height="24" rx="12" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1" />
+      <text x="198" y="16" fill="#047857" font-size="11" font-weight="700" text-anchor="middle">DPDP ACT 2023</text>
     </g>
   </g>
-</svg>
-"""
+
+  <!-- Divider Line -->
+  <line x1="35" y1="88" x2="1085" y2="88" stroke="#E2E8F0" stroke-width="1.5" />
+
+  <!-- STAGE 1: TELECOM INGESTION -->
+  <g transform="translate(35, 108)" filter="url(#cardShadow)">
+    <rect x="0" y="0" width="195" height="320" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" />
+    <path d="M 0 10 Q 0 0 10 0 L 185 0 Q 195 0 195 10 L 195 38 L 0 38 Z" fill="#F0F9FF" />
+    <text x="14" y="24" fill="#0369A1" font-size="12" font-weight="800">1. IN-FLIGHT INGEST</text>
+    <rect x="138" y="11" width="46" height="16" rx="8" fill="#E0F2FE" />
+    <text x="161" y="23" fill="#0284C7" font-size="8.5" font-weight="700" text-anchor="middle">EDGE</text>
+
+    <text x="14" y="60" fill="#0F172A" font-size="12" font-weight="700">Android Telephony</text>
+    <text x="14" y="78" fill="#475569" font-size="10.5">• TelecomManager Hook</text>
+    <text x="14" y="94" fill="#475569" font-size="10.5">• ConnectionService</text>
+    <text x="14" y="110" fill="#475569" font-size="10.5">• WebRTC DTLS-SRTP</text>
+
+    <line x1="14" y1="124" x2="181" y2="124" stroke="#F1F5F9" stroke-width="1.5" />
+
+    <text x="14" y="145" fill="#0F172A" font-size="12" font-weight="700">Audio Stream</text>
+    <text x="14" y="163" fill="#475569" font-size="10.5">• 16 kHz Mono 16-bit</text>
+    <text x="14" y="179" fill="#475569" font-size="10.5">• Downsampled from 48k</text>
+    <text x="14" y="195" fill="#475569" font-size="10.5">• Non-intrusive stream tap</text>
+
+    <rect x="12" y="260" width="171" height="46" rx="6" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+    <text x="20" y="278" fill="#0369A1" font-size="9.5" font-weight="700">Latency Overhead</text>
+    <text x="20" y="295" fill="#0F172A" font-size="12" font-weight="800">&lt; 1.2 ms per frame</text>
+  </g>
+
+  <!-- Flow Connector 1 -> 2 -->
+  <line x1="232" y1="268" x2="249" y2="268" stroke="#64748B" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STAGE 2: VOLATILE SPSC BUFFER -->
+  <g transform="translate(252, 108)" filter="url(#cardShadow)">
+    <rect x="0" y="0" width="195" height="320" rx="10" fill="#FFFFFF" stroke="#A7F3D0" stroke-width="1.5" />
+    <path d="M 0 10 Q 0 0 10 0 L 185 0 Q 195 0 195 10 L 195 38 L 0 38 Z" fill="#ECFDF5" />
+    <text x="14" y="24" fill="#047857" font-size="12" font-weight="800">2. SPSC RAM RING</text>
+    <rect x="136" y="11" width="48" height="16" rx="8" fill="#D1FAE5" />
+    <text x="160" y="23" fill="#059669" font-size="8.5" font-weight="700" text-anchor="middle">PRIVACY</text>
+
+    <text x="14" y="60" fill="#0F172A" font-size="12" font-weight="700">Zero-Disk Volatile RAM</text>
+    <text x="14" y="78" fill="#475569" font-size="10.5">• 32 KB Circular Buffer</text>
+    <text x="14" y="94" fill="#475569" font-size="10.5">• Lock-Free Atomics</text>
+    <text x="14" y="110" fill="#475569" font-size="10.5">• Single Producer/Cons.</text>
+
+    <line x1="14" y1="124" x2="181" y2="124" stroke="#F1F5F9" stroke-width="1.5" />
+
+    <text x="14" y="145" fill="#0F172A" font-size="12" font-weight="700">Statutory Security</text>
+    <text x="14" y="163" fill="#047857" font-size="10.5" font-weight="600">✓ DPDP Act 2023 Sec 6/8</text>
+    <text x="14" y="179" fill="#475569" font-size="10.5">• Zero flash storage I/O</text>
+    <text x="14" y="195" fill="#475569" font-size="10.5">• Auto-zeroed on hangup</text>
+
+    <rect x="12" y="260" width="171" height="46" rx="6" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1" />
+    <text x="20" y="278" fill="#047857" font-size="9.5" font-weight="700">Data Leakage Risk</text>
+    <text x="20" y="295" fill="#0F172A" font-size="12" font-weight="800">0.00% (Pure RAM)</text>
+  </g>
+
+  <!-- Flow Connector 2 -> 3 -->
+  <line x1="449" y1="268" x2="466" y2="268" stroke="#64748B" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STAGE 3: DUAL-TRACK EDGE ML -->
+  <g transform="translate(469, 108)" filter="url(#cardShadow)">
+    <rect x="0" y="0" width="210" height="320" rx="10" fill="#FFFFFF" stroke="#DDD6FE" stroke-width="1.5" />
+    <path d="M 0 10 Q 0 0 10 0 L 200 0 Q 210 0 210 10 L 210 38 L 0 38 Z" fill="#F5F3FF" />
+    <text x="14" y="24" fill="#6D28D9" font-size="12" font-weight="800">3. DUAL-TRACK AI</text>
+    <rect x="146" y="11" width="52" height="16" rx="8" fill="#EDE9FE" />
+    <text x="172" y="23" fill="#7C3AED" font-size="8.5" font-weight="700" text-anchor="middle">ONNX INT8</text>
+
+    <text x="14" y="58" fill="#0F172A" font-size="11.5" font-weight="700">Track A: Acoustic Bio</text>
+    <text x="14" y="74" fill="#475569" font-size="10">• AASIST-L INT8 ONNX</text>
+    <text x="14" y="88" fill="#475569" font-size="10">• SincNet 8kHz Filterbank</text>
+    <text x="14" y="102" fill="#475569" font-size="10">• Phase Jitter &amp; CPP Metric</text>
+
+    <line x1="14" y1="114" x2="196" y2="114" stroke="#F1F5F9" stroke-width="1.5" />
+
+    <text x="14" y="132" fill="#0F172A" font-size="11.5" font-weight="700">Track B: Semantic Intent</text>
+    <text x="14" y="148" fill="#475569" font-size="10">• Streaming Vosk ASR</text>
+    <text x="14" y="162" fill="#475569" font-size="10">• 450+ Pattern Aho-Corasick</text>
+    <text x="14" y="176" fill="#475569" font-size="10">• 21+ Indian Scam Vectors</text>
+    <text x="14" y="190" fill="#475569" font-size="10">• MiniLM Coercion Space</text>
+
+    <rect x="12" y="260" width="186" height="46" rx="6" fill="#FAF5FF" stroke="#E9D5FF" stroke-width="1" />
+    <text x="20" y="278" fill="#6D28D9" font-size="9.5" font-weight="700">Telecom Codec Accuracy</text>
+    <text x="20" y="295" fill="#0F172A" font-size="12" font-weight="800">94.8% (vs 12.5% peers)</text>
+  </g>
+
+  <!-- Flow Connector 3 -> 4 -->
+  <line x1="681" y1="268" x2="698" y2="268" stroke="#64748B" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STAGE 4: WALD'S SPRT ENGINE -->
+  <g transform="translate(701, 108)" filter="url(#cardShadow)">
+    <rect x="0" y="0" width="195" height="320" rx="10" fill="#FFFFFF" stroke="#FED7AA" stroke-width="1.5" />
+    <path d="M 0 10 Q 0 0 10 0 L 185 0 Q 195 0 195 10 L 195 38 L 0 38 Z" fill="#FFF7ED" />
+    <text x="14" y="24" fill="#C2410C" font-size="12" font-weight="800">4. WALD'S SPRT</text>
+    <rect x="136" y="11" width="48" height="16" rx="8" fill="#FFEDD5" />
+    <text x="160" y="23" fill="#EA580C" font-size="8.5" font-weight="700" text-anchor="middle">BAYESIAN</text>
+
+    <text x="14" y="60" fill="#0F172A" font-size="12" font-weight="700">Sequential Test</text>
+    <text x="14" y="78" fill="#475569" font-size="10.5">• Log-Likelihood Ratio</text>
+    <text x="14" y="94" fill="#475569" font-size="10.5">• Λ_n = Λ_{n-1} + z_n</text>
+    <text x="14" y="110" fill="#475569" font-size="10.5">• Continuous streaming</text>
+
+    <line x1="14" y1="124" x2="181" y2="124" stroke="#F1F5F9" stroke-width="1.5" />
+
+    <text x="14" y="145" fill="#0F172A" font-size="12" font-weight="700">Proven Stopping Bounds</text>
+    <text x="14" y="163" fill="#B91C1C" font-size="10" font-weight="700">▲ A = +5.288 (Cloned Fraud)</text>
+    <text x="14" y="179" fill="#047857" font-size="10" font-weight="700">▼ B = -4.600 (Verified Safe)</text>
+    <text x="14" y="195" fill="#475569" font-size="10.5">• False Alarm α ≤ 0.5%</text>
+
+    <rect x="12" y="260" width="171" height="46" rx="6" fill="#FFF7ED" stroke="#FED7AA" stroke-width="1" />
+    <text x="20" y="278" fill="#C2410C" font-size="9.5" font-weight="700">Decision Latency</text>
+    <text x="20" y="295" fill="#0F172A" font-size="12" font-weight="800">2.1s – 2.6s (Real-Time)</text>
+  </g>
+
+  <!-- Flow Connector 4 -> 5 -->
+  <line x1="898" y1="268" x2="915" y2="268" stroke="#64748B" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STAGE 5: ACTIVE DEFENSE & BSA 65B FORENSICS -->
+  <g transform="translate(918, 108)" filter="url(#cardShadow)">
+    <rect x="0" y="0" width="167" height="320" rx="10" fill="#FFFFFF" stroke="#FECDD3" stroke-width="1.5" />
+    <path d="M 0 10 Q 0 0 10 0 L 157 0 Q 167 0 167 10 L 167 38 L 0 38 Z" fill="#FFF1F2" />
+    <text x="12" y="24" fill="#BE123C" font-size="12" font-weight="800">5. ACTIVE DEFENSE</text>
+    <rect x="116" y="11" width="40" height="16" rx="8" fill="#FFE4E6" />
+    <text x="136" y="23" fill="#E11D48" font-size="8.5" font-weight="700" text-anchor="middle">LEGAL</text>
+
+    <text x="12" y="60" fill="#0F172A" font-size="11.5" font-weight="700">In-Call Intervention</text>
+    <text x="12" y="78" fill="#B91C1C" font-size="10" font-weight="600">• Crimson HUD Overlay</text>
+    <text x="12" y="94" fill="#475569" font-size="10">• Emergency Hang-up</text>
+    <text x="12" y="110" fill="#475569" font-size="10">• Touchscreen Freeze</text>
+
+    <line x1="12" y1="124" x2="155" y2="124" stroke="#F1F5F9" stroke-width="1.5" />
+
+    <text x="12" y="145" fill="#0F172A" font-size="11.5" font-weight="700">Section 65B BSA Dossier</text>
+    <text x="12" y="163" fill="#475569" font-size="10">• Android StrongBox</text>
+    <text x="12" y="179" fill="#475569" font-size="10">• ECDSA-P256 Signed</text>
+    <text x="12" y="195" fill="#0369A1" font-size="10" font-weight="600">• 1-Tap 1930 / Chakshu</text>
+
+    <rect x="10" y="260" width="147" height="46" rx="6" fill="#FFF1F2" stroke="#FECDD3" stroke-width="1" />
+    <text x="16" y="278" fill="#BE123C" font-size="9.5" font-weight="700">Legal Standing</text>
+    <text x="16" y="295" fill="#0F172A" font-size="11.5" font-weight="800">Court-Admissible</text>
+  </g>
+
+</svg>"""
 
 def main():
     radar = create_radar_svg()
     pipeline = create_pipeline_svg()
+    arch = create_architecture_light_svg()
 
     paths = [
         (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\docs\images", "threat_radar_waveform.svg", radar),
         (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\docs\images", "dual_track_pipeline.svg", pipeline),
+        (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\docs\images", "rakshak_architecture_light.svg", arch),
         (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\assets", "threat_radar_waveform.svg", radar),
         (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\RakshakSetu\assets", "dual_track_pipeline.svg", pipeline),
         (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\docs\images", "threat_radar_waveform.svg", radar),
         (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\docs\images", "dual_track_pipeline.svg", pipeline),
+        (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\docs\images", "rakshak_architecture_light.svg", arch),
         (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\assets", "threat_radar_waveform.svg", radar),
         (r"c:\Users\Public\Downloads\chrome downloads\Rakshak Setu\assets", "dual_track_pipeline.svg", pipeline),
     ]
